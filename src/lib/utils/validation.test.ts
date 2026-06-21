@@ -194,20 +194,20 @@ describe('validateSettlement', () => {
 
   it('returns error for missing exchange rate', () => {
     expect(
-      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], {})
-    )?.key).toBe('validation.invalidExchangeRate');
+      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], {})?.key
+    ).toBe('validation.invalidExchangeRate');
   });
 
   it('returns error for zero exchange rate', () => {
     expect(
-      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], { EUR: 0 })
-    )?.key).toBe('validation.invalidExchangeRate');
+      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], { EUR: 0 })?.key
+    ).toBe('validation.invalidExchangeRate');
   });
 
   it('returns error for negative exchange rate', () => {
     expect(
-      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], { EUR: -1 })
-    )?.key).toBe('validation.invalidExchangeRate');
+      validateSettlement('USD', [{ code: 'USD' }, { code: 'EUR' }], { EUR: -1 })?.key
+    ).toBe('validation.invalidExchangeRate');
   });
 
   it('returns null when all rates valid', () => {

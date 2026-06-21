@@ -1,20 +1,23 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
 
-afterEach(() => {
-  localStorage.clear();
-  vi.restoreAllMocks();
-  vi.useRealTimers();
-});
-
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
   Object.defineProperty(crypto, 'randomUUID', {
     value: () => '00000000-0000-4000-8000-000000000000'
   });
 }
 
+if (!HTMLElement.prototype.animate) {
+  HTMLElement.prototype.animate = vi.fn(() => ({
+    finished: Promise.resolve(),
+    cancel: vi.fn(),
+    play: vi.fn(),
+    pause: vi.fn()
+  })) as unknown as typeof HTMLElement.prototype.animate;
+}
+
 const originalCreateElement = document.createElement.bind(document);
-vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+document.createElement = ((tagName: string, options?: ElementCreationOptions) => {
   const el = originalCreateElement(tagName, options);
   if (tagName.toLowerCase() === 'canvas') {
     const canvas = el as HTMLCanvasElement;
@@ -27,4 +30,10 @@ vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options
     }) as typeof canvas.toBlob;
   }
   return el;
+}) as typeof document.createElement;
+
+afterEach(() => {
+  localStorage.clear();
+  vi.clearAllMocks();
+  vi.useRealTimers();
 });

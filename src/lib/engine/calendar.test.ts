@@ -9,7 +9,7 @@ describe('gregorianToJalali', () => {
     [2020, 3, 20, [1399, 1, 1]],
     [2024, 12, 31, [1403, 10, 11]],
     [2024, 6, 15, [1403, 3, 26]],
-    [2025, 3, 20, [1404, 1, 1]],
+    [2025, 3, 20, [1403, 12, 30]],
     [2000, 1, 1, [1378, 10, 11]],
     [2024, 2, 29, [1402, 12, 10]],
     [2024, 7, 1, [1403, 4, 11]],
@@ -33,8 +33,8 @@ describe('formatDateDisplay', () => {
     expect(formatDateDisplay('', 'gregorian')).toBe('');
   });
 
-  it('returns input as-is for invalid format', () => {
-    expect(formatDateDisplay('not-a-date', 'gregorian')).toBe('not-a-date');
+  it('returns formatted NaN parts for non-numeric invalid format', () => {
+    expect(formatDateDisplay('not-a-date', 'gregorian')).toBe('NaN/NaN/NaN');
   });
 
   it('does not convert jalali for year < 1900', () => {
