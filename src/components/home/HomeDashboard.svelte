@@ -16,6 +16,7 @@
   import type { TabId } from '$lib/types';
   import ExpenseForm from '../expenses/ExpenseForm.svelte';
   import ReceiptScanner from '../receipt/ReceiptScanner.svelte';
+  import SetupWizard from './SetupWizard.svelte';
 
   interface Props {
     onNavigate: (tab: TabId) => void;
@@ -581,8 +582,11 @@
     </section>
   {/if}
 
-  <!-- Empty state for new trips -->
-  {#if $appData.expenses.length === 0}
+  <!-- Setup Wizard (shown when prerequisites are missing) -->
+  {#if $appData.participants.length === 0 || $appData.currencies.length === 0}
+    <SetupWizard />
+  {:else if $appData.expenses.length === 0}
+    <!-- Empty state for trips that are set up but have no expenses -->
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] border-dashed p-8 text-center"
       in:fly={{ y: 20, duration: 300, delay: 150 }}
@@ -595,28 +599,12 @@
         {$t('home.noExpensesDesc')}
       </p>
       <div class="flex flex-col sm:flex-row gap-2 justify-center">
-        {#if $appData.participants.length === 0}
-          <button
-            onclick={() => onNavigate('participants')}
-            class="px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-all shadow-sm"
-          >
-            {$t('home.addParticipants')}
-          </button>
-        {:else if $appData.currencies.length === 0}
-          <button
-            onclick={() => onNavigate('currencies')}
-            class="px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-all shadow-sm"
-          >
-            {$t('home.addCurrency')}
-          </button>
-        {:else}
-          <button
-            onclick={() => showExpenseForm = true}
-            class="px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-all shadow-sm"
-          >
-            {$t('home.addFirstExpense')}
-          </button>
-        {/if}
+        <button
+          onclick={() => showExpenseForm = true}
+          class="px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-all shadow-sm"
+        >
+          {$t('home.addFirstExpense')}
+        </button>
       </div>
     </section>
   {/if}

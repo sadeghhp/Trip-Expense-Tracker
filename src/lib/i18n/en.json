@@ -423,6 +423,19 @@
     "loadingImage": "Loading...",
     "imageNotFound": "Image not found"
   },
+  "wizard": {
+    "addPeople": "Add Trip Members",
+    "addPeopleDesc": "Who's sharing expenses on this trip?",
+    "chooseCurrencies": "Choose Currencies",
+    "chooseCurrenciesDesc": "Select the currencies you'll use",
+    "namePlaceholder": "Enter name...",
+    "done": "Start Tracking",
+    "step": "Step {current} of {total}",
+    "customCurrency": "Custom",
+    "setupRequired": "Add at least one person and one currency to start tracking expenses.",
+    "goToSetup": "Complete Setup",
+    "added": "{name} added"
+  },
   "currencyNames": {
     "USD": "US Dollar",
     "EUR": "Euro",

@@ -2,7 +2,7 @@
   import { fly } from 'svelte/transition';
   import { tick, onMount } from 'svelte';
   import type { TabId } from '$lib/types';
-  import { activeTripId, activeTrip, exitTrip, switchTrip, trips } from '$lib/stores/data';
+  import { activeTripId, activeTrip, exitTrip, switchTrip, trips, appData } from '$lib/stores/data';
   import { t, dir } from '$lib/i18n';
   import TabBar from './components/layout/TabBar.svelte';
   import Header from './components/layout/Header.svelte';
@@ -15,6 +15,9 @@
   import Balances from './components/balances/Balances.svelte';
   import Settlement from './components/settlement/Settlement.svelte';
   import SettingsTab from './components/settings/Settings.svelte';
+  import SetupWizard from './components/home/SetupWizard.svelte';
+
+  let needsSetup = $derived($activeTripId !== null && ($appData.participants.length === 0 || $appData.currencies.length === 0));
 
   let activeTab: TabId = $state('home');
   let suppressHashUpdate = false;
@@ -127,6 +130,13 @@
 
 {#if !$activeTripId}
   <TripList />
+{:else if needsSetup}
+  <!-- Force setup: block all navigation until people + currencies are defined -->
+  <div class="h-full flex flex-col overflow-y-auto">
+    <div class="max-w-lg mx-auto w-full px-4 py-8 md:py-12 flex-1 flex flex-col justify-center">
+      <SetupWizard />
+    </div>
+  </div>
 {:else}
   <div class="flex h-full">
     <TabBar {activeTab} onTabChange={handleTabChange} />
@@ -151,7 +161,7 @@
               {:else if activeTab === 'currencies'}
                 <Currencies />
               {:else if activeTab === 'expenses'}
-                <Expenses />
+                <Expenses onNavigate={handleTabChange} />
               {:else if activeTab === 'balances'}
                 <Balances />
               {:else if activeTab === 'settlement'}

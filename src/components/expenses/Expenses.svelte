@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
-  import { Plus, Pencil, Trash2, Receipt } from '@lucide/svelte';
+  import { Plus, Pencil, Trash2, Receipt, AlertTriangle } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { settings } from '$lib/stores/settings';
@@ -8,12 +8,18 @@
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
   import { deleteReceiptImage } from '$lib/services/imageStore';
   import { t } from '$lib/i18n';
-  import type { Expense } from '$lib/types';
+  import type { Expense, TabId } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
   import ImageViewer from '../ui/ImageViewer.svelte';
   import ReceiptThumbnail from '../ui/ReceiptThumbnail.svelte';
+
+  interface Props {
+    onNavigate?: (tab: TabId) => void;
+  }
+
+  let { onNavigate }: Props = $props();
 
   let showForm = $state(false);
   let editingExpense: Expense | null = $state(null);
@@ -62,6 +68,8 @@
     deleteConfirm = null;
   }
 
+  let hasPrerequisites = $derived($appData.participants.length > 0 && $appData.currencies.length > 0);
+
   function symbolFor(code: string): string {
     return getCurrencySymbol(code, $appData.currencies);
   }
@@ -72,6 +80,27 @@
 </script>
 
 <div class="p-4 md:p-6 space-y-4">
+  {#if $appData.participants.length === 0 || $appData.currencies.length === 0}
+    <div class="p-4 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
+      <div class="flex items-start gap-3">
+        <AlertTriangle size={18} class="text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" />
+        <div>
+          <p class="text-sm font-medium text-warning-800 dark:text-warning-200">
+            {$t('wizard.setupRequired')}
+          </p>
+          {#if onNavigate}
+            <button
+              onclick={() => onNavigate?.('home')}
+              class="mt-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              {$t('wizard.goToSetup')}
+            </button>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
   {#if sortedExpenses.length === 0}
     <EmptyState
       icon={Receipt}
@@ -156,7 +185,10 @@
 
   <button
     onclick={openAdd}
-    class="fixed bottom-20 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
+    class="fixed bottom-20 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl flex items-center justify-center transition-all
+      {hasPrerequisites
+        ? 'bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] active:scale-90'
+        : 'bg-surface-300 dark:bg-surface-700 text-surface-500 dark:text-surface-400 cursor-not-allowed shadow-sm'}"
   >
     <Plus size={24} />
   </button>

@@ -3,7 +3,7 @@
   import { settings, setCalendar, toggleTheme, setAppLocale } from '$lib/stores/settings';
   import { aiSettings, updateAISettings, testConnection } from '$lib/stores/aiSettings';
   import { showToast } from '$lib/stores/toast';
-  import { replaceData, clearAllData, getSnapshot, activeTrip, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
+  import { replaceData, clearAllData, getSnapshot, activeTrip, activeTripId, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
   import { t, isRtl } from '$lib/i18n';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -418,6 +418,7 @@
     </div>
   </div>
 
+  {#if $activeTripId}
   <!-- Import / Export -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
@@ -447,6 +448,7 @@
       </button>
     </div>
   </div>
+  {/if}
 
   <!-- Full Backup -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -477,6 +479,7 @@
     </div>
   </div>
 
+  {#if $activeTripId}
   <!-- Danger Zone -->
   <div class="bg-[var(--card-bg)] border border-danger-500/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="p-4">
@@ -489,6 +492,7 @@
       </button>
     </div>
   </div>
+  {/if}
 
   <!-- Hard Reload -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">

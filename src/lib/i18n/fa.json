@@ -423,6 +423,19 @@
     "loadingImage": "در حال بارگذاری...",
     "imageNotFound": "تصویر یافت نشد"
   },
+  "wizard": {
+    "addPeople": "افزودن اعضای سفر",
+    "addPeopleDesc": "چه کسانی در هزینه‌های این سفر شریک هستند؟",
+    "chooseCurrencies": "انتخاب ارزها",
+    "chooseCurrenciesDesc": "از چه ارزهایی استفاده خواهید کرد؟",
+    "namePlaceholder": "نام را وارد کنید...",
+    "done": "شروع ثبت هزینه",
+    "step": "مرحله {current} از {total}",
+    "customCurrency": "سفارشی",
+    "setupRequired": "برای شروع ثبت هزینه، حداقل یک نفر و یک ارز اضافه کنید.",
+    "goToSetup": "تکمیل تنظیمات",
+    "added": "{name} اضافه شد"
+  },
   "currencyNames": {
     "USD": "دلار آمریکا",
     "EUR": "یورو",

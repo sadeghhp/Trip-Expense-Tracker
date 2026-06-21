@@ -1,16 +1,19 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
-  import { Plus, MapPin, Pencil, Trash2, Users, Receipt, Coins, Copy, Archive, ArchiveRestore, Search, ArrowUpDown, X } from '@lucide/svelte';
+  import { Plus, MapPin, Pencil, Trash2, Users, Receipt, Coins, Copy, Archive, ArchiveRestore, Search, ArrowUpDown, X, Settings } from '@lucide/svelte';
   import { trips, switchTrip, deleteTrip, duplicateTrip, archiveTrip, unarchiveTrip } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import type { Trip } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
+  import Header from '../layout/Header.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import TripForm from './TripForm.svelte';
+  import SettingsTab from '../settings/Settings.svelte';
   import { t } from '$lib/i18n';
 
   type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'updated';
 
+  let showSettings = $state(false);
   let showForm = $state(false);
   let editingTrip: Trip | null = $state(null);
   let deleteConfirm: Trip | null = $state(null);
@@ -141,9 +144,26 @@
   }
 </script>
 
+{#if showSettings}
+<div class="h-full flex flex-col">
+  <Header title={$t('tabs.settings')} onBack={() => showSettings = false} />
+  <div class="flex-1 overflow-y-auto pb-4">
+    <div class="max-w-3xl mx-auto">
+      <SettingsTab />
+    </div>
+  </div>
+</div>
+{:else}
 <div class="h-full flex flex-col">
   <header class="sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 h-14 bg-[var(--header-bg)] backdrop-blur-xl border-b border-[var(--header-border)]">
     <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{$t('tabBar.brand')}</h1>
+    <button
+      onclick={() => showSettings = true}
+      class="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
+      title={$t('tabs.settings')}
+    >
+      <Settings size={20} class="text-[var(--text-secondary)]" />
+    </button>
     <div class="h-1 absolute bottom-0 inset-x-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
   </header>
 
@@ -344,6 +364,7 @@
     </button>
   {/if}
 </div>
+{/if}
 
 <TripForm
   open={showForm}
