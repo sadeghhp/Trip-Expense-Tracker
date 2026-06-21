@@ -32,14 +32,14 @@
         class="group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
           {activeTab === tab.id
             ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 shadow-sm'
-            : 'text-[var(--text-secondary)] hover:bg-surface-100 dark:hover:bg-surface-800'}"
+            : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
       >
         {#if activeTab === tab.id}
           <div class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-primary-500 dark:bg-primary-400"></div>
         {/if}
         <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.2 : 1.8} />
         <span class="hidden lg:inline">{tab.label}</span>
-        <span class="lg:hidden absolute left-full ml-2 px-2.5 py-1.5 rounded-lg bg-surface-900 dark:bg-surface-100 text-white dark:text-surface-900 text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 shadow-lg z-50">
+        <span class="lg:hidden absolute left-full ml-2 px-2.5 py-1.5 rounded-lg bg-[#0f172a] dark:bg-[#f1f5f9] text-white dark:text-[#0f172a] text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 shadow-lg z-50">
           {tab.label}
         </span>
       </button>

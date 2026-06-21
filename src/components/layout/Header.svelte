@@ -14,7 +14,7 @@
   {#if onBack}
     <button
       onclick={onBack}
-      class="w-8 h-8 -ml-1 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
+      class="w-8 h-8 -ml-1 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
     >
       <ArrowLeft size={20} class="text-[var(--text-primary)]" />
     </button>

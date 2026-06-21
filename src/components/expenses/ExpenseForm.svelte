@@ -125,7 +125,7 @@
       <h2 class="text-lg font-semibold text-[var(--text-primary)]">
         {expense ? 'Edit Expense' : 'Add Expense'}
       </h2>
-      <button onclick={onClose} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+      <button onclick={onClose} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors">
         <X size={18} />
       </button>
     </div>
@@ -183,7 +183,7 @@
               class="flex-1 py-2 text-xs font-medium transition-all capitalize
                 {splitType === st
                   ? 'bg-primary-600 text-white'
-                  : 'bg-[var(--app-bg)] text-[var(--text-secondary)] hover:bg-surface-100 dark:hover:bg-surface-800'}"
+                  : 'bg-[var(--app-bg)] text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
             >
               {st}
             </button>

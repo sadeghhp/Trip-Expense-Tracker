@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary-50: oklch(0.96 0.03 180);
   --color-primary-100: oklch(0.92 0.06 180);
@@ -54,28 +56,52 @@
 }
 
 :root {
-  --app-bg: var(--color-surface-50);
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
+
+  --app-bg: #f8fafc;
   --card-bg: #ffffff;
-  --card-border: var(--color-surface-200);
-  --text-primary: var(--color-surface-900);
-  --text-secondary: var(--color-surface-500);
+  --card-border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
   --tab-bg: #ffffff;
-  --tab-border: var(--color-surface-200);
+  --tab-border: #e2e8f0;
   --header-bg: rgba(248, 250, 252, 0.85);
   --header-border: rgba(14, 116, 106, 0.12);
   --fab-shadow: rgba(13, 148, 136, 0.35);
 }
 
 .dark {
-  --app-bg: var(--color-surface-950);
-  --card-bg: var(--color-surface-900);
-  --card-border: var(--color-surface-800);
-  --text-primary: var(--color-surface-50);
-  --text-secondary: var(--color-surface-400);
-  --tab-bg: var(--color-surface-950);
-  --tab-border: var(--color-surface-800);
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
+
+  --app-bg: #020617;
+  --card-bg: #0f172a;
+  --card-border: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --tab-bg: #020617;
+  --tab-border: #1e293b;
   --header-bg: rgba(2, 6, 23, 0.85);
-  --header-border: var(--color-surface-800);
+  --header-border: #1e293b;
   --fab-shadow: rgba(13, 148, 136, 0.4);
 }
 

@@ -8,59 +8,97 @@
 
 1. [Application Overview](#1-application-overview)
 2. [Data Model](#2-data-model)
-3. [Participants Management](#3-participants-management)
-4. [Currencies Management](#4-currencies-management)
-5. [Expenses Management](#5-expenses-management)
-6. [Live Balances (Calculation Engine)](#6-live-balances-calculation-engine)
-7. [Settlement](#7-settlement)
-8. [Import / Export](#8-import--export)
-9. [Settings](#9-settings)
-10. [Calculation Engine — Detailed Formulas](#10-calculation-engine--detailed-formulas)
-11. [Settlement Algorithm — Detailed Logic](#11-settlement-algorithm--detailed-logic)
-12. [Validation Rules](#12-validation-rules)
-13. [Data Integrity & Normalization](#13-data-integrity--normalization)
-14. [Calendar System (Gregorian & Jalali)](#14-calendar-system-gregorian--jalali)
-15. [Edge Cases & Important Behaviors](#15-edge-cases--important-behaviors)
+3. [Trip Management](#3-trip-management)
+4. [Participants Management](#4-participants-management)
+5. [Currencies Management](#5-currencies-management)
+6. [Expenses Management](#6-expenses-management)
+7. [Live Balances (Calculation Engine)](#7-live-balances-calculation-engine)
+8. [Settlement](#8-settlement)
+9. [Import / Export](#9-import--export)
+10. [Settings](#10-settings)
+11. [Calculation Engine — Detailed Formulas](#11-calculation-engine--detailed-formulas)
+12. [Settlement Algorithm — Detailed Logic](#12-settlement-algorithm--detailed-logic)
+13. [Validation Rules](#13-validation-rules)
+14. [Data Integrity & Normalization](#14-data-integrity--normalization)
+15. [Calendar System (Gregorian & Jalali)](#15-calendar-system-gregorian--jalali)
+16. [Routing](#16-routing)
+17. [Edge Cases & Important Behaviors](#17-edge-cases--important-behaviors)
 
 ---
 
 ## 1. Application Overview
 
-The **Trip Expense Tracker** is an application for group travel expense accounting and settlement. It solves the problem of tracking shared expenses among a group of travelers who may pay in multiple currencies, and then calculates the minimum number of transactions needed to settle all debts.
+The **Trip Expense Tracker** is a multi-trip application for group travel expense accounting and settlement. Users create named trips (e.g., "China 2026", "Dubai Trip") and each trip contains its own independent set of participants, currencies, expenses, and settlement data.
 
 ### Core Use Case
 
 A group of people goes on a trip together. During the trip, different people pay for shared expenses (meals, transport, accommodation, etc.) in potentially different currencies. At the end of the trip, the application calculates who owes whom and produces a minimal set of payment transactions to settle all debts in a single chosen settlement currency.
 
+Users can manage multiple trips simultaneously, switching between them. Completed trips can be archived.
+
 ### Key Capabilities
 
-- Manage a list of trip participants
+- Create, edit, duplicate, archive, and delete trips
+- Manage a list of trip participants (per trip)
 - Define and manage multiple currencies (with predefined quick-add options)
 - Record expenses with flexible splitting options (equal, custom amounts, percentage-based)
 - View live per-currency balance breakdowns for all participants
 - Convert all balances into a single settlement currency using user-provided exchange rates
 - Calculate the minimum number of transactions needed to settle all debts
 - Support for Gregorian and Jalali (Persian/Solar Hijri) calendar systems
-- Full data export (JSON) and import capability
+- Per-trip data export (JSON) and import capability
+- Full backup/restore of all trips
+- Search across all trips by name, description, participants, or expenses
+- Hash-based URL routing with browser back/forward support
 - All data persisted in browser localStorage
 
-### Application Sections
+### Application Structure
 
-The application has 6 main sections (tabs):
+The application has two levels:
+
+**Trip List (home screen):**
+- Grid of trip cards with stats (participants, expenses, currencies, totals)
+- Search bar for filtering across all trips
+- Sort controls (newest, oldest, name A–Z/Z–A, last updated)
+- Archive toggle to show/hide archived trips
+- Create, edit, duplicate, archive, and delete trips
+
+**Trip Detail (6 tabs):**
 1. **Participants** — Manage the list of people
 2. **Currencies** — Define which currencies are used
 3. **Expenses** — Record and manage shared expenses
 4. **Balances** — View live per-currency balance breakdown
 5. **Settlement** — Convert to one currency and calculate final payments
-6. **Settings** — Calendar preference, import/export, clear data
+6. **Settings** — Calendar preference, per-trip import/export, full backup/restore, clear trip data
 
 ---
 
 ## 2. Data Model
 
-### Primary Data Object
+### Top-Level State
 
-All application data is stored as a single object with this structure:
+All application data is stored as a single `AppState` object:
+
+```javascript
+{
+    trips: [
+        {
+            id: "uuid-string",
+            name: "China 2026",
+            description: "Summer vacation",
+            archived: false,
+            createdAt: "2026-06-15T10:30:00.000Z",
+            updatedAt: "2026-06-20T14:00:00.000Z",
+            data: { /* AppData - see below */ }
+        }
+    ],
+    activeTripId: "uuid-string" | null
+}
+```
+
+### Per-Trip Data Object (AppData)
+
+Each trip contains its own independent data:
 
 ```javascript
 {
@@ -73,26 +111,25 @@ All application data is stored as a single object with this structure:
     expenses: [
         {
             id: "uuid-string",
-            date: "2026-01-15",          // ISO date string (YYYY-MM-DD), always stored in Gregorian
+            date: "2026-01-15",
             description: "Lunch",
             currencyCode: "USD",
-            amount: 100.00,              // Total amount of the expense (positive number)
-            paidBy: "participant-id",    // ID of the participant who paid
-            splitType: "equal",          // One of: "equal", "custom", "percentage"
+            amount: 100.00,
+            paidBy: "participant-id",
+            splitType: "equal",
             beneficiaries: [
                 {
                     participantId: "participant-id",
-                    customAmount: null,       // Used when splitType === "custom"
-                    customPercentage: null    // Used when splitType === "percentage"
+                    customAmount: null,
+                    customPercentage: null
                 }
             ]
         }
     ],
     exchangeRates: {
-        "EUR": 0.92,   // How many units of this currency equal 1 unit of settlement currency
-        "JPY": 149.5
+        "EUR": 0.92
     },
-    settlementCurrency: "USD"  // The chosen settlement currency code (or empty string)
+    settlementCurrency: "USD"
 }
 ```
 
@@ -104,6 +141,17 @@ All application data is stored as a single object with this structure:
     theme: "light"          // or "dark"
 }
 ```
+
+### Storage Keys
+
+| Key | Contents |
+|-----|----------|
+| `trip-expense-tracker-state` | Full `AppState` (all trips) |
+| `trip-expense-tracker-settings` | Theme + calendar preference |
+
+### Migration
+
+On first load, if the new `trip-expense-tracker-state` key does not exist but the old `trip-expense-tracker-data` key does, the old data is automatically wrapped into a trip named "My Trip" and migrated.
 
 ### ID Generation
 
@@ -118,7 +166,45 @@ num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits:
 
 ---
 
-## 3. Participants Management
+## 3. Trip Management
+
+### Data Structure
+
+```javascript
+{
+    id: "unique-uuid",
+    name: "China 2026",
+    description: "Summer vacation with friends",
+    archived: false,
+    createdAt: "2026-06-15T10:30:00.000Z",
+    updatedAt: "2026-06-20T14:00:00.000Z",
+    data: { /* AppData */ }
+}
+```
+
+### Operations
+
+| Operation | Behavior |
+|-----------|----------|
+| **Create** | Name is required. Creates trip with empty AppData and navigates into it. |
+| **Edit** | Update name and/or description. |
+| **Duplicate** | Deep-clones the trip's data. New trip is named "{original} (Copy)". Does not navigate into it. |
+| **Archive** | Sets `archived: true`. If it was the active trip, exits to trip list. |
+| **Unarchive** | Sets `archived: false`. Trip returns to the active list. |
+| **Delete** | Permanently removes the trip and all its data. Requires confirmation. |
+
+### Trip List Features
+
+- **Search:** Filters trips by name, description, participant names, and expense descriptions. Search is case-insensitive.
+- **Sort:** Options are Newest first (default), Oldest first, Name A–Z, Name Z–A, Last updated.
+- **Archive toggle:** Shows either active or archived trips. Archived trip count is shown in the toggle.
+- **Trip cards** display: name, description, participant/expense/currency counts, total expense amounts per currency, and creation date.
+- **Action buttons** (edit, duplicate, archive, delete) are always visible on mobile, hover-reveal on desktop.
+- Archived trips show a muted style and only offer Unarchive and Delete actions. Clicking an archived trip does nothing.
+
+---
+
+## 4. Participants Management
 
 ### Data Structure
 
@@ -147,7 +233,7 @@ num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits:
 
 ---
 
-## 4. Currencies Management
+## 5. Currencies Management
 
 ### Data Structure
 
@@ -214,24 +300,24 @@ When a currency code changes from `oldCode` to `newCode`:
 
 ---
 
-## 5. Expenses Management
+## 6. Expenses Management
 
 ### Data Structure
 
 ```javascript
 {
     id: "unique-uuid",
-    date: "2026-01-15",             // Gregorian ISO date (YYYY-MM-DD)
+    date: "2026-01-15",
     description: "Lunch at restaurant",
-    currencyCode: "USD",            // References a currency code
-    amount: 150.00,                 // Total expense amount, positive, rounded to 2 decimals
-    paidBy: "participant-id",       // The person who physically paid
-    splitType: "equal",             // "equal" | "custom" | "percentage"
-    beneficiaries: [                // The people who benefited from this expense
+    currencyCode: "USD",
+    amount: 150.00,
+    paidBy: "participant-id",
+    splitType: "equal",
+    beneficiaries: [
         {
             participantId: "participant-id",
-            customAmount: null,       // Number or null. Used only when splitType === "custom"
-            customPercentage: null    // Number or null. Used only when splitType === "percentage"
+            customAmount: null,
+            customPercentage: null
         }
     ]
 }
@@ -287,7 +373,7 @@ When a currency code changes from `oldCode` to `newCode`:
 
 ---
 
-## 6. Live Balances (Calculation Engine)
+## 7. Live Balances (Calculation Engine)
 
 ### What It Shows
 
@@ -302,7 +388,7 @@ A breakdown **per currency** showing each participant's:
 For each expense in a given currency:
 
 1. The **payer's** `paid` accumulator is increased by the full `expense.amount`.
-2. Each **beneficiary's** `owed` accumulator is increased by their computed share (see Section 10 for detailed share computation).
+2. Each **beneficiary's** `owed` accumulator is increased by their computed share (see Section 11 for detailed share computation).
 3. After all expenses are processed: `net = Math.round((paid - owed) * 100) / 100`
 
 ### Display Rules
@@ -321,7 +407,7 @@ This 0.005 threshold accounts for floating-point rounding, so values like 0.004 
 
 ---
 
-## 7. Settlement
+## 8. Settlement
 
 ### Purpose
 
@@ -353,12 +439,6 @@ For example, if settlement is USD and you have EUR expenses:
 conversionRate = 1 / rates[foreignCurrency]
 unified_balance += per_currency_net_balance * conversionRate
 ```
-
-**Example:**
-- Settlement currency: USD
-- Rate for EUR: 0.92 (meaning 1 USD = 0.92 EUR)
-- A person has a net balance of +10 EUR
-- Converted: 10 / 0.92 = 10.87 USD
 
 #### Step 3: Calculate — Unified Balances
 
@@ -394,66 +474,75 @@ If all balances are within ±0.005, the result is "Everyone is settled — no tr
 
 ---
 
-## 8. Import / Export
+## 9. Import / Export
 
-### Export
+### Per-Trip Export
 
-- Generates a JSON file download containing the complete data object (participants, currencies, expenses, exchangeRates, settlementCurrency).
-- Filename format: `trip-expenses-YYYY-MM-DD.json` (using current date in current calendar format).
+- Generates a JSON file download containing the trip's data plus metadata (`tripName`, `tripDescription`).
+- Filename format: `{trip-name-slug}-YYYY-MM-DD.json` (using current date in current calendar format).
 - JSON is formatted with 2-space indentation.
 
-### Import Template
+### Per-Trip Import
 
-A pre-formatted JSON template showing the exact expected structure:
-- 2 example participants with IDs and names
-- 1 currency (USD)
-- 1 expense demonstrating equal split with all fields
-- Empty exchangeRates and settlementCurrency
-
-Template content:
-```javascript
-{
-    participants: [
-        { id: "participant-id-1", name: "Person A" },
-        { id: "participant-id-2", name: "Person B" }
-    ],
-    currencies: [
-        { code: "USD", symbol: "$" }
-    ],
-    expenses: [{
-        id: "expense-id-1",
-        date: "2026-01-15",
-        description: "Example expense",
-        currencyCode: "USD",
-        amount: 100.00,
-        paidBy: "participant-id-1",
-        splitType: "equal",
-        beneficiaries: [
-            { participantId: "participant-id-1", customAmount: null },
-            { participantId: "participant-id-2", customAmount: null }
-        ]
-    }],
-    exchangeRates: {},
-    settlementCurrency: ""
-}
-```
-
-### Import
-
-- User pastes JSON and triggers import.
-- **Requires confirmation** because import is destructive (replaces ALL current data).
+- User pastes or uploads JSON and triggers import.
+- **Two import modes:**
+  - **Replace Current Trip** — replaces the active trip's data. Requires confirmation (destructive).
+  - **Create New Trip** — creates a new trip from the imported data. Uses `tripName` and `tripDescription` fields from the JSON if present, otherwise defaults to "Imported Trip".
 - Validation:
   - Must be valid JSON object
   - Must have `participants` array
   - Must have `currencies` array
   - Must have `expenses` array
-- Data is normalized after parsing (see Section 13).
-- On success: all data is replaced and the UI fully re-renders.
-- On error: error message displayed with the specific error.
+- Data is normalized after parsing (see Section 14).
+
+### Full Backup Export
+
+- Exports the entire `AppState` (all trips) as a single JSON file.
+- Filename format: `trip-expense-backup-YYYY-MM-DD.json`.
+
+### Full Backup Restore
+
+- Imports a full `AppState` JSON, replacing ALL trips.
+- Validation: must have a `trips` array.
+- **Requires confirmation** — this replaces every trip in the system.
+- Data is normalized after parsing.
+
+### Import Template
+
+A pre-formatted JSON template showing the expected per-trip structure:
+
+```javascript
+{
+    "tripName": "My Trip",
+    "tripDescription": "Optional description",
+    "participants": [
+        { "id": "participant-id-1", "name": "Person A" },
+        { "id": "participant-id-2", "name": "Person B" }
+    ],
+    "currencies": [
+        { "code": "USD", "symbol": "$" }
+    ],
+    "expenses": [{
+        "id": "expense-id-1",
+        "date": "2026-01-15",
+        "description": "Example expense",
+        "currencyCode": "USD",
+        "amount": 100.00,
+        "paidBy": "participant-id-1",
+        "splitType": "equal",
+        "beneficiaries": [
+            { "participantId": "participant-id-1", "customAmount": null },
+            { "participantId": "participant-id-2", "customAmount": null }
+        ]
+    }],
+    "exchangeRates": {},
+    "settlementCurrency": ""
+}
+```
 
 ---
 
-## 9. Settings
+## 10. Settings
 
 ### Calendar
 
@@ -465,16 +554,17 @@ Template content:
 ### Theme
 
 - **Options:** Light (default), Dark
-- V2 will have a new design — the theme system should support light and dark modes but with new colors/design.
+- The theme system supports light and dark modes with distinct color palettes.
 
-### Clear All Data
+### Clear Trip Data
 
-- Requires user confirmation with warning: "Are you sure you want to delete ALL data? This action cannot be undone."
-- On confirm: resets all data to empty defaults (empty arrays, empty objects, empty strings) and reloads.
+- Clears all data (participants, currencies, expenses) in the **current trip only**.
+- Requires user confirmation.
+- Does not delete the trip itself.
 
 ---
 
-## 10. Calculation Engine — Detailed Formulas
+## 11. Calculation Engine — Detailed Formulas
 
 ### Balance Computation Algorithm
 
@@ -521,7 +611,6 @@ CASE splitType === "percentage":
 
     Step 1: For each beneficiary b at index i:
         shares[i] = Math.round(exp.amount * b.customPercentage) / 100
-        (Note: customPercentage is a number like 33.33, meaning 33.33%)
 
     Step 2: Compute the sum of all shares in cents:
         pctSum = Math.round( (shares[0] + shares[1] + ... + shares[n-1]) * 100 )
@@ -556,16 +645,13 @@ CASE splitType === "equal":
         extra = 0
         if remainderCents > 0:
             if payerIdx >= 0:
-                // Payer is a beneficiary
                 if i === payerIdx:
-                    extra = 1    // Payer gets the first extra cent
+                    extra = 1
                 else:
-                    // Calculate position excluding payer
                     pos = (i < payerIdx) ? i : i - 1
                     if pos < (remainderCents - 1):
                         extra = 1
             else:
-                // Payer is NOT a beneficiary
                 if i < remainderCents:
                     extra = 1
 
@@ -583,7 +669,7 @@ CASE splitType === "equal":
 
 ---
 
-## 11. Settlement Algorithm — Detailed Logic
+## 12. Settlement Algorithm — Detailed Logic
 
 ### Unified Balance Computation
 
@@ -611,46 +697,33 @@ Algorithm:
 
 ### Minimum Transactions Algorithm
 
-This algorithm takes the unified balance list and produces the minimum number of payment transactions to settle all debts.
-
 ```
 Input: Array of { id, name, balance } for each participant
 Output: Array of { from, fromName, to, toName, amount } transactions
 
 Algorithm:
 
-═══════════════════════════════════════════════════════
 Step 1: Separate into creditors and debtors
-═══════════════════════════════════════════════════════
 
     Creditors: participants where balance > 0.005
-        → stored as { id, name, amount: Math.round(balance * 100) / 100 }
-
     Debtors: participants where balance < -0.005
-        → stored as { id, name, amount: Math.round(-balance * 100) / 100 }
-        (amount is stored as a POSITIVE number representing what they owe)
 
-═══════════════════════════════════════════════════════
 Step 2: First pass — Exact matches (optimization)
-═══════════════════════════════════════════════════════
 
     For each debtor (iterating from LAST to FIRST):
         For each creditor (iterating from LAST to FIRST):
             If |debtor.amount - creditor.amount| < 0.005:
                 Create transaction: debtor → creditor for debtor.amount
-                Remove BOTH the debtor and creditor from their arrays
-                Break inner loop (move to next debtor)
+                Remove BOTH from their arrays
+                Break inner loop
 
-═══════════════════════════════════════════════════════
 Step 3: Second pass — Greedy largest-first matching
-═══════════════════════════════════════════════════════
 
     Sort creditors DESCENDING by amount
     Sort debtors DESCENDING by amount
 
-    While both creditors array AND debtors array are non-empty:
-        c = creditors[0] (largest remaining creditor)
-        d = debtors[0] (largest remaining debtor)
+    While both arrays are non-empty:
+        c = creditors[0], d = debtors[0]
         transfer = Math.round(Math.min(c.amount, d.amount) * 100) / 100
 
         Create transaction: d → c for transfer amount
@@ -658,17 +731,11 @@ Step 3: Second pass — Greedy largest-first matching
         c.amount = Math.round((c.amount - transfer) * 100) / 100
         d.amount = Math.round((d.amount - transfer) * 100) / 100
 
-        If c.amount < 0.005: remove creditor from array (fully paid)
-        If d.amount < 0.005: remove debtor from array (fully settled)
-
-═══════════════════════════════════════════════════════
+        If c.amount < 0.005: remove creditor
+        If d.amount < 0.005: remove debtor
 
 Return: all collected transactions from both passes
 ```
-
-### Why Two Passes?
-
-The "exact match" first pass is an optimization. When a debtor owes exactly the same amount that a creditor is owed, matching them in one transaction is optimal. Without this pass, the greedy algorithm might split these into multiple transactions via intermediate parties. This reduces the total transaction count.
 
 ### Exchange Rate Semantics — Summary
 
@@ -677,11 +744,9 @@ The "exact match" first pass is an optimization. When a debtor owes exactly the 
 | `1 USD = 0.92 EUR` | 1 unit of settlement = 0.92 units of foreign | `foreign_amount / rate = settlement_amount` |
 | `1 USD = 7.25 CNY` | 1 unit of settlement = 7.25 units of foreign | `7.25 CNY / 7.25 = 1 USD` |
 
-Stored rate for a currency X = how many units of X you get for 1 unit of settlement currency.
-
 ---
 
-## 12. Validation Rules
+## 13. Validation Rules
 
 ### Participant Validation
 
@@ -698,38 +763,52 @@ Stored rate for a currency X = how many units of X you get for 1 unit of settlem
 | Code or symbol is empty | Reject with error: "Both code and symbol are required." |
 | Duplicate code (excluding self during edit) | Reject with error: "A currency with this code already exists." |
 | Delete while used in any expense | Block deletion (cannot proceed) |
-| Remove via quick-add while used in expenses | Show message: "Currency X is used in expenses and cannot be removed." |
 
 ### Expense Validation
 
 | Rule | Behavior |
 |------|----------|
-| Any required field empty (date, description, currency, amount, paidBy) | Reject: "All fields are required." |
+| Any required field empty | Reject: "All fields are required." |
 | Amount is zero, negative, or NaN | Reject: "Amount must be a positive number." |
 | No beneficiary selected | Reject: "Select at least one beneficiary." |
-| Custom amounts: any value is negative | Reject: "Custom amounts cannot be negative." |
-| Custom amounts: sum differs from total by ≥ 0.01 | Reject: "Custom amounts must sum to [total]. Current sum: [sum]." |
-| Percentages: any value is negative | Reject: "Percentages cannot be negative." |
-| Percentages: sum differs from 100 by ≥ 0.01 | Reject: "Percentages must sum to 100%. Current sum: [sum]%." |
+| Custom amounts: any negative | Reject: "Custom amounts cannot be negative." |
+| Custom amounts: sum differs from total by ≥ 0.01 | Reject with sum info |
+| Percentages: any negative | Reject: "Percentages cannot be negative." |
+| Percentages: sum differs from 100 by ≥ 0.01 | Reject with sum info |
+
+### Trip Validation
+
+| Rule | Behavior |
+|------|----------|
+| Trip name is empty/whitespace | Reject: "Trip name is required" |
 
 ### Settlement Validation
 
 | Rule | Behavior |
 |------|----------|
 | No settlement currency selected | Reject: "Please select a settlement currency." |
-| Missing or invalid (≤0) exchange rate for any non-settlement currency | Reject: "Please enter a valid exchange rate for [CODE]." |
+| Missing or invalid (≤0) exchange rate | Reject with currency code info |
 
 ---
 
-## 13. Data Integrity & Normalization
+## 14. Data Integrity & Normalization
 
 ### When Normalization Occurs
 
 Data normalization runs on:
 1. Initial load from storage
-2. Import of external JSON data
+2. Import of external JSON data (per-trip or full backup)
 
-### Normalization Rules (executed in this exact order)
+### AppState Normalization
+
+1. `trips` must be an array (default: `[]`)
+2. `activeTripId` must be a string referencing a valid trip ID, or `null`
+3. Each trip must have a valid `id` (string) and `name` (string) and `data` (object)
+4. Each trip's `archived` field defaults to `false` if not a boolean
+5. Each trip's `createdAt` and `updatedAt` default to current ISO timestamp if not strings
+6. Each trip's `data` is normalized using the AppData normalization rules below
+
+### AppData Normalization Rules (per trip)
 
 1. **Structure validation:**
    - `participants` must be an array (default: `[]`)
@@ -738,42 +817,23 @@ Data normalization runs on:
    - `exchangeRates` must be a non-array object (default: `{}`)
    - `settlementCurrency` must be a string (default: `""`)
 
-2. **Participant filtering:**
-   - Keep only entries where `id` is a string AND `name` is a string
+2. **Participant filtering:** Keep only entries where `id` is a string AND `name` is a string
 
-3. **Currency filtering:**
-   - Keep only entries where `code` is a string AND `symbol` is a string
+3. **Currency filtering:** Keep only entries where `code` is a string AND `symbol` is a string
 
 4. **Expense validation (multi-step):**
-   - **First filter:** Keep only expenses where `id` is a string AND `beneficiaries` is an array
-   - **Beneficiary filtering:** For each expense, filter beneficiaries to only those where:
-     - `participantId` is a string AND
-     - `participantId` exists in the current (validated) participant ID list
-   - **SplitType normalization:** If `splitType` is not one of `"equal"`, `"custom"`, `"percentage"` → default to `"equal"`
-   - **Second filter:** Keep only expenses where ALL of these are true:
-     - `paidBy` exists in participant IDs
-     - `currencyCode` exists in currency codes
-     - `beneficiaries.length > 0` (at least one valid beneficiary remains)
+   - First filter: Keep only expenses with valid `id` and `beneficiaries` array
+   - Beneficiary filtering: Keep only beneficiaries with valid `participantId` that exists in validated participants
+   - SplitType normalization: Default invalid splitType to `"equal"`
+   - Second filter: Keep only expenses where `paidBy` exists, `currencyCode` exists, and at least one beneficiary remains
 
-5. **Exchange rate cleaning:**
-   - Only keep entries where the currency code exists in the currencies list
-   - Only keep entries where the rate is a positive number (`typeof rate === 'number' && rate > 0`)
+5. **Exchange rate cleaning:** Only keep rates for existing currencies with positive number values
 
-6. **Settlement currency cleaning:**
-   - If `settlementCurrency` doesn't match any known currency code, clear it to `""`
-
-### Referential Integrity Guarantees
-
-After normalization:
-- No expense references a non-existent participant (as payer or beneficiary)
-- No expense references a non-existent currency
-- No exchange rate exists for a non-existent currency
-- Settlement currency always references a valid currency or is empty
-- Every expense has at least one valid beneficiary
+6. **Settlement currency cleaning:** Clear to `""` if not a valid currency code
 
 ---
 
-## 14. Calendar System (Gregorian & Jalali)
+## 15. Calendar System (Gregorian & Jalali)
 
 ### Gregorian
 
@@ -783,35 +843,12 @@ Standard western calendar. Dates stored as `YYYY-MM-DD`.
 
 Used in Iran and Afghanistan. The conversion is pure mathematical (no library dependencies).
 
-### Conversion Algorithm (Gregorian → Jalali)
-
-```
-Input: gy (Gregorian year), gm (Gregorian month 1-12), gd (Gregorian day)
-Output: [jy (Jalali year), jm (Jalali month 1-12), jd (Jalali day)]
-
-Algorithm:
-    g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
-    gy2 = (gm > 2) ? (gy + 1) : gy
-    days = 355666 + (365 * gy) + floor((gy2 + 3) / 4) - floor((gy2 + 99) / 100)
-           + floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1]
-    jy = -1595 + (33 * floor(days / 12053))
-    days = days % 12053
-    jy += 4 * floor(days / 1461)
-    days = days % 1461
-    if (days > 365):
-        jy += floor((days - 1) / 365)
-        days = (days - 1) % 365
-    jm = (days < 186) ? 1 + floor(days / 31) : 7 + floor((days - 186) / 30)
-    jd = 1 + ((days < 186) ? (days % 31) : ((days - 186) % 30))
-    return [jy, jm, jd]
-```
-
 ### Where Calendar Affects Behavior
 
 1. **Expense list display:** Dates are shown converted to Jalali when calendar is set to "jalali".
 2. **Default date in expense form:** Pre-filled with today's date in the selected calendar format.
 3. **Export filename:** Includes current date in the active calendar format.
-4. **Date display guard:** Only converts dates where year ≥ 1900 (to prevent double-conversion of already-Jalali dates).
+4. **Date display guard:** Only converts dates where year ≥ 1900.
 
 ### Critical Storage Rule
 
@@ -819,31 +856,59 @@ Algorithm:
 
 ---
 
-## 15. Edge Cases & Important Behaviors
+## 16. Routing
 
-1. **Payer not in beneficiaries:** A person can pay for an expense without benefiting from it. Their `paid` increases but their `owed` does not. This results in a positive net balance (creditor) for the payer.
+### Hash-Based URL Routing
 
-2. **Single beneficiary equal split:** When there's only 1 beneficiary, they owe the full amount. The remainder logic produces 0 remainder cents.
+The application uses hash-based routing for browser navigation:
+
+| URL Hash | State |
+|----------|-------|
+| `#/` or empty | Trip list (home screen) |
+| `#/trip/{tripId}` | Inside a trip (default tab) |
+| `#/trip/{tripId}/{tabId}` | Inside a trip at a specific tab |
+
+### Behavior
+
+- On app load, the hash is parsed and the corresponding trip/tab is activated.
+- When the user navigates (enters a trip, switches tabs, exits to trip list), the hash is updated via `pushState`.
+- Browser back/forward buttons work correctly by listening to the `hashchange` event.
+- If a hash references a non-existent trip ID, the user is redirected to the trip list.
+- Valid tab IDs: `participants`, `currencies`, `expenses`, `balances`, `settlement`, `settings`.
+
+---
+
+## 17. Edge Cases & Important Behaviors
+
+1. **Payer not in beneficiaries:** A person can pay for an expense without benefiting from it.
+
+2. **Single beneficiary equal split:** When there's only 1 beneficiary, they owe the full amount.
 
 3. **All participants settled:** If all unified balances are within ±0.005, the settlement shows "Everyone is settled — no transactions needed!"
 
-4. **Currency used only for settlement:** A currency can exist in the system without any expenses in that currency. It can still be selected as the settlement currency.
+4. **Currency used only for settlement:** A currency can exist without any expenses in that currency.
 
-5. **Exchange rates persist:** When the user changes the settlement currency or modifies currencies, previously entered exchange rates for currencies that still exist are preserved.
+5. **Exchange rates persist:** Previously entered exchange rates are preserved across changes.
 
-6. **Expense sort is display-only:** Expenses are displayed sorted by date descending, but the underlying storage order is unspecified.
+6. **Expense sort is display-only:** Expenses are displayed sorted by date descending.
 
-7. **Data import replaces everything:** Import is destructive — it completely replaces all data including exchange rates and settlement currency. There is no merge mode.
+7. **Per-trip data isolation:** Each trip has completely independent data. Participants, currencies, and expenses do not cross trip boundaries.
 
-8. **Amount rounding on save:** When an expense is saved, the amount is explicitly rounded: `Math.round(amount * 100) / 100`. This prevents issues from floating-point input.
+8. **Amount rounding on save:** `Math.round(amount * 100) / 100`.
 
-9. **Deletion protection is enforced at data level:** A participant or currency cannot be deleted if `isParticipantUsed(id)` or `isCurrencyUsed(code)` returns true. These checks examine all expenses for references.
+9. **Deletion protection:** Participants/currencies cannot be deleted if referenced by expenses.
 
-10. **Reactivity model:** Any data mutation immediately persists to storage and triggers a re-render of all dependent UI sections. There should never be stale displayed data.
+10. **Reactivity model:** Any data mutation immediately persists to storage and triggers re-render.
 
-11. **Only one currency — no exchange rates needed:** If only one currency exists in the system, the settlement step skips exchange rate entry entirely.
+11. **Only one currency — no exchange rates needed.**
 
-12. **Settlement results invalidated on data change:** Any change to expenses, participants, or currencies hides the previously calculated settlement results. The user must click "Calculate" again.
+12. **Settlement results invalidated on data change.**
+
+13. **Archived trips cannot be entered:** Clicking an archived trip card does nothing. Users must unarchive first.
+
+14. **Duplicate trip creates independent copy:** Deep-cloned data, new ID, no shared references.
+
+15. **Search is local only:** Search on the trip list filters across trip names, descriptions, participant names, and expense descriptions. It does not search within amounts or dates.
 
 ---
 

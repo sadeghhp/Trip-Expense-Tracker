@@ -206,9 +206,9 @@
             <div class="flex gap-1">
               <button
                 onclick={() => openEdit(currency)}
-                class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
+class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
               >
-                <Pencil size={16} class="text-[var(--text-secondary)]" />
+              <Pencil size={16} class="text-[var(--text-secondary)]" />
               </button>
               <button
                 onclick={() => requestDelete(currency)}

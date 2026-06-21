@@ -69,6 +69,7 @@ export interface Trip {
   id: string;
   name: string;
   description: string;
+  archived: boolean;
   createdAt: string;
   updatedAt: string;
   data: AppData;

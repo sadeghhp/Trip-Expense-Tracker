@@ -39,7 +39,7 @@
         <h2 class="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
         <button
           onclick={onClose}
-          class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+          class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
         >
           <X size={18} />
         </button>

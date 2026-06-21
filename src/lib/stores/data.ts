@@ -38,6 +38,7 @@ function loadFromStorage(): AppState {
           id: generateId(),
           name: 'My Trip',
           description: '',
+          archived: false,
           createdAt: now,
           updatedAt: now,
           data: oldData
@@ -134,6 +135,7 @@ export function createTrip(name: string, description: string = ''): void {
     id: generateId(),
     name,
     description,
+    archived: false,
     createdAt: now,
     updatedAt: now,
     data: createEmptyData()
@@ -178,6 +180,7 @@ export function importAsNewTrip(name: string, data: AppData, description: string
     id: generateId(),
     name,
     description,
+    archived: false,
     createdAt: now,
     updatedAt: now,
     data: normalizeData(data)
@@ -187,4 +190,51 @@ export function importAsNewTrip(name: string, data: AppData, description: string
     trips: [...s.trips, trip],
     activeTripId: trip.id
   }));
+}
+
+export function duplicateTrip(tripId: string): void {
+  const state = get(appState);
+  const source = state.trips.find((t) => t.id === tripId);
+  if (!source) return;
+  const now = new Date().toISOString();
+  const trip: Trip = {
+    id: generateId(),
+    name: source.name + ' (Copy)',
+    description: source.description,
+    archived: false,
+    createdAt: now,
+    updatedAt: now,
+    data: JSON.parse(JSON.stringify(source.data))
+  };
+  appState.update((s) => ({
+    ...s,
+    trips: [...s.trips, trip]
+  }));
+}
+
+export function archiveTrip(tripId: string): void {
+  appState.update((s) => ({
+    ...s,
+    trips: s.trips.map((t) =>
+      t.id === tripId ? { ...t, archived: true, updatedAt: new Date().toISOString() } : t
+    ),
+    activeTripId: s.activeTripId === tripId ? null : s.activeTripId
+  }));
+}
+
+export function unarchiveTrip(tripId: string): void {
+  appState.update((s) => ({
+    ...s,
+    trips: s.trips.map((t) =>
+      t.id === tripId ? { ...t, archived: false, updatedAt: new Date().toISOString() } : t
+    )
+  }));
+}
+
+export function getFullSnapshot(): AppState {
+  return get(appState);
+}
+
+export function replaceAllData(state: AppState): void {
+  appState.set(normalizeAppState(state));
 }

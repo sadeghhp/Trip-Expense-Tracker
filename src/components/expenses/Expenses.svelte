@@ -109,7 +109,7 @@
               <div class="flex gap-0.5">
                 <button
                   onclick={() => openEdit(expense)}
-                  class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
+                  class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
                 >
                   <Pencil size={14} class="text-[var(--text-secondary)]" />
                 </button>

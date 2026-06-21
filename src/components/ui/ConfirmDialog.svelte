@@ -47,7 +47,7 @@
       <div class="flex gap-3">
         <button
           onclick={onCancel}
-          class="flex-1 py-2.5 px-4 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--text-primary)] hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+          class="flex-1 py-2.5 px-4 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--text-primary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
         >
           {cancelLabel}
         </button>

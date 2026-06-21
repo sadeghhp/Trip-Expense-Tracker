@@ -1,8 +1,9 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
+  import { onMount } from 'svelte';
   import type { TabId } from '$lib/types';
   import { showToast } from '$lib/stores/toast';
-  import { activeTripId, activeTrip, exitTrip } from '$lib/stores/data';
+  import { activeTripId, activeTrip, exitTrip, switchTrip, trips } from '$lib/stores/data';
   import TabBar from './components/layout/TabBar.svelte';
   import Header from './components/layout/Header.svelte';
   import Toast from './components/ui/Toast.svelte';
@@ -15,6 +16,9 @@
   import SettingsTab from './components/settings/Settings.svelte';
 
   let activeTab: TabId = $state('expenses');
+  let suppressHashUpdate = false;
+
+  const validTabs = new Set<string>(['participants', 'currencies', 'expenses', 'balances', 'settlement', 'settings']);
 
   const tabTitles: Record<TabId, string> = {
     participants: 'Participants',
@@ -24,6 +28,61 @@
     settlement: 'Settlement',
     settings: 'Settings'
   };
+
+  function parseHash(): { tripId: string | null; tab: TabId | null } {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    if (!hash) return { tripId: null, tab: null };
+    const parts = hash.split('/');
+    if (parts[0] === 'trip' && parts[1]) {
+      const tab = parts[2] && validTabs.has(parts[2]) ? parts[2] as TabId : null;
+      return { tripId: parts[1], tab };
+    }
+    return { tripId: null, tab: null };
+  }
+
+  function updateHash() {
+    if (suppressHashUpdate) return;
+    const tripId = $activeTripId;
+    if (tripId) {
+      const newHash = `#/trip/${tripId}/${activeTab}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState(null, '', newHash);
+      }
+    } else {
+      if (window.location.hash && window.location.hash !== '#/') {
+        window.history.pushState(null, '', '#/');
+      }
+    }
+  }
+
+  function handleHashChange() {
+    const { tripId, tab } = parseHash();
+    suppressHashUpdate = true;
+    if (tripId) {
+      const tripExists = $trips.some(t => t.id === tripId);
+      if (tripExists) {
+        if ($activeTripId !== tripId) switchTrip(tripId);
+        if (tab) activeTab = tab;
+      } else {
+        exitTrip();
+      }
+    } else {
+      if ($activeTripId) exitTrip();
+    }
+    suppressHashUpdate = false;
+  }
+
+  onMount(() => {
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  });
+
+  $effect(() => {
+    $activeTripId;
+    activeTab;
+    updateHash();
+  });
 
   function handleTabChange(tab: TabId) {
     activeTab = tab;

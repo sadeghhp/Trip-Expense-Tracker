@@ -1,0 +1,43 @@
+---
+description: When the user asks to "review" code, perform a thorough review of all recent changes
+alwaysApply: false
+---
+
+# Code Review Workflow
+
+When the user asks to "review", follow this process:
+
+## 1. Gather Recent Changes
+
+- Check `git diff` and `git log` for recently implemented code
+- Identify all modified and new files
+- Read each changed file fully before analyzing
+
+## 2. Analyze and Categorize Issues
+
+Review all changed code for the following categories:
+
+- **Bugs**: Logic errors, null/undefined risks, off-by-one errors, race conditions, unhandled edge cases
+- **Anti-patterns**: God objects, tight coupling, magic numbers, deep nesting, code duplication
+- **Performance**: Unnecessary re-renders, N+1 queries, missing memoization, large bundle imports, blocking operations
+- **Security**: Injection risks, exposed secrets, missing input validation, insecure defaults
+- **Type Safety**: Missing types, unsafe casts, `any` usage, incorrect generics
+- **Error Handling**: Swallowed errors, missing try/catch, unclear error messages
+
+## 3. Present Findings
+
+For each issue found, provide:
+
+1. **File and line** where the issue exists
+2. **Category** (Bug / Anti-pattern / Performance / Security / Type Safety / Error Handling)
+3. **Severity** (Critical / Warning / Info)
+4. **Description** of what's wrong and why it matters
+5. **Suggested fix** with a concrete code example
+
+## 4. Summary and Next Steps
+
+After listing all issues, provide:
+
+- A severity summary (e.g., "2 critical, 3 warnings, 1 info")
+- Prioritized next steps the user can ask you to fix, ordered by severity
+- Ask the user which issues they want to address first

@@ -1,5 +1,4 @@
 import type { AppData, AppState } from '../types';
-import { generateId } from './id';
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -74,6 +73,7 @@ export function normalizeAppState(raw: any): AppState {
       id: t.id,
       name: t.name,
       description: typeof t.description === 'string' ? t.description : '',
+      archived: typeof t.archived === 'boolean' ? t.archived : false,
       createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
       updatedAt: typeof t.updatedAt === 'string' ? t.updatedAt : new Date().toISOString(),
       data: normalizeData(t.data)
