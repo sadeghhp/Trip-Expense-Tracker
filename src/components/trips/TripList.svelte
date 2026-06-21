@@ -15,7 +15,7 @@
   let showSettings = $state(false);
   let showForm = $state(false);
   let editingTrip: Trip | null = $state(null);
-  let deleteConfirm: Trip | null = $state(null);
+  let deleteConfirm = $state<Trip | null>(null);
   let showArchived = $state(false);
   let sortBy: SortOption = $state('newest');
   let searchQuery = $state('');
