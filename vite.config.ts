@@ -4,7 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+const base = process.env.GITHUB_ACTIONS ? '/Trip-Expense-Tracker/' : '/';
+
 export default defineConfig({
+  base,
   resolve: {
     alias: {
       $lib: path.resolve('./src/lib')
@@ -24,7 +27,7 @@ export default defineConfig({
         background_color: '#0c1222',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/',
+        start_url: base,
         icons: [
           {
             src: 'icons/icon-192.svg',

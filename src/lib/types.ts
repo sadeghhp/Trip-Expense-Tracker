@@ -121,6 +121,7 @@ export interface ReceiptData {
 }
 
 export interface AISettings {
+  baseUrl: string;
   apiKey: string;
   model: string;
   customPrompt: string;

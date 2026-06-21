@@ -2,6 +2,7 @@ import { writable, get } from 'svelte/store';
 import type { AISettings } from '../types';
 
 const STORAGE_KEY = 'trip-expense-tracker-ai-settings';
+const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 
 function loadSettings(): AISettings {
   try {
@@ -9,13 +10,14 @@ function loadSettings(): AISettings {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
+        baseUrl: parsed.baseUrl ?? DEFAULT_BASE_URL,
         apiKey: parsed.apiKey ?? '',
         model: parsed.model ?? '',
         customPrompt: parsed.customPrompt ?? ''
       };
     }
   } catch {}
-  return { apiKey: '', model: '', customPrompt: '' };
+  return { baseUrl: DEFAULT_BASE_URL, apiKey: '', model: '', customPrompt: '' };
 }
 
 const initial = loadSettings();
@@ -34,14 +36,22 @@ export function updateAISettings(partial: Partial<AISettings>): void {
 }
 
 export async function testConnection(): Promise<boolean> {
-  const settings = getAISettings();
-  if (!settings.apiKey || !settings.model) return false;
+  const { baseUrl, apiKey, model } = getAISettings();
+  if (!baseUrl || !apiKey || !model) return false;
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+    const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${settings.apiKey}`
-      }
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 1
+      })
     });
     return response.ok;
   } catch {

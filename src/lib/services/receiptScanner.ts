@@ -96,15 +96,20 @@ function normalizeLineItem(item: any): { name: string; quantity: number; amount:
 export async function analyzeReceipt(imageDataUrl: string): Promise<ReceiptData> {
   const settings = getAISettings();
 
-  if (!settings.apiKey || !settings.model) {
+  if (!settings.baseUrl || !settings.apiKey || !settings.model) {
     throw new Error('receipt.errorNoConfig');
+  }
+
+  if (imageDataUrl.length > 20_000_000) {
+    throw new Error('receipt.errorImageTooLarge');
   }
 
   const systemPrompt = settings.customPrompt
     ? `${settings.customPrompt}\n\nYou are a receipt extraction assistant. Return only valid JSON.`
     : 'You are a receipt extraction assistant. Return only valid JSON.';
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const url = `${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${settings.apiKey}`,

@@ -233,14 +233,16 @@
     "tripDataCleared": "Trip data cleared",
     "ai": {
       "title": "AI Receipt Scanner",
-      "apiKey": "OpenRouter API Key",
+      "baseUrl": "Base URL",
+      "baseUrlPlaceholder": "e.g. https://openrouter.ai/api/v1",
+      "apiKey": "API Key",
       "model": "Model Name",
       "modelPlaceholder": "e.g. google/gemini-2.0-flash",
       "customPrompt": "Custom Instructions (optional)",
       "customPromptPlaceholder": "Add any extra instructions for the AI...",
       "testConnection": "Test Connection",
       "testSuccess": "Connection successful! AI model is ready.",
-      "testFailed": "Connection failed. Check your API key and model name.",
+      "testFailed": "Connection failed. Check your base URL, API key, and model name.",
       "securityNotice": "Your API key is stored locally in the browser. This is suitable for personal use. For shared deployments, use a backend proxy to protect your key."
     }
   },
@@ -403,7 +405,8 @@
     "errorNoCredits": "Insufficient credits on your OpenRouter account.",
     "errorRateLimit": "Rate limited. Please wait a moment and try again.",
     "errorGeneric": "Receipt analysis failed. Please check your API key, model name, or network connection.",
-    "errorEmptyResponse": "The AI model returned an empty response. Please try again or use a different model."
+    "errorEmptyResponse": "The AI model returned an empty response. Please try again or use a different model.",
+    "errorImageTooLarge": "The image is too large. Please use a smaller or lower-resolution photo."
   },
   "currencyNames": {
     "USD": "US Dollar",

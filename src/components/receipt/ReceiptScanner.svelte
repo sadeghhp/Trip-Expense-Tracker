@@ -59,7 +59,9 @@
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('receipt.readError')); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('receipt.readError')); };
@@ -104,9 +106,10 @@
       receiptData = await analyzeReceipt(imageDataUrl);
       populateReviewForm(receiptData);
       state = 'review';
-    } catch (err: any) {
-      const msg = err.message || 'receipt.errorDescription';
-      errorMessage = $t(msg) !== msg ? $t(msg) : msg;
+    } catch (err: unknown) {
+      const key = err instanceof Error ? err.message : '';
+      const translated = key ? $t(key) : '';
+      errorMessage = (translated && translated !== key) ? translated : $t('receipt.errorDescription');
       state = 'error';
     }
   }
@@ -133,11 +136,18 @@
     selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
   }
 
+  const COMMON_SYMBOLS: Record<string, string> = {
+    USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩',
+    INR: '₹', IRR: '﷼', TRY: '₺', RUB: '₽', AED: 'د.إ', SAR: '﷼',
+    CAD: 'C$', AUD: 'A$', CHF: 'CHF', BRL: 'R$', THB: '฿', MXN: '$'
+  };
+
   function addDetectedCurrency() {
     if (!detectedCurrency) return;
+    const symbol = COMMON_SYMBOLS[detectedCurrency] ?? detectedCurrency;
     updateData(d => ({
       ...d,
-      currencies: [...d.currencies, { code: detectedCurrency, symbol: detectedCurrency }]
+      currencies: [...d.currencies, { code: detectedCurrency, symbol }]
     }));
     currencyCode = detectedCurrency;
     currencyMismatch = false;
@@ -151,7 +161,12 @@
   }
 
   function handleSave() {
-    const amountNum = Math.round(parseFloat(amount) * 100) / 100;
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0) {
+      formError = $t('validation.amountPositive');
+      return;
+    }
+    const amountNum = Math.round(parsed * 100) / 100;
     const beneficiaries: Beneficiary[] = [...selectedBeneficiaries].map(pid => ({
       participantId: pid,
       customAmount: null,
@@ -245,7 +260,7 @@
             </button>
 
             <button
-              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); fileInput.click(); fileInput.setAttribute('capture', 'environment'); } }}
+              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); fileInput.addEventListener('change', () => fileInput?.setAttribute('capture', 'environment'), { once: true }); fileInput.click(); } }}
               class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-[var(--card-border)] hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
               <Upload size={24} class="text-[var(--text-secondary)]" />

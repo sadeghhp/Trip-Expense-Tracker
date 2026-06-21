@@ -328,13 +328,24 @@
     </div>
     <div class="p-4 space-y-4">
       <div>
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.baseUrl')}</label>
+        <input
+          type="text"
+          value={$aiSettings.baseUrl}
+          oninput={(e) => updateAISettings({ baseUrl: (e.target as HTMLInputElement).value })}
+          placeholder={$t('settings.ai.baseUrlPlaceholder')}
+          class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+        />
+      </div>
+
+      <div>
         <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.apiKey')}</label>
         <div class="relative">
           <input
             type={showApiKey ? 'text' : 'password'}
             value={$aiSettings.apiKey}
             oninput={(e) => updateAISettings({ apiKey: (e.target as HTMLInputElement).value })}
-            placeholder="sk-or-..."
+            placeholder="sk-..."
             class="w-full px-3 py-2.5 pe-10 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
           />
           <button
@@ -375,7 +386,7 @@
 
       <button
         onclick={handleTestAI}
-        disabled={!$aiSettings.apiKey || !$aiSettings.model || aiTestLoading}
+        disabled={!$aiSettings.baseUrl || !$aiSettings.apiKey || !$aiSettings.model || aiTestLoading}
         class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
       >
         {#if aiTestLoading}
