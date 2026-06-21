@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { get } from 'svelte/store';
   import { FileUp, ChevronLeft, ChevronRight, Check, AlertTriangle, User, FileText } from '@lucide/svelte';
+  import { t, isRtl } from '$lib/i18n';
   import Modal from '../ui/Modal.svelte';
   import { parseCsv, type CsvRow, type CsvParseResult } from '$lib/utils/csv-parser';
   import { detectColumnMapping, getMappingCompleteness, type ColumnMapping } from '$lib/utils/csv-mapper';
@@ -35,8 +37,33 @@
   let currencyMappings = $state<{ code: string; symbol: string; exists: boolean }[]>([]);
   let importResult = $state<ImportResult | null>(null);
   let importMode = $state<'merge' | 'new'>('merge');
-  let newTripName = $state('CSV Import');
+  let newTripName = $state('');
   let dragOver = $state(false);
+
+  const mappingFields: { key: keyof ColumnMapping; labelKey: string; required: boolean }[] = [
+    { key: 'date', labelKey: 'csvImport.fields.date', required: true },
+    { key: 'description', labelKey: 'csvImport.fields.description', required: true },
+    { key: 'amount', labelKey: 'csvImport.fields.amount', required: true },
+    { key: 'currency', labelKey: 'csvImport.fields.currency', required: false },
+    { key: 'payer', labelKey: 'csvImport.fields.payer', required: false },
+    { key: 'payee', labelKey: 'csvImport.fields.payee', required: false },
+    { key: 'entryType', labelKey: 'csvImport.fields.entryType', required: false },
+    { key: 'id', labelKey: 'csvImport.fields.id', required: false },
+    { key: 'flag', labelKey: 'csvImport.fields.flag', required: false },
+    { key: 'notes', labelKey: 'csvImport.fields.notes', required: false }
+  ];
+
+  function defaultTripName(): string {
+    return get(t)('csvImport.defaultTripName');
+  }
+
+  function delimiterLabel(delimiter: string): string {
+    const translate = get(t);
+    if (delimiter === ',') return translate('csvImport.delimiterComma');
+    if (delimiter === '\t') return translate('csvImport.delimiterTab');
+    if (delimiter === ';') return translate('csvImport.delimiterSemicolon');
+    return delimiter;
+  }
 
   function reset() {
     step = 1;
@@ -47,9 +74,15 @@
     currencyMappings = [];
     importResult = null;
     importMode = 'merge';
-    newTripName = 'CSV Import';
+    newTripName = defaultTripName();
     dragOver = false;
   }
+
+  $effect(() => {
+    if (open && !newTripName) {
+      newTripName = defaultTripName();
+    }
+  });
 
   function handleClose() {
     reset();
@@ -58,7 +91,7 @@
 
   function handleFile(file: File) {
     if (!file.name.endsWith('.csv') && !file.type.includes('csv') && !file.type.includes('text')) {
-      showToast('Please select a CSV file', 'error');
+      showToast($t('csvImport.selectCsvFile'), 'error');
       return;
     }
     const reader = new FileReader();
@@ -66,7 +99,7 @@
       const text = reader.result as string;
       csvResult = parseCsv(text);
       if (csvResult.headers.length === 0) {
-        showToast('Could not parse CSV file', 'error');
+        showToast($t('csvImport.parseFailed'), 'error');
         csvResult = null;
         return;
       }
@@ -186,7 +219,7 @@
         currencies: [...d.currencies, ...newCurrencies],
         expenses: [...d.expenses, ...importResult!.expenses]
       }));
-      showToast(`Imported ${importResult.expenses.length} expenses into current trip`);
+      showToast($t('csvImport.importedToTrip', { count: importResult.expenses.length }));
     } else {
       const data = {
         participants: [...$appData.participants, ...newParticipants],
@@ -196,7 +229,7 @@
         settlementCurrency: ''
       };
       importAsNewTrip(newTripName, data);
-      showToast(`Created new trip "${newTripName}" with ${importResult.expenses.length} expenses`);
+      showToast($t('csvImport.createdNewTrip', { name: newTripName, count: importResult.expenses.length }));
     }
 
     handleClose();
@@ -216,7 +249,7 @@
   let allAmbiguousResolved = $derived(ambiguousPayees.length === 0 || ambiguousPayees.every(ap => ap.resolved));
 </script>
 
-<Modal open={open} title="Import CSV" onClose={handleClose}>
+<Modal open={open} title={$t('csvImport.title')} onClose={handleClose}>
   <div class="space-y-4">
     <!-- Step indicators -->
     <div class="flex items-center justify-center gap-1 mb-4">
@@ -250,8 +283,8 @@
             ondrop={handleDrop}
           >
             <FileUp size={40} class="mx-auto mb-3 text-[var(--text-secondary)]" />
-            <p class="text-sm font-medium text-[var(--text-primary)] mb-1">Drop CSV file here</p>
-            <p class="text-xs text-[var(--text-secondary)] mb-3">or click to browse</p>
+            <p class="text-sm font-medium text-[var(--text-primary)] mb-1">{$t('csvImport.dropCsv')}</p>
+            <p class="text-xs text-[var(--text-secondary)] mb-3">{$t('csvImport.orClickBrowse')}</p>
             <input
               type="file"
               accept=".csv,text/csv"
@@ -259,7 +292,7 @@
               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
             <label class="inline-block px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium cursor-pointer hover:bg-primary-500 transition-colors">
-              Choose File
+              {$t('csvImport.chooseFile')}
               <input type="file" accept=".csv,text/csv" onchange={handleFileInput} class="hidden" />
             </label>
           </div>
@@ -267,10 +300,10 @@
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <p class="text-sm font-medium text-[var(--text-primary)]">
-                {csvResult.rowCount} rows found
+                {$t('csvImport.rowsFound', { count: csvResult.rowCount })}
               </p>
               <span class="text-xs px-2 py-0.5 rounded-full bg-[#e2e8f0] dark:bg-[#334155] text-[var(--text-secondary)]">
-                delimiter: {csvResult.delimiter === ',' ? 'comma' : csvResult.delimiter === '\t' ? 'tab' : csvResult.delimiter === ';' ? 'semicolon' : csvResult.delimiter}
+                {$t('csvImport.delimiter', { name: delimiterLabel(csvResult.delimiter) })}
               </span>
             </div>
 
@@ -279,7 +312,7 @@
                 <thead>
                   <tr class="bg-[#f1f5f9] dark:bg-[#1e293b]">
                     {#each csvResult.headers as header}
-                      <th class="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)] whitespace-nowrap">{header}</th>
+                      <th class="px-2 py-1.5 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{header}</th>
                     {/each}
                   </tr>
                 </thead>
@@ -299,7 +332,7 @@
               onclick={() => { csvResult = null; }}
               class="text-xs text-primary-600 hover:text-primary-500 font-medium"
             >
-              Choose different file
+              {$t('csvImport.chooseDifferentFile')}
             </button>
           </div>
 
@@ -307,8 +340,8 @@
             onclick={goToStep2}
             class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
-            Next: Column Mapping
-            <ChevronRight size={16} />
+            {$t('csvImport.nextColumnMapping')}
+            <ChevronRight size={16} class={$isRtl ? 'rotate-180' : ''} />
           </button>
         {/if}
       </div>
@@ -318,43 +351,32 @@
     {#if step === 2 && csvResult}
       <div class="space-y-4">
         <p class="text-xs text-[var(--text-secondary)]">
-          Map CSV columns to expense fields. {mappingInfo.mapped}/{mappingInfo.total} mapped.
+          {$t('csvImport.mapColumnsHint', { mapped: mappingInfo.mapped, total: mappingInfo.total })}
           {#if mappingInfo.missing.length > 0}
-            <span class="text-danger-500"> Missing required: {mappingInfo.missing.join(', ')}</span>
+            <span class="text-danger-500"> {$t('csvImport.missingRequired', { fields: mappingInfo.missing.join(', ') })}</span>
           {/if}
         </p>
 
         <div class="space-y-2">
-          {#each [
-            { key: 'date', label: 'Date', required: true },
-            { key: 'description', label: 'Description', required: true },
-            { key: 'amount', label: 'Amount', required: true },
-            { key: 'currency', label: 'Currency', required: false },
-            { key: 'payer', label: 'Payer (Paid By)', required: false },
-            { key: 'payee', label: 'Payee (Beneficiary)', required: false },
-            { key: 'entryType', label: 'Entry Type', required: false },
-            { key: 'id', label: 'ID (for dedup)', required: false },
-            { key: 'flag', label: 'Flag/Warning', required: false },
-            { key: 'notes', label: 'Notes', required: false }
-          ] as field}
+          {#each mappingFields as field}
             <div class="flex items-center gap-2">
               <label class="w-28 text-xs font-medium text-[var(--text-primary)] shrink-0">
-                {field.label}
+                {$t(field.labelKey)}
                 {#if field.required}<span class="text-danger-500">*</span>{/if}
               </label>
               <select
-                value={mapping[field.key as keyof ColumnMapping] ?? ''}
-                onchange={(e) => { mapping[field.key as keyof ColumnMapping] = (e.target as HTMLSelectElement).value || null; }}
+                value={mapping[field.key] ?? ''}
+                onchange={(e) => { mapping[field.key] = (e.target as HTMLSelectElement).value || null; }}
                 class="flex-1 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
               >
-                <option value="">-- Not mapped --</option>
+                <option value="">{$t('csvImport.notMapped')}</option>
                 {#each csvResult.headers as header}
                   <option value={header}>{header}</option>
                 {/each}
               </select>
-              {#if mapping[field.key as keyof ColumnMapping]}
-                <span class="text-xs text-[var(--text-secondary)] max-w-[100px] truncate" title={csvResult.rows[0]?.[mapping[field.key as keyof ColumnMapping]!] ?? ''}>
-                  e.g. {csvResult.rows[0]?.[mapping[field.key as keyof ColumnMapping]!] ?? ''}
+              {#if mapping[field.key]}
+                <span class="text-xs text-[var(--text-secondary)] max-w-[100px] truncate" title={csvResult.rows[0]?.[mapping[field.key]!] ?? ''}>
+                  {$t('csvImport.example', { value: csvResult.rows[0]?.[mapping[field.key]!] ?? '' })}
                 </span>
               {/if}
             </div>
@@ -366,14 +388,14 @@
             onclick={() => { step = 1; }}
             class="flex-1 py-2.5 rounded-xl border border-[var(--card-border)] text-[var(--text-primary)] text-sm font-medium hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors flex items-center justify-center gap-1"
           >
-            <ChevronLeft size={16} /> Back
+            <ChevronLeft size={16} class={$isRtl ? 'rotate-180' : ''} /> {$t('csvImport.back')}
           </button>
           <button
             onclick={goToStep3}
             disabled={mappingInfo.missing.length > 0}
             class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Next <ChevronRight size={16} />
+            {$t('csvImport.next')} <ChevronRight size={16} class={$isRtl ? 'rotate-180' : ''} />
           </button>
         </div>
       </div>
@@ -387,9 +409,9 @@
           <div>
             <div class="flex items-center gap-1.5 mb-2">
               <div class="w-2 h-2 rounded-full bg-green-500"></div>
-              <h4 class="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">Confirmed Participants ({participantMappings.length})</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">{$t('csvImport.confirmedParticipants', { count: participantMappings.length })}</h4>
             </div>
-            <p class="text-xs text-[var(--text-secondary)] mb-2">These names appear as payers and are confirmed as real people/entities.</p>
+            <p class="text-xs text-[var(--text-secondary)] mb-2">{$t('csvImport.confirmedParticipantsHint')}</p>
             <div class="space-y-1.5 max-h-[180px] overflow-y-auto">
               {#each participantMappings as pm, i}
                 <div class="flex items-center gap-2 p-1.5 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30">
@@ -403,7 +425,7 @@
                     }}
                     class="flex-1 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                   >
-                    <option value="__new__">+ Create new</option>
+                    <option value="__new__">{$t('csvImport.createNew')}</option>
                     {#each $appData.participants as p}
                       <option value={p.id}>{p.name}</option>
                     {/each}
@@ -419,9 +441,9 @@
           <div>
             <div class="flex items-center gap-1.5 mb-2">
               <div class="w-2 h-2 rounded-full bg-amber-500"></div>
-              <h4 class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Needs Review ({ambiguousPayees.length})</h4>
+              <h4 class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">{$t('csvImport.needsReview', { count: ambiguousPayees.length })}</h4>
             </div>
-            <p class="text-xs text-[var(--text-secondary)] mb-2">These values appear in the payee column but not as payers. Are they people or descriptions?</p>
+            <p class="text-xs text-[var(--text-secondary)] mb-2">{$t('csvImport.needsReviewHint')}</p>
             <div class="space-y-2 max-h-[220px] overflow-y-auto">
               {#each ambiguousPayees as ap, i}
                 <div class="p-2 rounded-lg border transition-colors
@@ -432,12 +454,12 @@
                     <span class="text-xs font-medium text-[var(--text-primary)]">{ap.name}</span>
                     {#if ap.resolved}
                       <span class="text-xs px-1.5 py-0.5 rounded-full {ap.isPerson ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-[#e2e8f0] dark:bg-[#334155] text-[var(--text-secondary)]'}">
-                        {ap.isPerson ? 'Person' : 'Description'}
+                        {ap.isPerson ? $t('csvImport.person') : $t('csvImport.description')}
                       </span>
                     {/if}
                   </div>
                   <p class="text-xs text-[var(--text-secondary)] mb-1.5">
-                    {ap.occurrences}x &middot; {ap.sampleEntryType} &middot; {ap.sampleAmount} {ap.sampleCurrency}
+                    {$t('csvImport.occurrences', { count: ap.occurrences })} &middot; {ap.sampleEntryType} &middot; {ap.sampleAmount} {ap.sampleCurrency}
                   </p>
                   <div class="flex gap-1.5">
                     <button
@@ -447,7 +469,7 @@
                           ? 'bg-green-600 text-white'
                           : 'border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20'}"
                     >
-                      <User size={12} /> Person
+                      <User size={12} /> {$t('csvImport.person')}
                     </button>
                     <button
                       onclick={() => resolveAmbiguous(i, false)}
@@ -456,7 +478,7 @@
                           ? 'bg-[#64748b] text-white'
                           : 'border border-[var(--card-border)] text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
                     >
-                      <FileText size={12} /> Description
+                      <FileText size={12} /> {$t('csvImport.description')}
                     </button>
                   </div>
                 </div>
@@ -468,22 +490,22 @@
         <!-- Currencies -->
         {#if currencyMappings.length > 0}
           <div>
-            <h4 class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-2">Currencies</h4>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-2">{$t('csvImport.currencies')}</h4>
             <div class="space-y-1.5">
               {#each currencyMappings as cm, i}
                 <div class="flex items-center gap-2">
                   <span class="w-12 text-xs font-mono text-[var(--text-primary)]">{cm.code}</span>
                   {#if cm.exists}
-                    <span class="text-xs text-green-600 dark:text-green-400">Already exists</span>
+                    <span class="text-xs text-green-600 dark:text-green-400">{$t('csvImport.alreadyExists')}</span>
                   {:else}
                     <input
                       type="text"
                       bind:value={currencyMappings[i].symbol}
                       maxlength="5"
-                      placeholder="Symbol"
+                      placeholder={$t('csvImport.symbolPlaceholder')}
                       class="w-16 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                     />
-                    <span class="text-xs text-amber-600 dark:text-amber-400">Will be created</span>
+                    <span class="text-xs text-amber-600 dark:text-amber-400">{$t('csvImport.willBeCreated')}</span>
                   {/if}
                 </div>
               {/each}
@@ -497,19 +519,19 @@
             onclick={() => { step = 2; }}
             class="flex-1 py-2.5 rounded-xl border border-[var(--card-border)] text-[var(--text-primary)] text-sm font-medium hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors flex items-center justify-center gap-1"
           >
-            <ChevronLeft size={16} /> Back
+            <ChevronLeft size={16} class={$isRtl ? 'rotate-180' : ''} /> {$t('csvImport.back')}
           </button>
           <button
             onclick={goToStep4}
             disabled={!allAmbiguousResolved}
             class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Next <ChevronRight size={16} />
+            {$t('csvImport.next')} <ChevronRight size={16} class={$isRtl ? 'rotate-180' : ''} />
           </button>
         </div>
         {#if !allAmbiguousResolved}
           <p class="text-xs text-amber-600 dark:text-amber-400 text-center">
-            Resolve all items above before continuing
+            {$t('csvImport.resolveAllHint')}
           </p>
         {/if}
       </div>
@@ -521,39 +543,39 @@
         <div class="grid grid-cols-3 gap-2">
           <div class="text-center p-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
             <p class="text-lg font-bold text-green-700 dark:text-green-300">{importResult.expenses.length}</p>
-            <p class="text-xs text-green-600 dark:text-green-400">To import</p>
+            <p class="text-xs text-green-600 dark:text-green-400">{$t('csvImport.toImport')}</p>
           </div>
           <div class="text-center p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
             <p class="text-lg font-bold text-amber-700 dark:text-amber-300">{importResult.flaggedRows.length}</p>
-            <p class="text-xs text-amber-600 dark:text-amber-400">Flagged</p>
+            <p class="text-xs text-amber-600 dark:text-amber-400">{$t('csvImport.flagged')}</p>
           </div>
           <div class="text-center p-3 rounded-xl bg-[#f1f5f9] dark:bg-[#1e293b] border border-[var(--card-border)]">
             <p class="text-lg font-bold text-[var(--text-primary)]">{importResult.skippedRows.length}</p>
-            <p class="text-xs text-[var(--text-secondary)]">Skipped</p>
+            <p class="text-xs text-[var(--text-secondary)]">{$t('csvImport.skipped')}</p>
           </div>
         </div>
 
         {#if importResult.newParticipants.length > 0}
           <div class="text-xs text-[var(--text-secondary)]">
-            New participants: <span class="font-medium text-[var(--text-primary)]">{importResult.newParticipants.map(p => p.name).join(', ')}</span>
+            {$t('csvImport.newParticipants')} <span class="font-medium text-[var(--text-primary)]">{importResult.newParticipants.map(p => p.name).join(', ')}</span>
           </div>
         {/if}
 
         {#if importResult.newCurrencies.length > 0}
           <div class="text-xs text-[var(--text-secondary)]">
-            New currencies: <span class="font-medium text-[var(--text-primary)]">{importResult.newCurrencies.map(c => `${c.code} (${c.symbol})`).join(', ')}</span>
+            {$t('csvImport.newCurrencies')} <span class="font-medium text-[var(--text-primary)]">{importResult.newCurrencies.map(c => `${c.code} (${c.symbol})`).join(', ')}</span>
           </div>
         {/if}
 
         {#if importResult.flaggedRows.length > 0}
           <details class="text-xs">
             <summary class="cursor-pointer font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <AlertTriangle size={12} /> View flagged rows
+              <AlertTriangle size={12} /> {$t('csvImport.viewFlaggedRows')}
             </summary>
-            <div class="mt-2 max-h-[120px] overflow-y-auto space-y-1 pl-4">
+            <div class="mt-2 max-h-[120px] overflow-y-auto space-y-1 ps-4">
               {#each importResult.flaggedRows as fr}
                 <p class="text-[var(--text-secondary)]">
-                  <span class="font-mono">Row {fr.row}</span>: {fr.flag} {fr.notes}
+                  <span class="font-mono">{$t('csvImport.row', { row: fr.row })}</span>: {fr.flag} {fr.notes}
                 </p>
               {/each}
             </div>
@@ -562,11 +584,11 @@
 
         {#if importResult.skippedRows.length > 0}
           <details class="text-xs">
-            <summary class="cursor-pointer font-medium text-[var(--text-secondary)]">View skipped rows ({importResult.skippedRows.length})</summary>
-            <div class="mt-2 max-h-[120px] overflow-y-auto space-y-1 pl-4">
+            <summary class="cursor-pointer font-medium text-[var(--text-secondary)]">{$t('csvImport.viewSkippedRows', { count: importResult.skippedRows.length })}</summary>
+            <div class="mt-2 max-h-[120px] overflow-y-auto space-y-1 ps-4">
               {#each importResult.skippedRows as sr}
                 <p class="text-[var(--text-secondary)]">
-                  <span class="font-mono">Row {sr.row}</span>: {sr.reason}
+                  <span class="font-mono">{$t('csvImport.row', { row: sr.row })}</span>: {sr.reason}
                 </p>
               {/each}
             </div>
@@ -575,28 +597,28 @@
 
         <!-- Import mode -->
         <div class="space-y-2">
-          <h4 class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Import to</h4>
+          <h4 class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{$t('csvImport.importTo')}</h4>
           <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
             <button
               onclick={() => { importMode = 'merge'; }}
               class="flex-1 py-2 text-xs font-medium transition-all
                 {importMode === 'merge' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
             >
-              Current Trip
+              {$t('csvImport.currentTrip')}
             </button>
             <button
               onclick={() => { importMode = 'new'; }}
               class="flex-1 py-2 text-xs font-medium transition-all
                 {importMode === 'new' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
             >
-              New Trip
+              {$t('csvImport.newTrip')}
             </button>
           </div>
           {#if importMode === 'new'}
             <input
               type="text"
               bind:value={newTripName}
-              placeholder="Trip name"
+              placeholder={$t('csvImport.tripNamePlaceholder')}
               class="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50"
             />
           {/if}
@@ -607,14 +629,14 @@
             onclick={() => { step = 3; }}
             class="flex-1 py-2.5 rounded-xl border border-[var(--card-border)] text-[var(--text-primary)] text-sm font-medium hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors flex items-center justify-center gap-1"
           >
-            <ChevronLeft size={16} /> Back
+            <ChevronLeft size={16} class={$isRtl ? 'rotate-180' : ''} /> {$t('csvImport.back')}
           </button>
           <button
             onclick={executeImport}
             disabled={importResult.expenses.length === 0}
             class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check size={16} /> Import {importResult.expenses.length} Expenses
+            <Check size={16} /> {$t('csvImport.importExpenses', { count: importResult.expenses.length })}
           </button>
         </div>
       </div>

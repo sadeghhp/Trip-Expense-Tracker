@@ -16,6 +16,13 @@ export interface Beneficiary {
 
 export type SplitType = 'equal' | 'custom' | 'percentage';
 
+export interface AIMetadata {
+  merchant: string | null;
+  category: string | null;
+  confidence: number;
+  rawExtractedData: Record<string, any>;
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -25,6 +32,9 @@ export interface Expense {
   paidBy: string;
   splitType: SplitType;
   beneficiaries: Beneficiary[];
+  source?: 'manual' | 'receipt_ai';
+  receiptImageId?: string;
+  aiMetadata?: AIMetadata;
 }
 
 export interface AppData {
@@ -37,10 +47,12 @@ export interface AppData {
 
 export type CalendarType = 'gregorian' | 'jalali';
 export type ThemeType = 'light' | 'dark';
+export type LocaleType = 'en' | 'fa';
 
 export interface AppSettings {
   calendar: CalendarType;
   theme: ThemeType;
+  locale: LocaleType;
 }
 
 export interface BalanceEntry {
@@ -86,4 +98,30 @@ export interface PredefinedCurrency {
   code: string;
   symbol: string;
   name: string;
+}
+
+export interface ReceiptLineItem {
+  name: string;
+  quantity: number;
+  amount: number;
+}
+
+export interface ReceiptData {
+  title: string;
+  date: string | null;
+  totalAmount: number;
+  currency: string | null;
+  merchant: string | null;
+  category: string | null;
+  lineItems: ReceiptLineItem[];
+  tax: number | null;
+  tip: number | null;
+  confidence: number;
+  notes: string | null;
+}
+
+export interface AISettings {
+  apiKey: string;
+  model: string;
+  customPrompt: string;
 }

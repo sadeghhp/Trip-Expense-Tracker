@@ -1,9 +1,11 @@
 <script lang="ts">
-  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info } from '@lucide/svelte';
-  import { settings, setCalendar, toggleTheme } from '$lib/stores/settings';
+  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info, Sparkles, Eye, EyeOff } from '@lucide/svelte';
+  import { settings, setCalendar, toggleTheme, setAppLocale } from '$lib/stores/settings';
+  import { aiSettings, updateAISettings, testConnection } from '$lib/stores/aiSettings';
   import { showToast } from '$lib/stores/toast';
   import { replaceData, clearAllData, getSnapshot, activeTrip, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
+  import { t, isRtl } from '$lib/i18n';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import Modal from '../ui/Modal.svelte';
   import CsvImportWizard from './CsvImportWizard.svelte';
@@ -25,9 +27,12 @@
   let backupDragOver = $state(false);
   let backupLoadedFileName = $state('');
 
+  let showApiKey = $state(false);
+  let aiTestLoading = $state(false);
+
   function handleJsonFile(file: File) {
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-      importError = 'Please select a JSON file';
+      importError = $t('validation.pleaseSelectJson');
       return;
     }
     const reader = new FileReader();
@@ -37,7 +42,7 @@
       importError = '';
     };
     reader.onerror = () => {
-      importError = 'Failed to read file';
+      importError = $t('validation.failedToRead');
     };
     reader.readAsText(file);
   }
@@ -75,21 +80,21 @@
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Data exported successfully');
+    showToast($t('settings.dataExported'));
   }
 
   function handleImportPaste() {
     importError = '';
     try {
       const parsed = JSON.parse(importText);
-      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON object');
-      if (!Array.isArray(parsed.participants)) throw new Error('Missing participants array');
-      if (!Array.isArray(parsed.currencies)) throw new Error('Missing currencies array');
-      if (!Array.isArray(parsed.expenses)) throw new Error('Missing expenses array');
+      if (!parsed || typeof parsed !== 'object') throw new Error($t('validation.invalidJsonObject'));
+      if (!Array.isArray(parsed.participants)) throw new Error($t('validation.missingParticipants'));
+      if (!Array.isArray(parsed.currencies)) throw new Error($t('validation.missingCurrencies'));
+      if (!Array.isArray(parsed.expenses)) throw new Error($t('validation.missingExpenses'));
       parsedImportData = parsed;
       importConfirm = true;
     } catch (e: any) {
-      importError = e.message || 'Invalid JSON';
+      importError = e.message || $t('validation.invalidJson');
     }
   }
 
@@ -100,10 +105,10 @@
         const name = parsedImportData.tripName || 'Imported Trip';
         const desc = parsedImportData.tripDescription || '';
         importAsNewTrip(name, parsedImportData, desc);
-        showToast('Imported as new trip');
+        showToast($t('settings.importedAsNew'));
       } else {
         replaceData(parsedImportData);
-        showToast('Data imported into current trip');
+        showToast($t('settings.importedIntoCurrent'));
       }
       importOpen = false;
       importText = '';
@@ -111,7 +116,7 @@
       parsedImportData = null;
       loadedFileName = '';
     } catch (e: any) {
-      showToast('Import failed: ' + e.message, 'error');
+      showToast($t('settings.importFailed', { message: e.message }), 'error');
     }
   }
 
@@ -127,12 +132,12 @@
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Full backup exported');
+    showToast($t('settings.fullBackupExported'));
   }
 
   function handleBackupFile(file: File) {
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-      backupImportError = 'Please select a JSON file';
+      backupImportError = $t('validation.pleaseSelectJson');
       return;
     }
     const reader = new FileReader();
@@ -142,7 +147,7 @@
       backupImportError = '';
     };
     reader.onerror = () => {
-      backupImportError = 'Failed to read file';
+      backupImportError = $t('validation.failedToRead');
     };
     reader.readAsText(file);
   }
@@ -165,11 +170,11 @@
     backupImportError = '';
     try {
       const parsed = JSON.parse(backupImportText);
-      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid JSON object');
-      if (!Array.isArray(parsed.trips)) throw new Error('Missing trips array — this does not look like a full backup');
+      if (!parsed || typeof parsed !== 'object') throw new Error($t('validation.invalidJsonObject'));
+      if (!Array.isArray(parsed.trips)) throw new Error($t('validation.missingTripsArray'));
       backupImportConfirm = true;
     } catch (e: any) {
-      backupImportError = e.message || 'Invalid JSON';
+      backupImportError = e.message || $t('validation.invalidJson');
     }
   }
 
@@ -177,19 +182,19 @@
     try {
       const parsed = JSON.parse(backupImportText);
       replaceAllData(parsed);
-      showToast('Backup restored — all trips replaced');
+      showToast($t('settings.backupRestored'));
       backupImportOpen = false;
       backupImportText = '';
       backupImportConfirm = false;
       backupLoadedFileName = '';
     } catch (e: any) {
-      showToast('Restore failed: ' + e.message, 'error');
+      showToast($t('settings.restoreFailed', { message: e.message }), 'error');
     }
   }
 
   function handleClear() {
     clearAllData();
-    showToast('Trip data cleared');
+    showToast($t('settings.tripDataCleared'));
     clearConfirm = false;
   }
 
@@ -219,13 +224,25 @@
   "exchangeRates": {},
   "settlementCurrency": ""
 }`;
+
+  async function handleTestAI() {
+    aiTestLoading = true;
+    try {
+      const ok = await testConnection();
+      if (ok) showToast($t('settings.ai.testSuccess'));
+      else showToast($t('settings.ai.testFailed'), 'error');
+    } catch {
+      showToast($t('settings.ai.testFailed'), 'error');
+    }
+    aiTestLoading = false;
+  }
 </script>
 
 <div class="p-4 md:p-6 space-y-6">
   <!-- Theme -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Appearance</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.appearance')}</h3>
     </div>
     <div class="p-4">
       <button
@@ -239,20 +256,45 @@
             <Sun size={20} class="text-primary-500" />
           {/if}
           <span class="text-sm font-medium text-[var(--text-primary)]">
-            {$settings.theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+            {$settings.theme === 'dark' ? $t('settings.darkMode') : $t('settings.lightMode')}
           </span>
         </div>
         <div class="w-12 h-7 rounded-full p-0.5 transition-colors {$settings.theme === 'dark' ? 'bg-gradient-to-r from-primary-500 to-primary-700' : 'bg-[#cbd5e1]'}">
-          <div class="w-6 h-6 rounded-full bg-white shadow-sm transition-transform {$settings.theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}"></div>
+          <div class="w-6 h-6 rounded-full bg-white shadow-sm transition-transform {$settings.theme === 'dark' ? ($isRtl ? '-translate-x-5' : 'translate-x-5') : 'translate-x-0'}"></div>
         </div>
       </button>
+    </div>
+  </div>
+
+  <!-- Language -->
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-[var(--card-border)]">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.language')}</h3>
+    </div>
+    <div class="p-4">
+      <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
+        <button
+          onclick={() => setAppLocale('en')}
+          class="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all
+            {$settings.locale === 'en' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
+        >
+          English
+        </button>
+        <button
+          onclick={() => setAppLocale('fa')}
+          class="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all
+            {$settings.locale === 'fa' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
+        >
+          فارسی
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Calendar -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Calendar</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.calendar')}</h3>
     </div>
     <div class="p-4">
       <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
@@ -262,7 +304,7 @@
             {$settings.calendar === 'gregorian' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
         >
           <Calendar size={16} />
-          Gregorian
+          {$t('settings.gregorian')}
         </button>
         <button
           onclick={() => setCalendar('jalali')}
@@ -270,8 +312,81 @@
             {$settings.calendar === 'jalali' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
         >
           <Calendar size={16} />
-          Jalali
+          {$t('settings.jalali')}
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Receipt Scanner Settings -->
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-[var(--card-border)]">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)] flex items-center gap-2">
+        <Sparkles size={16} class="text-primary-500" />
+        {$t('settings.ai.title')}
+      </h3>
+    </div>
+    <div class="p-4 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.apiKey')}</label>
+        <div class="relative">
+          <input
+            type={showApiKey ? 'text' : 'password'}
+            value={$aiSettings.apiKey}
+            oninput={(e) => updateAISettings({ apiKey: (e.target as HTMLInputElement).value })}
+            placeholder="sk-or-..."
+            class="w-full px-3 py-2.5 pe-10 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+          />
+          <button
+            type="button"
+            onclick={() => showApiKey = !showApiKey}
+            class="absolute end-2 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
+          >
+            {#if showApiKey}
+              <EyeOff size={16} class="text-[var(--text-secondary)]" />
+            {:else}
+              <Eye size={16} class="text-[var(--text-secondary)]" />
+            {/if}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.model')}</label>
+        <input
+          type="text"
+          value={$aiSettings.model}
+          oninput={(e) => updateAISettings({ model: (e.target as HTMLInputElement).value })}
+          placeholder={$t('settings.ai.modelPlaceholder')}
+          class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.customPrompt')}</label>
+        <textarea
+          value={$aiSettings.customPrompt}
+          oninput={(e) => updateAISettings({ customPrompt: (e.target as HTMLTextAreaElement).value })}
+          placeholder={$t('settings.ai.customPromptPlaceholder')}
+          rows="2"
+          class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all resize-none"
+        ></textarea>
+      </div>
+
+      <button
+        onclick={handleTestAI}
+        disabled={!$aiSettings.apiKey || !$aiSettings.model || aiTestLoading}
+        class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+      >
+        {#if aiTestLoading}
+          <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+        {/if}
+        {$t('settings.ai.testConnection')}
+      </button>
+
+      <div class="flex gap-2 p-3 rounded-xl bg-surface-50 dark:bg-surface-800 border border-[var(--card-border)]">
+        <Info size={14} class="text-[var(--text-secondary)] shrink-0 mt-0.5" />
+        <p class="text-xs text-[var(--text-secondary)]">{$t('settings.ai.securityNotice')}</p>
       </div>
     </div>
   </div>
@@ -279,7 +394,7 @@
   <!-- Import / Export -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Data</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.data')}</h3>
     </div>
     <div class="p-4 space-y-2">
       <button
@@ -287,21 +402,21 @@
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <Download size={20} class="text-primary-500" />
-        <span class="text-sm font-medium text-[var(--text-primary)]">Export Trip Data (JSON)</span>
+        <span class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.exportTripData')}</span>
       </button>
       <button
         onclick={() => { importOpen = true; importText = ''; importError = ''; importMode = 'replace'; loadedFileName = ''; dragOver = false; }}
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <Upload size={20} class="text-primary-500" />
-        <span class="text-sm font-medium text-[var(--text-primary)]">Import Data (JSON)</span>
+        <span class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.importData')}</span>
       </button>
       <button
         onclick={() => { csvImportOpen = true; }}
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <FileSpreadsheet size={20} class="text-primary-500" />
-        <span class="text-sm font-medium text-[var(--text-primary)]">Import CSV</span>
+        <span class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.importCsv')}</span>
       </button>
     </div>
   </div>
@@ -309,7 +424,7 @@
   <!-- Full Backup -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Full Backup</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.fullBackup')}</h3>
     </div>
     <div class="p-4 space-y-2">
       <button
@@ -317,9 +432,9 @@
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <DatabaseBackup size={20} class="text-primary-500" />
-        <div class="text-left">
-          <span class="text-sm font-medium text-[var(--text-primary)] block">Export All Trips</span>
-          <span class="text-[10px] text-[var(--text-secondary)]">Download a full backup of every trip</span>
+        <div class="text-start">
+          <span class="text-sm font-medium text-[var(--text-primary)] block">{$t('settings.exportAllTrips')}</span>
+          <span class="text-[10px] text-[var(--text-secondary)]">{$t('settings.exportAllDesc')}</span>
         </div>
       </button>
       <button
@@ -327,9 +442,9 @@
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <Database size={20} class="text-primary-500" />
-        <div class="text-left">
-          <span class="text-sm font-medium text-[var(--text-primary)] block">Restore Backup</span>
-          <span class="text-[10px] text-[var(--text-secondary)]">Replace all trips from a backup file</span>
+        <div class="text-start">
+          <span class="text-sm font-medium text-[var(--text-primary)] block">{$t('settings.restoreBackup')}</span>
+          <span class="text-[10px] text-[var(--text-secondary)]">{$t('settings.restoreBackupDesc')}</span>
         </div>
       </button>
     </div>
@@ -343,7 +458,7 @@
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-danger-500/10 transition-colors"
       >
         <Trash2 size={20} class="text-danger-500" />
-        <span class="text-sm font-medium text-danger-500">Clear Trip Data</span>
+        <span class="text-sm font-medium text-danger-500">{$t('settings.clearTripData')}</span>
       </button>
     </div>
   </div>
@@ -351,24 +466,24 @@
   <!-- About -->
   <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">About</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.about')}</h3>
     </div>
     <div class="p-4 space-y-3">
       <div class="flex items-start gap-3">
         <Info size={20} class="text-primary-500 shrink-0 mt-0.5" />
         <div>
-          <p class="text-sm font-medium text-[var(--text-primary)]">Trip Expense Tracker</p>
-          <p class="text-xs text-[var(--text-secondary)]">Version 2.0.0</p>
+          <p class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.appName')}</p>
+          <p class="text-xs text-[var(--text-secondary)]">{$t('settings.version')}</p>
         </div>
       </div>
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
-        A simple, offline-first app to track and split trip expenses among friends. All data is stored locally on your device.
+        {$t('settings.aboutDesc')}
       </p>
     </div>
   </div>
 </div>
 
-<Modal open={importOpen} title="Import Data" onClose={() => importOpen = false}>
+<Modal open={importOpen} title={$t('settings.importTitle')} onClose={() => importOpen = false}>
   <div class="space-y-4">
     <div
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
@@ -380,10 +495,10 @@
       <FileUp size={32} class="mx-auto mb-2 text-[var(--text-secondary)]" />
       {#if loadedFileName}
         <p class="text-sm font-medium text-primary-600 mb-1">{loadedFileName}</p>
-        <p class="text-xs text-[var(--text-secondary)]">File loaded — drop another to replace</p>
+        <p class="text-xs text-[var(--text-secondary)]">{$t('common.fileLoaded')}</p>
       {:else}
-        <p class="text-sm font-medium text-[var(--text-primary)] mb-1">Drop JSON file here</p>
-        <p class="text-xs text-[var(--text-secondary)] mb-3">or click to browse</p>
+        <p class="text-sm font-medium text-[var(--text-primary)] mb-1">{$t('settings.dropJsonFile')}</p>
+        <p class="text-xs text-[var(--text-secondary)] mb-3">{$t('common.orClickBrowse')}</p>
       {/if}
       <input
         type="file"
@@ -393,7 +508,7 @@
       />
       {#if !loadedFileName}
         <label class="inline-block px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium cursor-pointer hover:bg-primary-500 transition-colors">
-          Choose File
+          {$t('common.chooseFile')}
           <input type="file" accept=".json,application/json" onchange={handleJsonFileInput} class="hidden" />
         </label>
       {/if}
@@ -401,7 +516,7 @@
 
     <div class="relative flex items-center gap-3">
       <div class="flex-1 h-px bg-[var(--card-border)]"></div>
-      <span class="text-xs text-[var(--text-secondary)] font-medium">or paste JSON</span>
+      <span class="text-xs text-[var(--text-secondary)] font-medium">{$t('common.orPasteJson')}</span>
       <div class="flex-1 h-px bg-[var(--card-border)]"></div>
     </div>
 
@@ -415,21 +530,21 @@
     </div>
 
     <div>
-      <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">Import as</label>
+      <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('settings.importAs')}</label>
       <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
         <button
           onclick={() => importMode = 'replace'}
           class="flex-1 py-2 text-xs font-medium transition-all
             {importMode === 'replace' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
         >
-          Replace Current Trip
+          {$t('settings.replaceCurrentTrip')}
         </button>
         <button
           onclick={() => importMode = 'new'}
           class="flex-1 py-2 text-xs font-medium transition-all
             {importMode === 'new' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
         >
-          Create New Trip
+          {$t('settings.createNewTrip')}
         </button>
       </div>
     </div>
@@ -441,11 +556,11 @@
       onclick={handleImportPaste}
       class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
-      Validate & Import
+      {$t('settings.validateImport')}
     </button>
 
     <details class="text-xs text-[var(--text-secondary)]">
-      <summary class="cursor-pointer font-medium">View Template</summary>
+      <summary class="cursor-pointer font-medium">{$t('settings.viewTemplate')}</summary>
       <pre class="mt-2 p-3 rounded-xl bg-[#f8fafc] dark:bg-[#1e293b] border border-[var(--card-border)] overflow-x-auto text-[var(--text-secondary)]">{templateJson}</pre>
     </details>
   </div>
@@ -453,9 +568,9 @@
 
 <ConfirmDialog
   open={importConfirm}
-  title={importMode === 'new' ? 'Import as New Trip?' : 'Replace Current Trip Data?'}
-  message={importMode === 'new' ? 'This will create a new trip with the imported data.' : 'Importing will replace ALL data in the current trip. This cannot be undone.'}
-  confirmLabel="Import"
+  title={importMode === 'new' ? $t('settings.importAsNewTitle') : $t('settings.replaceTitle')}
+  message={importMode === 'new' ? $t('settings.importAsNewMessage') : $t('settings.replaceMessage')}
+  confirmLabel={$t('common.import')}
   destructive={importMode === 'replace'}
   onConfirm={confirmImport}
   onCancel={() => importConfirm = false}
@@ -463,9 +578,9 @@
 
 <ConfirmDialog
   open={clearConfirm}
-  title="Clear Trip Data"
-  message="Are you sure you want to clear all data in this trip? Participants, currencies, and expenses will be deleted. This cannot be undone."
-  confirmLabel="Clear Trip Data"
+  title={$t('settings.clearTitle')}
+  message={$t('settings.clearMessage')}
+  confirmLabel={$t('settings.clearTripData')}
   destructive={true}
   onConfirm={handleClear}
   onCancel={() => clearConfirm = false}
@@ -476,7 +591,7 @@
   onClose={() => { csvImportOpen = false; }}
 />
 
-<Modal open={backupImportOpen} title="Restore Full Backup" onClose={() => backupImportOpen = false}>
+<Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => backupImportOpen = false}>
   <div class="space-y-4">
     <div
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
@@ -488,10 +603,10 @@
       <FileUp size={32} class="mx-auto mb-2 text-[var(--text-secondary)]" />
       {#if backupLoadedFileName}
         <p class="text-sm font-medium text-primary-600 mb-1">{backupLoadedFileName}</p>
-        <p class="text-xs text-[var(--text-secondary)]">File loaded — drop another to replace</p>
+        <p class="text-xs text-[var(--text-secondary)]">{$t('common.fileLoaded')}</p>
       {:else}
-        <p class="text-sm font-medium text-[var(--text-primary)] mb-1">Drop backup file here</p>
-        <p class="text-xs text-[var(--text-secondary)] mb-3">or click to browse</p>
+        <p class="text-sm font-medium text-[var(--text-primary)] mb-1">{$t('settings.dropBackupFile')}</p>
+        <p class="text-xs text-[var(--text-secondary)] mb-3">{$t('common.orClickBrowse')}</p>
       {/if}
       <input
         type="file"
@@ -501,7 +616,7 @@
       />
       {#if !backupLoadedFileName}
         <label class="inline-block px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium cursor-pointer hover:bg-primary-500 transition-colors">
-          Choose File
+          {$t('common.chooseFile')}
           <input type="file" accept=".json,application/json" onchange={handleBackupFileInput} class="hidden" />
         </label>
       {/if}
@@ -509,7 +624,7 @@
 
     <div class="relative flex items-center gap-3">
       <div class="flex-1 h-px bg-[var(--card-border)]"></div>
-      <span class="text-xs text-[var(--text-secondary)] font-medium">or paste JSON</span>
+      <span class="text-xs text-[var(--text-secondary)] font-medium">{$t('common.orPasteJson')}</span>
       <div class="flex-1 h-px bg-[var(--card-border)]"></div>
     </div>
 
@@ -529,16 +644,16 @@
       onclick={handleBackupValidate}
       class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
-      Validate & Restore
+      {$t('settings.validateRestore')}
     </button>
   </div>
 </Modal>
 
 <ConfirmDialog
   open={backupImportConfirm}
-  title="Restore Full Backup?"
-  message="This will replace ALL your trips with the data from the backup file. All current trips will be lost. This cannot be undone."
-  confirmLabel="Restore"
+  title={$t('settings.restoreConfirmTitle')}
+  message={$t('settings.restoreConfirmMessage')}
+  confirmLabel={$t('settings.restore')}
   destructive={true}
   onConfirm={confirmBackupImport}
   onCancel={() => backupImportConfirm = false}

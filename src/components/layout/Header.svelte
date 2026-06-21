@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ArrowLeft } from '@lucide/svelte';
+  import { ArrowLeft, ArrowRight } from '@lucide/svelte';
+  import { isRtl } from '$lib/i18n';
 
   interface Props {
     title: string;
@@ -14,9 +15,13 @@
   {#if onBack}
     <button
       onclick={onBack}
-      class="w-8 h-8 -ml-1 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
+      class="w-8 h-8 -ms-1 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
     >
-      <ArrowLeft size={20} class="text-[var(--text-primary)]" />
+      {#if $isRtl}
+        <ArrowRight size={20} class="text-[var(--text-primary)]" />
+      {:else}
+        <ArrowLeft size={20} class="text-[var(--text-primary)]" />
+      {/if}
     </button>
   {/if}
   <div class="min-w-0">
@@ -27,5 +32,5 @@
       <p class="text-[10px] font-medium text-primary-500 dark:text-primary-400 truncate -mt-0.5">{subtitle}</p>
     {/if}
   </div>
-  <div class="h-1 absolute bottom-0 left-0 right-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
+  <div class="h-1 absolute bottom-0 inset-x-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
 </header>

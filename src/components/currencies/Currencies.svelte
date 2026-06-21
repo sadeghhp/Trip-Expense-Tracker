@@ -3,6 +3,7 @@
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { validateCurrencyCode, isCurrencyUsed } from '$lib/utils/validation';
+  import { t } from '$lib/i18n';
   import type { Currency, PredefinedCurrency } from '$lib/types';
   import Modal from '../ui/Modal.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -63,18 +64,18 @@
     const symbol = symbolInput.trim();
 
     if (!code || !symbol) {
-      formError = 'Both code and symbol are required.';
+      formError = $t('validation.codeAndSymbolRequired');
       return;
     }
     if (code.length > 5 || symbol.length > 5) {
-      formError = 'Maximum 5 characters each.';
+      formError = $t('validation.maxChars');
       return;
     }
 
     const existingCodes = $appData.currencies.map(c => c.code);
     const error = validateCurrencyCode(code, existingCodes, editingCode ?? undefined);
     if (error) {
-      formError = error;
+      formError = $t(error.key, error.params);
       return;
     }
 
@@ -91,13 +92,14 @@
         const settlementCurrency = d.settlementCurrency === oldCode ? code : d.settlementCurrency;
         return { ...d, currencies, expenses, exchangeRates, settlementCurrency };
       });
-      showToast('Currency updated');
+      showToast($t('currencies.updated'));
     } else {
       updateData(d => ({
         ...d,
-        currencies: [...d.currencies, { code, symbol }]
+        currencies: [...d.currencies, { code, symbol }],
+        settlementCurrency: d.settlementCurrency || code
       }));
-      showToast('Currency added');
+      showToast($t('currencies.added'));
     }
     showForm = false;
   }
@@ -106,29 +108,32 @@
     const exists = $appData.currencies.find(c => c.code === pc.code);
     if (exists) {
       if (isCurrencyUsed(pc.code, $appData.expenses)) {
-        showToast(`Currency ${pc.code} is used in expenses and cannot be removed.`, 'error');
+        showToast($t('currencies.usedInExpenses', { code: pc.code }), 'error');
         return;
       }
       updateData(d => {
         const currencies = d.currencies.filter(c => c.code !== pc.code);
         const exchangeRates = { ...d.exchangeRates };
         delete exchangeRates[pc.code];
-        const settlementCurrency = d.settlementCurrency === pc.code ? '' : d.settlementCurrency;
+        const settlementCurrency = d.settlementCurrency === pc.code
+          ? (currencies[0]?.code || '')
+          : d.settlementCurrency;
         return { ...d, currencies, exchangeRates, settlementCurrency };
       });
-      showToast(`${pc.code} removed`);
+      showToast($t('currencies.removed', { code: pc.code }));
     } else {
       updateData(d => ({
         ...d,
-        currencies: [...d.currencies, { code: pc.code, symbol: pc.symbol }]
+        currencies: [...d.currencies, { code: pc.code, symbol: pc.symbol }],
+        settlementCurrency: d.settlementCurrency || pc.code
       }));
-      showToast(`${pc.code} added`);
+      showToast($t('currencies.quickAdded', { code: pc.code }));
     }
   }
 
   function requestDelete(c: Currency) {
     if (isCurrencyUsed(c.code, $appData.expenses)) {
-      showToast('Cannot delete: currency is used in expenses', 'error');
+      showToast($t('currencies.cannotDelete'), 'error');
       return;
     }
     deleteConfirm = c;
@@ -141,10 +146,12 @@
       const currencies = d.currencies.filter(c => c.code !== code);
       const exchangeRates = { ...d.exchangeRates };
       delete exchangeRates[code];
-      const settlementCurrency = d.settlementCurrency === code ? '' : d.settlementCurrency;
+      const settlementCurrency = d.settlementCurrency === code
+        ? (currencies[0]?.code || '')
+        : d.settlementCurrency;
       return { ...d, currencies, exchangeRates, settlementCurrency };
     });
-    showToast('Currency deleted');
+    showToast($t('currencies.deleted'));
     deleteConfirm = null;
   }
 
@@ -156,7 +163,7 @@
 <div class="p-4 md:p-6 space-y-6">
   <!-- Quick-add grid -->
   <div>
-    <h3 class="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">Quick Add</h3>
+    <h3 class="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">{$t('currencies.quickAdd')}</h3>
     <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
       {#each predefined as pc (pc.code)}
         {@const added = isAdded(pc.code)}
@@ -168,7 +175,7 @@
               : 'border-[var(--card-border)] bg-[var(--card-bg)] hover:border-primary-300'}"
         >
           {#if added}
-            <div class="absolute top-1 right-1">
+            <div class="absolute top-1 end-1">
               <Check size={12} class="text-primary-600 dark:text-primary-400" />
             </div>
           {/if}
@@ -183,12 +190,12 @@
   {#if $appData.currencies.length === 0}
     <EmptyState
       icon={Coins}
-      title="No currencies added"
-      description="Add currencies used during your trip using the quick-add buttons above or the custom form."
+      title={$t('currencies.noCurrenciesTitle')}
+      description={$t('currencies.noCurrenciesDesc')}
     />
   {:else}
     <div>
-      <h3 class="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">Active Currencies</h3>
+      <h3 class="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-3">{$t('currencies.activeCurrencies')}</h3>
       <div class="space-y-2">
         {#each $appData.currencies as currency (currency.code)}
           <div class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200">
@@ -220,33 +227,33 @@ class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] da
 
   <button
     onclick={openAdd}
-    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
+    class="fixed bottom-20 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
   >
     <Plus size={24} />
   </button>
 </div>
 
-<Modal open={showForm} title={editingCode ? 'Edit Currency' : 'Add Custom Currency'} onClose={() => showForm = false}>
+<Modal open={showForm} title={editingCode ? $t('currencies.editTitle') : $t('currencies.addTitle')} onClose={() => showForm = false}>
   <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
     <div>
-      <label for="code" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Code</label>
+      <label for="code" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('currencies.codeLabel')}</label>
       <input
         id="code"
         type="text"
         bind:value={codeInput}
-        placeholder="e.g. USD"
+        placeholder={$t('currencies.codePlaceholder')}
         maxlength="5"
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
         autofocus
       />
     </div>
     <div>
-      <label for="symbol" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Symbol</label>
+      <label for="symbol" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('currencies.symbolLabel')}</label>
       <input
         id="symbol"
         type="text"
         bind:value={symbolInput}
-        placeholder="e.g. $"
+        placeholder={$t('currencies.symbolPlaceholder')}
         maxlength="5"
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
       />
@@ -258,16 +265,16 @@ class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] da
       type="submit"
       class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
-      {editingCode ? 'Update' : 'Add Currency'}
+      {editingCode ? $t('currencies.update') : $t('currencies.addCurrency')}
     </button>
   </form>
 </Modal>
 
 <ConfirmDialog
   open={deleteConfirm !== null}
-  title="Delete Currency"
-  message="Are you sure you want to delete {deleteConfirm?.code ?? ''}?"
-  confirmLabel="Delete"
+  title={$t('currencies.deleteTitle')}
+  message={$t('currencies.deleteMessage', { code: deleteConfirm?.code ?? '' })}
+  confirmLabel={$t('common.delete')}
   destructive={true}
   onConfirm={confirmDelete}
   onCancel={() => deleteConfirm = null}

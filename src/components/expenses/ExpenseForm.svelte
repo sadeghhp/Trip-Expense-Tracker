@@ -7,6 +7,7 @@
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
   import { formatAmount } from '$lib/utils/format';
+  import { t } from '$lib/i18n';
   import type { Expense, Beneficiary, SplitType } from '$lib/types';
 
   interface Props {
@@ -91,7 +92,7 @@
 
     const error = validateExpense(expenseData, $appData);
     if (error) {
-      formError = error;
+      formError = $t(error.key, error.params);
       return;
     }
 
@@ -123,7 +124,7 @@
   >
     <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)] shrink-0">
       <h2 class="text-lg font-semibold text-[var(--text-primary)]">
-        {expense ? 'Edit Expense' : 'Add Expense'}
+        {expense ? $t('expenseForm.editTitle') : $t('expenseForm.addTitle')}
       </h2>
       <button onclick={onClose} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors">
         <X size={18} />
@@ -134,12 +135,12 @@
       <!-- Date & Description -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Date</label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.date')}</label>
           <input type="date" bind:value={date}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Currency</label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.currency')}</label>
           <select bind:value={currencyCode}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.currencies as c}
@@ -150,19 +151,19 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Description</label>
-        <input type="text" bind:value={description} placeholder="What was this expense for?"
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
+        <input type="text" bind:value={description} placeholder={$t('expenseForm.descriptionPlaceholder')}
           class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Amount</label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.amount')}</label>
           <input type="number" bind:value={amount} placeholder="0.00" step="0.01" min="0"
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Paid by</label>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
           <select bind:value={paidBy}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.participants as p}
@@ -174,18 +175,18 @@
 
       <!-- Split type -->
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">Split Type</label>
+        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</label>
         <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
           {#each ['equal', 'custom', 'percentage'] as st}
             <button
               type="button"
               onclick={() => splitType = st as SplitType}
-              class="flex-1 py-2 text-xs font-medium transition-all capitalize
+              class="flex-1 py-2 text-xs font-medium transition-all
                 {splitType === st
                   ? 'bg-primary-600 text-white'
                   : 'bg-[var(--app-bg)] text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
             >
-              {st}
+              {$t(`expenseForm.${st}`)}
             </button>
           {/each}
         </div>
@@ -194,7 +195,7 @@
       <!-- Beneficiaries -->
       <div>
         <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-          Beneficiaries ({beneficiaryCount})
+          {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
         </label>
         <div class="space-y-2 max-h-48 overflow-y-auto">
           {#each $appData.participants as p (p.id)}
@@ -222,7 +223,7 @@
                   placeholder="0.00"
                   value={customAmounts[p.id] ?? ''}
                   oninput={(e) => customAmounts[p.id] = (e.target as HTMLInputElement).value}
-                  class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
                 />
               {/if}
               {#if selected && splitType === 'percentage'}
@@ -235,7 +236,7 @@
                     placeholder="0"
                     value={customPercentages[p.id] ?? ''}
                     oninput={(e) => customPercentages[p.id] = (e.target as HTMLInputElement).value}
-                    class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-right focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <span class="text-xs text-[var(--text-secondary)]">%</span>
                 </div>
@@ -248,18 +249,18 @@
       <!-- Live preview -->
       {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
         <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
-          {equalPerPerson} each ({beneficiaryCount} {beneficiaryCount === 1 ? 'person' : 'people'})
+          {$t('expenseForm.equalPreview', { amount: equalPerPerson, count: beneficiaryCount, label: beneficiaryCount === 1 ? $t('common.person') : $t('common.people') })}
         </div>
       {/if}
       {#if splitType === 'custom'}
         <div class="px-3 py-2 rounded-xl text-xs {Math.abs(customSum - parsedAmount) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
-          Sum: {formatAmount(customSum)} / {formatAmount(parsedAmount)}
+          {$t('expenseForm.customSum', { sum: formatAmount(customSum), total: formatAmount(parsedAmount) })}
           {Math.abs(customSum - parsedAmount) < 0.01 ? '✓' : '✗'}
         </div>
       {/if}
       {#if splitType === 'percentage'}
         <div class="px-3 py-2 rounded-xl text-xs {Math.abs(percentageSum - 100) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
-          Sum: {percentageSum.toFixed(2)}% / 100%
+          {$t('expenseForm.percentageSum', { sum: percentageSum.toFixed(2) })}
           {Math.abs(percentageSum - 100) < 0.01 ? '✓' : '✗'}
         </div>
       {/if}
@@ -272,7 +273,7 @@
         type="submit"
         class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
       >
-        {expense ? 'Update Expense' : 'Add Expense'}
+        {expense ? $t('expenseForm.updateExpense') : $t('expenseForm.addExpense')}
       </button>
     </form>
   </div>

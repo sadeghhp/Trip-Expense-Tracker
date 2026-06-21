@@ -1,8 +1,9 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
-  import { onMount } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import type { TabId } from '$lib/types';
   import { activeTripId, activeTrip, exitTrip, switchTrip, trips } from '$lib/stores/data';
+  import { t, dir } from '$lib/i18n';
   import TabBar from './components/layout/TabBar.svelte';
   import Header from './components/layout/Header.svelte';
   import Toast from './components/ui/Toast.svelte';
@@ -17,18 +18,15 @@
 
   let activeTab: TabId = $state('home');
   let suppressHashUpdate = false;
+  let hashChangeVersion = 0;
+  let hashNavPending = false;
+  let hashNavRunning = false;
+  let previousTripId: string | null | undefined = undefined;
 
   const validTabs = new Set<string>(['home', 'participants', 'currencies', 'expenses', 'balances', 'settlement', 'settings']);
 
-  const tabTitles: Record<TabId, string> = {
-    home: 'Home',
-    participants: 'Participants',
-    currencies: 'Currencies',
-    expenses: 'Expenses',
-    balances: 'Balances',
-    settlement: 'Settlement',
-    settings: 'Settings'
-  };
+  let flyInX = $derived($dir === 'rtl' ? -20 : 20);
+  let flyOutX = $derived($dir === 'rtl' ? 20 : -20);
 
   function parseHash(): { tripId: string | null; tab: TabId | null } {
     const hash = window.location.hash.replace(/^#\/?/, '');
@@ -56,27 +54,60 @@
     }
   }
 
-  function handleHashChange() {
-    const { tripId, tab } = parseHash();
-    suppressHashUpdate = true;
-    if (tripId) {
-      const tripExists = $trips.some(t => t.id === tripId);
-      if (tripExists) {
-        if ($activeTripId !== tripId) switchTrip(tripId);
-        if (tab) activeTab = tab;
+  async function handleHashChange() {
+    hashNavPending = true;
+    if (hashNavRunning) return;
+    hashNavRunning = true;
+
+    while (hashNavPending) {
+      hashNavPending = false;
+      const version = ++hashChangeVersion;
+      const { tripId, tab } = parseHash();
+      suppressHashUpdate = true;
+      if (tripId) {
+        const tripExists = $trips.some(trip => trip.id === tripId);
+        if (tripExists) {
+          if ($activeTripId !== tripId) {
+            switchTrip(tripId);
+            activeTab = tab || 'home';
+          } else if (tab) {
+            activeTab = tab;
+          }
+        } else {
+          exitTrip();
+          activeTab = 'home';
+        }
       } else {
-        exitTrip();
+        if ($activeTripId) {
+          exitTrip();
+          activeTab = 'home';
+        }
       }
-    } else {
-      if ($activeTripId) exitTrip();
+      await tick();
+      if (version === hashChangeVersion) {
+        suppressHashUpdate = false;
+      }
     }
-    suppressHashUpdate = false;
+
+    hashNavRunning = false;
   }
 
   onMount(() => {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  });
+
+  $effect(() => {
+    const tripId = $activeTripId;
+    if (previousTripId !== undefined && tripId !== previousTripId && !suppressHashUpdate) {
+      activeTab = 'home';
+    }
+    previousTripId = tripId;
   });
 
   $effect(() => {
@@ -91,7 +122,6 @@
 
   function handleBack() {
     activeTab = 'home';
-    exitTrip();
   }
 </script>
 
@@ -104,7 +134,7 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden">
       {#if activeTab !== 'home'}
         <Header
-          title={tabTitles[activeTab]}
+          title={$t(`tabs.${activeTab}`)}
           subtitle={$activeTrip?.name}
           onBack={handleBack}
         />
@@ -113,7 +143,7 @@
       <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
         <div class="{activeTab === 'home' ? 'max-w-2xl mx-auto' : 'max-w-3xl mx-auto'}">
           {#key activeTab}
-            <div in:fly={{ x: 20, duration: 250, delay: 60 }} out:fly={{ x: -20, duration: 180 }}>
+            <div in:fly={{ x: flyInX, duration: 250, delay: 60 }} out:fly={{ x: flyOutX, duration: 180 }}>
               {#if activeTab === 'home'}
                 <HomeDashboard onNavigate={handleTabChange} />
               {:else if activeTab === 'participants'}

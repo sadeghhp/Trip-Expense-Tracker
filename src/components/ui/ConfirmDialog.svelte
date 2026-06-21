@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { AlertTriangle } from '@lucide/svelte';
+  import { t } from '$lib/i18n';
 
   interface Props {
     open: boolean;
@@ -17,12 +18,15 @@
     open,
     title,
     message,
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
+    confirmLabel,
+    cancelLabel,
     destructive = false,
     onConfirm,
     onCancel
   }: Props = $props();
+
+  let resolvedConfirmLabel = $derived(confirmLabel ?? $t('common.confirm'));
+  let resolvedCancelLabel = $derived(cancelLabel ?? $t('common.cancel'));
 </script>
 
 {#if open}
@@ -49,14 +53,14 @@
           onclick={onCancel}
           class="flex-1 py-2.5 px-4 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--text-primary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
         >
-          {cancelLabel}
+          {resolvedCancelLabel}
         </button>
         <button
           onclick={onConfirm}
           class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white transition-colors
             {destructive ? 'bg-danger-500 hover:bg-danger-600' : 'bg-primary-600 hover:bg-primary-700'}"
         >
-          {confirmLabel}
+          {resolvedConfirmLabel}
         </button>
       </div>
     </div>

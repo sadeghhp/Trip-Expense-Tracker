@@ -5,6 +5,7 @@
   import { showToast } from '$lib/stores/toast';
   import { generateId } from '$lib/utils/id';
   import { validateParticipantName, isParticipantUsed } from '$lib/utils/validation';
+  import { t } from '$lib/i18n';
   import type { Participant } from '$lib/types';
   import Modal from '../ui/Modal.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -37,7 +38,7 @@
 
     const error = validateParticipantName(trimmed, existingNames, editingId ?? undefined, data.participants);
     if (error) {
-      formError = error;
+      formError = $t(error.key, error.params);
       return;
     }
 
@@ -46,20 +47,20 @@
         ...d,
         participants: d.participants.map(p => p.id === editingId ? { ...p, name: trimmed } : p)
       }));
-      showToast('Participant updated');
+      showToast($t('participants.updated'));
     } else {
       updateData(d => ({
         ...d,
         participants: [...d.participants, { id: generateId(), name: trimmed }]
       }));
-      showToast('Participant added');
+      showToast($t('participants.added'));
     }
     showForm = false;
   }
 
   function requestDelete(p: Participant) {
     if (isParticipantUsed(p.id, $appData.expenses)) {
-      showToast('Cannot delete: participant is used in expenses', 'error');
+      showToast($t('participants.cannotDelete'), 'error');
       return;
     }
     deleteConfirm = p;
@@ -72,7 +73,7 @@
       ...d,
       participants: d.participants.filter(p => p.id !== id)
     }));
-    showToast('Participant deleted');
+    showToast($t('participants.deleted'));
     deleteConfirm = null;
   }
 </script>
@@ -81,14 +82,14 @@
   {#if $appData.participants.length === 0}
     <EmptyState
       icon={Users}
-      title="No participants yet"
-      description="Add the people who are sharing expenses on this trip."
+      title={$t('participants.noParticipantsTitle')}
+      description={$t('participants.noParticipantsDesc')}
     >
       <button
         onclick={openAdd}
         class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all hover:shadow-md active:scale-95"
       >
-        Add First Participant
+        {$t('participants.addFirst')}
       </button>
     </EmptyState>
   {:else}
@@ -127,21 +128,21 @@
 
   <button
     onclick={openAdd}
-    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
+    class="fixed bottom-20 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
   >
     <Plus size={24} />
   </button>
 </div>
 
-<Modal open={showForm} title={editingId ? 'Edit Participant' : 'Add Participant'} onClose={() => showForm = false}>
+<Modal open={showForm} title={editingId ? $t('participants.editTitle') : $t('participants.addTitle')} onClose={() => showForm = false}>
   <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
     <div>
-      <label for="name" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Name</label>
+      <label for="name" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('participants.nameLabel')}</label>
       <input
         id="name"
         type="text"
         bind:value={nameInput}
-        placeholder="Enter name"
+        placeholder={$t('participants.namePlaceholder')}
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
         autofocus
       />
@@ -153,16 +154,16 @@
       type="submit"
       class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
-      {editingId ? 'Update' : 'Add Participant'}
+      {editingId ? $t('participants.update') : $t('participants.addParticipant')}
     </button>
   </form>
 </Modal>
 
 <ConfirmDialog
   open={deleteConfirm !== null}
-  title="Delete Participant"
-  message="Are you sure you want to delete {deleteConfirm?.name ?? ''}? This cannot be undone."
-  confirmLabel="Delete"
+  title={$t('participants.deleteTitle')}
+  message={$t('participants.deleteMessage', { name: deleteConfirm?.name ?? '' })}
+  confirmLabel={$t('common.delete')}
   destructive={true}
   onConfirm={confirmDelete}
   onCancel={() => deleteConfirm = null}

@@ -116,6 +116,10 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+html[dir="rtl"], html[dir="rtl"] body {
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 body {
   background-color: var(--app-bg);
   color: var(--text-primary);

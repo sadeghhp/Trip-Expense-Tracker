@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { ArrowRightLeft, ArrowRight, CheckCircle } from '@lucide/svelte';
-  import { appData, updateData, dataVersion } from '$lib/stores/data';
+  import { ArrowRightLeft, ArrowRight, ArrowLeft, CheckCircle } from '@lucide/svelte';
+  import { appData, updateData, dataVersion, effectiveSettlementCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { computeBalances, getStatus } from '$lib/engine/balances';
   import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
   import { validateSettlement } from '$lib/utils/validation';
   import { formatAmount, getCurrencySymbol } from '$lib/utils/format';
+  import { t, isRtl } from '$lib/i18n';
   import type { UnifiedBalance, SettlementTransaction } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
 
@@ -14,7 +15,7 @@
   let transactions: SettlementTransaction[] = $state([]);
   let calculated = $state(false);
 
-  let settlementCurrency = $derived($appData.settlementCurrency);
+  let settlementCurrency = $derived($effectiveSettlementCurrency);
   let currencies = $derived($appData.currencies);
   let nonSettlementCurrencies = $derived(currencies.filter(c => c.code !== settlementCurrency));
   let onlySingleCurrency = $derived(currencies.length <= 1);
@@ -47,13 +48,23 @@
   }
 
   function calculate() {
+    const currency = settlementCurrency;
+    if (!currency) {
+      showToast($t('settlement.noSettlementCurrency'), 'error');
+      return;
+    }
+
+    if (!$appData.settlementCurrency) {
+      updateData(d => ({ ...d, settlementCurrency: currency }));
+    }
+
     const error = validateSettlement(
-      $appData.settlementCurrency,
+      currency,
       $appData.currencies,
       $appData.exchangeRates
     );
     if (error) {
-      showToast(error, 'error');
+      showToast($t(error.key, error.params), 'error');
       return;
     }
 
@@ -61,7 +72,7 @@
     unifiedBalances = computeUnifiedBalances(
       balances,
       $appData.participants,
-      $appData.settlementCurrency,
+      currency,
       $appData.exchangeRates
     );
     transactions = computeSettlementTransactions(unifiedBalances);
@@ -85,8 +96,8 @@
   {#if currencies.length === 0}
     <EmptyState
       icon={ArrowRightLeft}
-      title="No currencies"
-      description="Add currencies and expenses first to use the settlement feature."
+      title={$t('settlement.noCurrenciesTitle')}
+      description={$t('settlement.noCurrenciesDesc')}
     />
   {:else}
     <!-- Step indicator -->
@@ -112,7 +123,7 @@
     <!-- Step 1: Select settlement currency -->
     {#if step === 1}
       <div class="space-y-3">
-        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">Choose Settlement Currency</h3>
+        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">{$t('settlement.chooseSettlementCurrency')}</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {#each currencies as c (c.code)}
             <button
@@ -133,15 +144,15 @@
     <!-- Step 2: Exchange rates -->
     {#if step === 2}
       <div class="space-y-3">
-        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">Set Exchange Rates</h3>
+        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">{$t('settlement.setExchangeRates')}</h3>
         {#if onlySingleCurrency}
-          <p class="text-sm text-[var(--text-secondary)]">Only one currency — no conversion needed.</p>
+          <p class="text-sm text-[var(--text-secondary)]">{$t('settlement.onlySingleCurrency')}</p>
         {:else}
           <div class="space-y-3">
             {#each nonSettlementCurrencies as c (c.code)}
               <div class="p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl">
                 <label class="block text-xs text-[var(--text-secondary)] mb-2">
-                  1 {settlementCurrency} = ? {c.code}
+                  {$t('settlement.rateLabel', { settlement: settlementCurrency, currency: c.code })}
                 </label>
                 <input
                   type="number"
@@ -149,7 +160,7 @@
                   min="0"
                   value={$appData.exchangeRates[c.code] ?? ''}
                   oninput={(e) => updateRate(c.code, (e.target as HTMLInputElement).value)}
-                  placeholder="Enter rate"
+                  placeholder={$t('settlement.ratePlaceholder')}
                   class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all"
                 />
               </div>
@@ -160,7 +171,7 @@
           onclick={() => step = 3}
           class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
         >
-          Next
+          {$t('common.next')}
         </button>
       </div>
     {/if}
@@ -168,18 +179,18 @@
     <!-- Step 3: Calculate -->
     {#if step === 3}
       <div class="space-y-4 text-center">
-        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">Ready to Calculate</h3>
+        <h3 class="text-sm font-semibold text-[var(--text-secondary)]">{$t('settlement.readyToCalculate')}</h3>
         <p class="text-xs text-[var(--text-secondary)]">
-          Settlement currency: <strong>{getSymbol(settlementCurrency)} {settlementCurrency}</strong>
+          {$t('settlement.settlementCurrencyIs', { symbol: getSymbol(settlementCurrency), code: settlementCurrency })}
           {#if !onlySingleCurrency}
-            <br/>Exchange rates configured for {nonSettlementCurrencies.length} currencies
+            <br/>{$t('settlement.exchangeRatesConfigured', { count: nonSettlementCurrencies.length })}
           {/if}
         </p>
         <button
           onclick={calculate}
           class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
         >
-          Calculate Settlement
+          {$t('settlement.calculateSettlement')}
         </button>
       </div>
     {/if}
@@ -189,7 +200,7 @@
       <div class="space-y-6">
         <!-- Unified Balances -->
         <div>
-          <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-3">Unified Balances ({settlementCurrency})</h3>
+          <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-3">{$t('settlement.unifiedBalances', { currency: settlementCurrency })}</h3>
           <div class="space-y-2">
             {#each unifiedBalances as ub (ub.id)}
               {@const status = getStatus(ub.balance)}
@@ -205,21 +216,21 @@
 
         <!-- Transactions -->
         <div>
-          <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-3">Settlement Transactions</h3>
+          <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-3">{$t('settlement.settlementTransactions')}</h3>
           {#if transactions.length === 0}
             <div class="flex flex-col items-center py-8 text-center">
               <CheckCircle size={40} class="text-success-500 mb-3" />
-              <p class="text-sm font-medium text-[var(--text-primary)]">Everyone is settled — no transactions needed!</p>
+              <p class="text-sm font-medium text-[var(--text-primary)]">{$t('settlement.allSettled')}</p>
             </div>
           {:else}
             <div class="space-y-2">
               {#each transactions as tx, i (i)}
                 <div class="flex items-center gap-3 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl hover:shadow-md transition-all duration-200">
-                  <div class="flex-1 text-right">
+                  <div class="flex-1 text-end">
                     <span class="text-sm font-medium text-danger-500">{tx.fromName}</span>
                   </div>
                   <div class="flex flex-col items-center gap-0.5">
-                    <ArrowRight size={16} class="text-primary-500" />
+                    {#if $isRtl}<ArrowLeft size={16} class="text-primary-500" />{:else}<ArrowRight size={16} class="text-primary-500" />{/if}
                     <span class="text-xs font-bold text-primary-600 dark:text-primary-400">
                       {getSymbol(settlementCurrency)}{formatAmount(tx.amount)}
                     </span>

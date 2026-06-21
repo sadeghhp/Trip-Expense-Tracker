@@ -6,6 +6,7 @@
   import { settings } from '$lib/stores/settings';
   import { formatDateDisplay } from '$lib/engine/calendar';
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
+  import { t } from '$lib/i18n';
   import type { Expense } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -21,7 +22,7 @@
 
   function openAdd() {
     if ($appData.participants.length === 0 || $appData.currencies.length === 0) {
-      showToast('Add at least one participant and one currency first.', 'error');
+      showToast($t('expenses.needParticipantAndCurrency'), 'error');
       return;
     }
     editingExpense = null;
@@ -35,7 +36,7 @@
 
   function handleSaved() {
     showForm = false;
-    showToast(editingExpense ? 'Expense updated' : 'Expense added');
+    showToast(editingExpense ? $t('expenses.updated') : $t('expenses.added'));
     editingExpense = null;
   }
 
@@ -50,7 +51,7 @@
       ...d,
       expenses: d.expenses.filter(e => e.id !== id)
     }));
-    showToast('Expense deleted');
+    showToast($t('expenses.deleted'));
     deleteConfirm = null;
   }
 
@@ -67,14 +68,14 @@
   {#if sortedExpenses.length === 0}
     <EmptyState
       icon={Receipt}
-      title="No expenses yet"
-      description="Start recording shared expenses for your trip."
+      title={$t('expenses.noExpensesTitle')}
+      description={$t('expenses.noExpensesDesc')}
     >
       <button
         onclick={openAdd}
         class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all hover:shadow-md active:scale-95"
       >
-        Add First Expense
+        {$t('expenses.addFirstExpense')}
       </button>
     </EmptyState>
   {:else}
@@ -94,10 +95,10 @@
               </div>
               <div class="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
                 <span>{formatDateDisplay(expense.date, $settings.calendar)}</span>
-                <span>paid by {nameFor(expense.paidBy)}</span>
+                <span>{$t('expenses.paidBy', { name: nameFor(expense.paidBy) })}</span>
               </div>
             </div>
-            <div class="flex items-center gap-2 ml-3">
+            <div class="flex items-center gap-2 ms-3">
               <span class="text-lg font-bold text-[var(--text-primary)]">
                 {symbolFor(expense.currencyCode)}{formatAmount(expense.amount)}
               </span>
@@ -118,7 +119,7 @@
             </div>
           </div>
           <div class="mt-2 flex items-center gap-1 flex-wrap">
-            <span class="text-[10px] tracking-wide uppercase text-[var(--text-secondary)]">Split ({expense.splitType}):</span>
+            <span class="text-[10px] tracking-wide uppercase text-[var(--text-secondary)]">{$t('expenses.split', { type: $t(`expenseForm.${expense.splitType}`) })}</span>
             {#each expense.beneficiaries.slice(0, 4) as b}
               {@const name = nameFor(b.participantId)}
               <span class="px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-900/30 text-[10px] font-medium text-primary-700 dark:text-primary-300">
@@ -126,7 +127,7 @@
               </span>
             {/each}
             {#if expense.beneficiaries.length > 4}
-              <span class="text-[10px] text-[var(--text-secondary)]">+{expense.beneficiaries.length - 4} more</span>
+              <span class="text-[10px] text-[var(--text-secondary)]">{$t('expenses.more', { count: expense.beneficiaries.length - 4 })}</span>
             {/if}
           </div>
         </div>
@@ -136,7 +137,7 @@
 
   <button
     onclick={openAdd}
-    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
+    class="fixed bottom-20 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
   >
     <Plus size={24} />
   </button>
@@ -152,9 +153,9 @@
 
 <ConfirmDialog
   open={deleteConfirm !== null}
-  title="Delete Expense"
-  message="Are you sure you want to delete this expense?"
-  confirmLabel="Delete"
+  title={$t('expenses.deleteTitle')}
+  message={$t('expenses.deleteMessage')}
+  confirmLabel={$t('common.delete')}
   destructive={true}
   onConfirm={confirmDelete}
   onCancel={() => deleteConfirm = null}

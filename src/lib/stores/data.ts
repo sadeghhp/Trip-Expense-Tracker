@@ -103,6 +103,10 @@ export const appData = derived(appState, ($s) => {
   return trip?.data ?? createEmptyData();
 });
 
+export const effectiveSettlementCurrency = derived(appData, ($d) =>
+  $d.settlementCurrency || $d.currencies[0]?.code || ''
+);
+
 let _dataVersion = 0;
 export const dataVersion = writable(_dataVersion);
 

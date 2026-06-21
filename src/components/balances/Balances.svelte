@@ -4,6 +4,7 @@
   import { appData } from '$lib/stores/data';
   import { computeBalances, getStatus } from '$lib/engine/balances';
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
+  import { t } from '$lib/i18n';
   import EmptyState from '../layout/EmptyState.svelte';
 
   let balances = $derived(computeBalances($appData.expenses));
@@ -40,8 +41,8 @@
   {#if currencyCodes.length === 0}
     <EmptyState
       icon={BarChart3}
-      title="No balances yet"
-      description="Add expenses to see balance breakdowns per currency."
+      title={$t('balances.noBalancesTitle')}
+      description={$t('balances.noBalancesDesc')}
     />
   {:else}
     {#each currencyCodes as code (code)}
@@ -77,24 +78,24 @@
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-[var(--text-primary)]">{name}</span>
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase {getStatusBg(status)} {getStatusColor(status)}">
-                      {status}
+                      {$t(`balances.${status}`)}
                     </span>
                   </div>
 
-                  <div class="space-y-1.5">
+                    <div class="space-y-1.5">
                     <div class="flex items-center gap-2">
-                      <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">Paid</span>
+                      <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">{$t('balances.paid')}</span>
                       <div class="flex-1 h-5 rounded-full bg-[#e2e8f0] dark:bg-[#1e293b] overflow-hidden">
                         <div class="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500" style="width: {(entry.paid / maxVal) * 100}%"></div>
                       </div>
-                      <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.paid)}</span>
+                      <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-end">{symbol}{formatAmount(entry.paid)}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">Owed</span>
+                      <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">{$t('balances.owed')}</span>
                       <div class="flex-1 h-5 rounded-full bg-[#e2e8f0] dark:bg-[#1e293b] overflow-hidden">
                         <div class="h-full rounded-full bg-gradient-to-r from-danger-400/60 to-danger-600/60 transition-all duration-500" style="width: {(entry.owed / maxVal) * 100}%"></div>
                       </div>
-                      <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.owed)}</span>
+                      <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-end">{symbol}{formatAmount(entry.owed)}</span>
                     </div>
                   </div>
 

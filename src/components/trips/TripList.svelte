@@ -7,6 +7,7 @@
   import EmptyState from '../layout/EmptyState.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import TripForm from './TripForm.svelte';
+  import { t } from '$lib/i18n';
 
   type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'updated';
 
@@ -19,7 +20,7 @@
   let showSortMenu = $state(false);
 
   let deleteMessage = $derived(
-    'Are you sure you want to delete "' + (deleteConfirm?.name ?? '') + '" and all its data? This cannot be undone.'
+    $t('trips.deleteMessage', { name: deleteConfirm?.name ?? '' })
   );
 
   function getExpenseSummary(trip: Trip): string {
@@ -64,13 +65,13 @@
   let activeCount = $derived($trips.filter(t => !t.archived).length);
   let archivedCount = $derived($trips.filter(t => t.archived).length);
 
-  const sortLabels: Record<SortOption, string> = {
-    'newest': 'Newest first',
-    'oldest': 'Oldest first',
-    'name-asc': 'Name A–Z',
-    'name-desc': 'Name Z–A',
-    'updated': 'Last updated'
-  };
+  let sortLabels = $derived({
+    'newest': $t('trips.newest'),
+    'oldest': $t('trips.oldest'),
+    'name-asc': $t('trips.nameAsc'),
+    'name-desc': $t('trips.nameDesc'),
+    'updated': $t('trips.updated')
+  });
 
   function openCreate() {
     editingTrip = null;
@@ -91,26 +92,26 @@
   function confirmDelete() {
     if (!deleteConfirm) return;
     deleteTrip(deleteConfirm.id);
-    showToast('Trip deleted');
+    showToast($t('trips.deleted'));
     deleteConfirm = null;
   }
 
   function handleDuplicate(trip: Trip, e: Event) {
     e.stopPropagation();
     duplicateTrip(trip.id);
-    showToast('Trip duplicated');
+    showToast($t('trips.duplicated'));
   }
 
   function handleArchive(trip: Trip, e: Event) {
     e.stopPropagation();
     archiveTrip(trip.id);
-    showToast('Trip archived');
+    showToast($t('trips.archivedToast'));
   }
 
   function handleUnarchive(trip: Trip, e: Event) {
     e.stopPropagation();
     unarchiveTrip(trip.id);
-    showToast('Trip restored');
+    showToast($t('trips.restored'));
   }
 
   function handleTripClick(trip: Trip) {
@@ -133,8 +134,8 @@
 
 <div class="h-full flex flex-col">
   <header class="sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 h-14 bg-[var(--header-bg)] backdrop-blur-xl border-b border-[var(--header-border)]">
-    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">TripExpense</h1>
-    <div class="h-1 absolute bottom-0 left-0 right-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
+    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{$t('tabBar.brand')}</h1>
+    <div class="h-1 absolute bottom-0 inset-x-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
   </header>
 
   <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
@@ -142,14 +143,14 @@
       {#if $trips.length === 0}
         <EmptyState
           icon={MapPin}
-          title="No trips yet"
-          description="Create your first trip to start tracking shared expenses."
+          title={$t('trips.noTripsTitle')}
+          description={$t('trips.noTripsDesc')}
         >
           <button
             onclick={openCreate}
             class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all hover:shadow-md active:scale-95"
           >
-            Create First Trip
+            {$t('trips.createFirst')}
           </button>
         </EmptyState>
       {:else}
@@ -157,15 +158,15 @@
         <div class="space-y-3 mb-4">
           <!-- Search bar -->
           <div class="relative">
-            <Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+            <Search size={16} class="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
             <input
               type="text"
               bind:value={searchQuery}
-              placeholder="Search trips, expenses, people..."
-              class="w-full pl-9 pr-9 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+              placeholder={$t('trips.searchPlaceholder')}
+              class="w-full ps-9 pe-9 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
             />
             {#if searchQuery}
-              <button onclick={() => searchQuery = ''} class="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <button onclick={() => searchQuery = ''} class="absolute end-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                 <X size={14} />
               </button>
             {/if}
@@ -185,11 +186,11 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div class="fixed inset-0 z-40" onclick={() => showSortMenu = false}></div>
-                <div class="absolute top-full left-0 mt-1 z-50 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-lg overflow-hidden min-w-[150px]">
+                <div class="absolute top-full start-0 mt-1 z-50 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-lg overflow-hidden min-w-[150px]">
                   {#each Object.entries(sortLabels) as [key, label]}
                     <button
                       onclick={() => { sortBy = key as SortOption; showSortMenu = false; }}
-                      class="w-full text-left px-3 py-2 text-xs font-medium transition-colors
+                      class="w-full text-start px-3 py-2 text-xs font-medium transition-colors
                         {sortBy === key ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'text-[var(--text-secondary)] hover:bg-surface-50 dark:hover:bg-surface-800'}"
                     >
                       {label}
@@ -206,7 +207,7 @@
                   {showArchived ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 border border-primary-200 dark:border-primary-800' : 'text-[var(--text-secondary)] hover:bg-[var(--card-bg)] border border-[var(--card-border)]'}"
               >
                 <Archive size={12} />
-                Archived ({archivedCount})
+                {$t('trips.archived', { count: archivedCount })}
               </button>
             {/if}
           </div>
@@ -216,11 +217,11 @@
         {#if filteredTrips.length === 0}
           <div class="text-center py-12 text-sm text-[var(--text-secondary)]">
             {#if searchQuery}
-              No trips match your search.
+              {$t('trips.noMatch')}
             {:else if showArchived}
-              No archived trips.
+              {$t('trips.noArchived')}
             {:else}
-              No active trips.
+              {$t('trips.noActive')}
             {/if}
           </div>
         {:else}
@@ -231,7 +232,7 @@
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 onclick={() => handleTripClick(trip)}
-                class="text-left w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group
+                class="text-start w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group
                   {trip.archived ? 'opacity-60' : 'cursor-pointer hover:border-primary-200 dark:hover:border-primary-800'}"
                 in:fly={{ y: 15, duration: 250, delay: Math.min(i * 50, 500) }}
               >
@@ -254,7 +255,7 @@
                         <button
                           onclick={(e) => handleUnarchive(trip, e)}
                           class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
-                          title="Unarchive"
+                          title={$t('trips.unarchive')}
                         >
                           <ArchiveRestore size={14} class="text-primary-500" />
                         </button>
@@ -262,21 +263,21 @@
                         <button
                           onclick={(e) => handleDuplicate(trip, e)}
                           class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
-                          title="Duplicate"
+                          title={$t('trips.duplicate')}
                         >
                           <Copy size={14} class="text-[var(--text-secondary)]" />
                         </button>
                         <button
                           onclick={(e) => openEdit(trip, e)}
                           class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
-                          title="Edit"
+                          title={$t('trips.edit')}
                         >
                           <Pencil size={14} class="text-[var(--text-secondary)]" />
                         </button>
                         <button
                           onclick={(e) => handleArchive(trip, e)}
                           class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
-                          title="Archive"
+                          title={$t('trips.archive')}
                         >
                           <Archive size={14} class="text-[var(--text-secondary)]" />
                         </button>
@@ -284,7 +285,7 @@
                       <button
                         onclick={(e) => requestDelete(trip, e)}
                         class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-danger-500/10 active:scale-90 transition-all"
-                        title="Delete"
+                        title={$t('trips.delete')}
                       >
                         <Trash2 size={14} class="text-danger-500" />
                       </button>
@@ -313,7 +314,7 @@
                   {/if}
 
                   <div class="text-[10px] text-[var(--text-secondary)] opacity-60">
-                    Created {formatDate(trip.createdAt)}
+                    {$t('trips.created', { date: formatDate(trip.createdAt) })}
                   </div>
                 </div>
               </div>
@@ -327,7 +328,7 @@
   {#if $trips.length > 0}
     <button
       onclick={openCreate}
-      class="fixed bottom-4 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90 z-50"
+      class="fixed bottom-4 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90 z-50"
     >
       <Plus size={24} />
     </button>
@@ -342,9 +343,9 @@
 
 <ConfirmDialog
   open={deleteConfirm !== null}
-  title="Delete Trip"
+  title={$t('trips.deleteTitle')}
   message={deleteMessage}
-  confirmLabel="Delete"
+  confirmLabel={$t('common.delete')}
   destructive={true}
   onConfirm={confirmDelete}
   onCancel={() => deleteConfirm = null}
