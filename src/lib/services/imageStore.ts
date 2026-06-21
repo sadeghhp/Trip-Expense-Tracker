@@ -69,26 +69,57 @@ export async function getReceiptThumbnail(id: string): Promise<string | null> {
   const db = await getDB();
   const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, id);
   if (!record) return null;
-  return blobToDataUrl(record.thumbnail);
+  return URL.createObjectURL(record.thumbnail);
 }
 
 export async function getReceiptImage(id: string): Promise<string | null> {
   const db = await getDB();
   const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, id);
   if (!record) return null;
-  return blobToDataUrl(record.fullImage);
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Failed to read blob'));
-    reader.readAsDataURL(blob);
-  });
+  return URL.createObjectURL(record.fullImage);
 }
 
 export async function deleteReceiptImage(id: string): Promise<void> {
   const db = await getDB();
   await db.delete(STORE_NAME, id);
+}
+
+export async function deleteReceiptImages(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  await Promise.all(ids.map(id => tx.store.delete(id)));
+  await tx.done;
+}
+
+export async function duplicateReceiptImage(oldId: string, newId: string): Promise<boolean> {
+  const db = await getDB();
+  const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, oldId);
+  if (!record) return false;
+  const newRecord: ReceiptImageRecord = {
+    id: newId,
+    fullImage: record.fullImage,
+    thumbnail: record.thumbnail,
+    createdAt: Date.now()
+  };
+  await db.put(STORE_NAME, newRecord);
+  return true;
+}
+
+export async function duplicateReceiptImages(idMap: Map<string, string>): Promise<void> {
+  if (idMap.size === 0) return;
+  const db = await getDB();
+  const tx = db.transaction(STORE_NAME, 'readwrite');
+  const promises: Promise<void>[] = [];
+  for (const [oldId, newId] of idMap) {
+    promises.push(
+      tx.store.get(oldId).then((record: ReceiptImageRecord | undefined) => {
+        if (record) {
+          return tx.store.put({ ...record, id: newId, createdAt: Date.now() }) as unknown as Promise<void>;
+        }
+      })
+    );
+  }
+  await Promise.all(promises);
+  await tx.done;
 }

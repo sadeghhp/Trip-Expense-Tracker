@@ -231,6 +231,9 @@
     "backupRestored": "Backup restored — all trips replaced",
     "restoreFailed": "Restore failed: {message}",
     "tripDataCleared": "Trip data cleared",
+    "hardReload": "Hard Reload",
+    "hardReloadDesc": "Force reload the app and re-download all assets",
+    "hardReloading": "Reloading...",
     "ai": {
       "title": "AI Receipt Scanner",
       "baseUrl": "Base URL",
@@ -412,7 +415,9 @@
     "qrVerified": "Verified by QR code data",
     "cropDescription": "Crop the receipt area for better recognition",
     "skipCrop": "Skip",
-    "cropAndContinue": "Crop & Continue"
+    "cropAndContinue": "Crop & Continue",
+    "viewReceipt": "View Receipt",
+    "tapToView": "Tap to view scanned receipt"
   },
   "currencyNames": {
     "USD": "US Dollar",

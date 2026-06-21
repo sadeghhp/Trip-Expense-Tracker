@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info, Sparkles, Eye, EyeOff } from '@lucide/svelte';
+  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info, Sparkles, Eye, EyeOff, RefreshCw } from '@lucide/svelte';
   import { settings, setCalendar, toggleTheme, setAppLocale } from '$lib/stores/settings';
   import { aiSettings, updateAISettings, testConnection } from '$lib/stores/aiSettings';
   import { showToast } from '$lib/stores/toast';
@@ -29,6 +29,7 @@
 
   let showApiKey = $state(false);
   let aiTestLoading = $state(false);
+  let hardReloading = $state(false);
 
   function handleJsonFile(file: File) {
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
@@ -235,6 +236,21 @@
       showToast($t('settings.ai.testFailed'), 'error');
     }
     aiTestLoading = false;
+  }
+
+  async function handleHardReload() {
+    hardReloading = true;
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch {}
+    window.location.reload();
   }
 </script>
 
@@ -470,6 +486,25 @@
       >
         <Trash2 size={20} class="text-danger-500" />
         <span class="text-sm font-medium text-danger-500">{$t('settings.clearTripData')}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Hard Reload -->
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div class="p-4">
+      <button
+        onclick={handleHardReload}
+        disabled={hardReloading}
+        class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+      >
+        <RefreshCw size={20} class="text-primary-500 {hardReloading ? 'animate-spin' : ''}" />
+        <div class="text-start">
+          <span class="text-sm font-medium text-[var(--text-primary)] block">
+            {hardReloading ? $t('settings.hardReloading') : $t('settings.hardReload')}
+          </span>
+          <span class="text-[10px] text-[var(--text-secondary)]">{$t('settings.hardReloadDesc')}</span>
+        </div>
       </button>
     </div>
   </div>

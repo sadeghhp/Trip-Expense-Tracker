@@ -231,6 +231,9 @@
     "backupRestored": "پشتیبان بازیابی شد — همه سفرها جایگزین شدند",
     "restoreFailed": "بازیابی ناموفق: {message}",
     "tripDataCleared": "اطلاعات سفر پاک شد",
+    "hardReload": "بارگذاری مجدد",
+    "hardReloadDesc": "بارگذاری مجدد کامل برنامه و دریافت دوباره فایل‌ها",
+    "hardReloading": "در حال بارگذاری...",
     "ai": {
       "title": "اسکنر رسید هوشمند",
       "baseUrl": "آدرس پایه",
@@ -412,7 +415,9 @@
     "qrVerified": "تأیید شده توسط اطلاعات QR کد",
     "cropDescription": "ناحیه رسید را برای تشخیص بهتر برش دهید",
     "skipCrop": "رد کردن",
-    "cropAndContinue": "برش و ادامه"
+    "cropAndContinue": "برش و ادامه",
+    "viewReceipt": "مشاهده رسید",
+    "tapToView": "برای مشاهده رسید اسکن‌شده لمس کنید"
   },
   "currencyNames": {
     "USD": "دلار آمریکا",

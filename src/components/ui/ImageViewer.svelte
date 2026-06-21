@@ -2,7 +2,6 @@
   import { X } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { getReceiptImage } from '$lib/services/imageStore';
-  import { onDestroy } from 'svelte';
 
   interface Props {
     imageId: string;
@@ -15,26 +14,27 @@
   let loading = $state(true);
 
   $effect(() => {
-    let revoked = false;
+    let active = true;
+    let currentUrl: string | null = null;
     loading = true;
-    getReceiptImage(imageId).then(url => {
-      if (!revoked) {
+    imageUrl = null;
+
+    getReceiptImage(imageId).then((url) => {
+      if (active) {
+        currentUrl = url;
         imageUrl = url;
         loading = false;
+      } else if (url) {
+        URL.revokeObjectURL(url);
       }
-    }).catch(() => { loading = false; });
+    }).catch(() => {
+      if (active) loading = false;
+    });
 
     return () => {
-      revoked = true;
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
-        imageUrl = null;
-      }
+      active = false;
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
-  });
-
-  onDestroy(() => {
-    if (imageUrl) URL.revokeObjectURL(imageUrl);
   });
 </script>
 

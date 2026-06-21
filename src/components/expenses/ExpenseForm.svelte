@@ -7,10 +7,10 @@
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
   import { formatAmount } from '$lib/utils/format';
-  import { getReceiptThumbnail } from '$lib/services/imageStore';
   import { t } from '$lib/i18n';
   import type { Expense, Beneficiary, SplitType } from '$lib/types';
   import ImageViewer from '../ui/ImageViewer.svelte';
+  import ReceiptThumbnail from '../ui/ReceiptThumbnail.svelte';
 
   interface Props {
     expense: Expense | null;
@@ -90,7 +90,10 @@
       amount: amountNum,
       paidBy,
       splitType,
-      beneficiaries
+      beneficiaries,
+      ...(expense?.source !== undefined && { source: expense.source }),
+      ...(expense?.receiptImageId !== undefined && { receiptImageId: expense.receiptImageId }),
+      ...(expense?.aiMetadata !== undefined && { aiMetadata: expense.aiMetadata }),
     };
 
     const error = validateExpense(expenseData, $appData);
@@ -136,22 +139,21 @@
 
     <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
       {#if expense?.receiptImageId}
-        {#await getReceiptThumbnail(expense.receiptImageId) then thumbUrl}
-          {#if thumbUrl}
-            <button
-              type="button"
-              onclick={() => showReceiptViewer = true}
-              class="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] hover:border-primary-300 dark:hover:border-primary-700 transition-all"
-            >
-              <img src={thumbUrl} alt="Receipt" class="w-12 h-12 rounded-lg object-cover border border-[var(--card-border)]" />
-              <div class="flex-1 text-start">
-                <span class="text-sm font-medium text-[var(--text-primary)]">{$t('receipt.viewReceipt') || 'View Receipt'}</span>
-                <p class="text-xs text-[var(--text-secondary)]">{$t('receipt.tapToView') || 'Tap to view scanned receipt'}</p>
-              </div>
-              <ImageIcon size={16} class="text-[var(--text-secondary)]" />
-            </button>
-          {/if}
-        {/await}
+        <button
+          type="button"
+          onclick={() => showReceiptViewer = true}
+          class="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] hover:border-primary-300 dark:hover:border-primary-700 transition-all"
+        >
+          <ReceiptThumbnail
+            imageId={expense.receiptImageId}
+            class="w-12 h-12 rounded-lg object-cover border border-[var(--card-border)]"
+          />
+          <div class="flex-1 text-start">
+            <span class="text-sm font-medium text-[var(--text-primary)]">{$t('receipt.viewReceipt')}</span>
+            <p class="text-xs text-[var(--text-secondary)]">{$t('receipt.tapToView')}</p>
+          </div>
+          <ImageIcon size={16} class="text-[var(--text-secondary)]" />
+        </button>
       {/if}
 
       <!-- Date & Description -->

@@ -33,6 +33,7 @@
   // Crop state
   let cropPosition = $state({ x: 0, y: 0 });
   let cropZoom = $state(1);
+  let cropAspect = $state(3 / 4);
   let cropPixels: { x: number; y: number; width: number; height: number } | null = $state(null);
 
   // Review form state
@@ -78,6 +79,18 @@
     });
   }
 
+  function getImageAspect(dataUrl: string): Promise<number> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.width / img.height;
+        resolve(ratio > 1 ? 4 / 3 : 3 / 4);
+      };
+      img.onerror = () => resolve(3 / 4);
+      img.src = dataUrl;
+    });
+  }
+
   async function handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -92,6 +105,7 @@
       cropPosition = { x: 0, y: 0 };
       cropZoom = 1;
       cropPixels = null;
+      cropAspect = await getImageAspect(imageDataUrl);
       state = 'crop';
     } catch {
       errorMessage = $t('receipt.readError');
@@ -191,7 +205,14 @@
       customPercentage: null
     }));
 
-    const receiptImageId = imageDataUrl ? generateId() : undefined;
+    let receiptImageId: string | undefined;
+    if (imageDataUrl) {
+      const id = generateId();
+      try {
+        await saveReceiptImage(id, imageDataUrl);
+        receiptImageId = id;
+      } catch { /* image save failed — expense will save without image */ }
+    }
 
     const expenseData: Expense = {
       id: generateId(),
@@ -216,12 +237,6 @@
     if (error) {
       formError = $t(error.key, error.params);
       return;
-    }
-
-    if (receiptImageId && imageDataUrl) {
-      try {
-        await saveReceiptImage(receiptImageId, imageDataUrl);
-      } catch { /* non-critical: expense still saves without image */ }
     }
 
     updateData(d => ({
@@ -345,7 +360,7 @@
               image={imageDataUrl}
               bind:crop={cropPosition}
               bind:zoom={cropZoom}
-              aspect={0}
+              aspect={cropAspect}
               showGrid={true}
               oncropcomplete={(e) => onCropComplete(e.percent, e.pixels)}
             />
@@ -359,7 +374,8 @@
             </button>
             <button
               onclick={handleCropConfirm}
-              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all shadow-sm hover:shadow-md"
+              disabled={!cropPixels}
+              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Crop size={16} />
               {$t('receipt.cropAndContinue')}

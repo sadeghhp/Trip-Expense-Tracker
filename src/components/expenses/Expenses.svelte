@@ -6,13 +6,14 @@
   import { settings } from '$lib/stores/settings';
   import { formatDateDisplay } from '$lib/engine/calendar';
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
-  import { getReceiptThumbnail, deleteReceiptImage } from '$lib/services/imageStore';
+  import { deleteReceiptImage } from '$lib/services/imageStore';
   import { t } from '$lib/i18n';
   import type { Expense } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
   import ImageViewer from '../ui/ImageViewer.svelte';
+  import ReceiptThumbnail from '../ui/ReceiptThumbnail.svelte';
 
   let showForm = $state(false);
   let editingExpense: Expense | null = $state(null);
@@ -97,16 +98,11 @@
           <div class="flex items-start justify-between">
             <div class="flex items-start gap-3 flex-1 min-w-0">
               {#if expense.receiptImageId}
-                {#await getReceiptThumbnail(expense.receiptImageId) then thumbUrl}
-                  {#if thumbUrl}
-                    <button
-                      onclick={(e) => { e.stopPropagation(); viewingImageId = expense.receiptImageId!; }}
-                      class="shrink-0 w-10 h-10 rounded-lg overflow-hidden border border-[var(--card-border)] hover:ring-2 hover:ring-primary-500/50 transition-all"
-                    >
-                      <img src={thumbUrl} alt="Receipt" class="w-full h-full object-cover" />
-                    </button>
-                  {/if}
-                {/await}
+                <ReceiptThumbnail
+                  imageId={expense.receiptImageId}
+                  class="shrink-0 w-10 h-10 rounded-lg overflow-hidden border border-[var(--card-border)] hover:ring-2 hover:ring-primary-500/50 transition-all"
+                  onclick={(e) => { e.stopPropagation(); viewingImageId = expense.receiptImageId!; }}
+                />
               {/if}
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">

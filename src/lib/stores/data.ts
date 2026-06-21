@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import type { AppData, AppState, Trip } from '../types';
 import { normalizeData, normalizeAppState } from '../utils/normalize';
 import { generateId } from '../utils/id';
+import { deleteReceiptImages, duplicateReceiptImages } from '../services/imageStore';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -141,6 +142,14 @@ export function replaceData(data: AppData): void {
 }
 
 export function clearAllData(): void {
+  const state = get(appState);
+  const trip = state.trips.find(t => t.id === state.activeTripId);
+  if (trip) {
+    const imageIds = trip.data.expenses
+      .map(e => e.receiptImageId)
+      .filter((id): id is string => !!id);
+    deleteReceiptImages(imageIds).catch(() => {});
+  }
   appState.update((s) => {
     if (!s.activeTripId) return s;
     return {
@@ -178,6 +187,14 @@ export function createTrip(name: string, description: string = ''): void {
 }
 
 export function deleteTrip(tripId: string): void {
+  const state = get(appState);
+  const trip = state.trips.find(t => t.id === tripId);
+  if (trip) {
+    const imageIds = trip.data.expenses
+      .map(e => e.receiptImageId)
+      .filter((id): id is string => !!id);
+    deleteReceiptImages(imageIds).catch(() => {});
+  }
   appState.update((s) => ({
     ...s,
     trips: s.trips.filter((t) => t.id !== tripId),
@@ -227,6 +244,21 @@ export function duplicateTrip(tripId: string): void {
   const source = state.trips.find((t) => t.id === tripId);
   if (!source) return;
   const now = new Date().toISOString();
+  const clonedData: AppData = JSON.parse(JSON.stringify(source.data));
+
+  const imageIdMap = new Map<string, string>();
+  for (const expense of clonedData.expenses) {
+    if (expense.receiptImageId) {
+      const newImageId = generateId();
+      imageIdMap.set(expense.receiptImageId, newImageId);
+      expense.receiptImageId = newImageId;
+    }
+  }
+
+  if (imageIdMap.size > 0) {
+    duplicateReceiptImages(imageIdMap).catch(() => {});
+  }
+
   const trip: Trip = {
     id: generateId(),
     name: source.name + ' (Copy)',
@@ -234,7 +266,7 @@ export function duplicateTrip(tripId: string): void {
     archived: false,
     createdAt: now,
     updatedAt: now,
-    data: JSON.parse(JSON.stringify(source.data))
+    data: clonedData
   };
   appState.update((s) => ({
     ...s,
