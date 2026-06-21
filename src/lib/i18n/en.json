@@ -30,6 +30,7 @@
     "update": "Update",
     "add": "Add",
     "next": "Next",
+    "skip": "Skip",
     "import": "Import",
     "export": "Export",
     "close": "Close",
@@ -180,7 +181,8 @@
     "calculateSettlement": "Calculate Settlement",
     "unifiedBalances": "Unified Balances ({currency})",
     "settlementTransactions": "Settlement Transactions",
-    "allSettled": "Everyone is settled — no transactions needed!"
+    "allSettled": "Everyone is settled — no transactions needed!",
+    "excludedCurrencies": "Expenses in {currencies} are excluded from settlement because exchange rates are not set."
   },
   "settings": {
     "appearance": "Appearance",
@@ -425,7 +427,7 @@
   },
   "wizard": {
     "addPeople": "Add Trip Members",
-    "addPeopleDesc": "Who's sharing expenses on this trip?",
+    "addPeopleDesc": "Who's sharing expenses on this trip? You can add members later.",
     "chooseCurrencies": "Choose Currencies",
     "chooseCurrenciesDesc": "Select the currencies you'll use",
     "namePlaceholder": "Enter name...",

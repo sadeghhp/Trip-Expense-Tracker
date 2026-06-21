@@ -7,13 +7,14 @@
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
   import { formatAmount } from '$lib/utils/format';
+  import { getEqualSharePreview } from '$lib/engine/shares';
   import { analyzeReceipt, mergeBarcodeData } from '$lib/services/receiptScanner';
   import { scanBarcodesFromImage } from '$lib/services/barcodeScanner';
   import { saveReceiptImage, deleteReceiptImage } from '$lib/services/imageStore';
   import { getAISettings } from '$lib/stores/aiSettings';
   import { t } from '$lib/i18n';
   import Cropper from 'svelte-easy-crop';
-  import type { Expense, Beneficiary, SplitType, ReceiptData, BarcodeResult } from '$lib/types';
+  import type { Expense, Beneficiary, ReceiptData, BarcodeResult } from '$lib/types';
 
   interface Props {
     onClose: () => void;
@@ -42,7 +43,6 @@
   let amount = $state('');
   let currencyCode = $state($appData.currencies[0]?.code ?? '');
   let paidBy = $state($appData.participants[0]?.id ?? '');
-  let splitType: SplitType = $state('equal');
   let selectedBeneficiaries: Set<string> = $state(new Set($appData.participants.map(p => p.id)));
   let formError = $state('');
   let currencyMismatch = $state(false);
@@ -52,9 +52,8 @@
   let parsedAmount = $derived(parseFloat(amount) || 0);
   let equalPerPerson = $derived.by(() => {
     if (beneficiaryCount === 0 || parsedAmount <= 0) return '';
-    const totalCents = Math.round(parsedAmount * 100);
-    const perPerson = Math.floor(totalCents / beneficiaryCount) / 100;
-    return formatAmount(perPerson);
+    const { share, exact } = getEqualSharePreview(parsedAmount, paidBy, [...selectedBeneficiaries]);
+    return (exact ? '' : '~') + formatAmount(share);
   });
 
   let fileInput: HTMLInputElement | undefined = $state(undefined);
@@ -173,7 +172,6 @@
     }
 
     paidBy = $appData.participants[0]?.id ?? '';
-    splitType = 'equal';
     selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
   }
 
@@ -230,7 +228,7 @@
       currencyCode,
       amount: amountNum,
       paidBy,
-      splitType,
+      splitType: 'equal',
       beneficiaries,
       source: 'receipt_ai',
       receiptImageId,
@@ -532,25 +530,6 @@
               </div>
             </div>
 
-            <!-- Split type -->
-            <div>
-              <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</label>
-              <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
-                {#each ['equal', 'custom', 'percentage'] as st}
-                  <button
-                    type="button"
-                    onclick={() => splitType = st as SplitType}
-                    class="flex-1 py-2 text-xs font-medium transition-all
-                      {splitType === st
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-[var(--app-bg)] text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
-                  >
-                    {$t(`expenseForm.${st}`)}
-                  </button>
-                {/each}
-              </div>
-            </div>
-
             <!-- Beneficiaries -->
             <div>
               <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">
@@ -579,7 +558,7 @@
             </div>
 
             <!-- Equal split preview -->
-            {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
+            {#if beneficiaryCount > 0 && parsedAmount > 0}
               <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
                 {$t('expenseForm.equalPreview', { amount: equalPerPerson, count: beneficiaryCount, label: beneficiaryCount === 1 ? $t('common.person') : $t('common.people') })}
               </div>

@@ -12,6 +12,9 @@ export function computeUnifiedBalances(
   }
 
   for (const [code, participantBalances] of Object.entries(balances)) {
+    if (code !== settlementCurrency && (!exchangeRates[code] || exchangeRates[code] <= 0)) {
+      continue;
+    }
     const conversionRate = code === settlementCurrency ? 1 : 1 / exchangeRates[code];
 
     for (const [pid, entry] of Object.entries(participantBalances)) {

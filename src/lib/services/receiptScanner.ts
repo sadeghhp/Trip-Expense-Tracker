@@ -162,8 +162,20 @@ export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]
   if (!parsed) return merged;
 
   if (parsed.amount && parsed.amount > 0) {
-    merged.totalAmount = Math.round(parsed.amount * 100) / 100;
-    merged.confidence = Math.max(merged.confidence, 0.95);
+    const qrCurrency = parsed.currency ?? null;
+    const aiCurrency = receipt.currency ?? null;
+    const currenciesMatch = !qrCurrency || !aiCurrency
+      || qrCurrency.toUpperCase() === aiCurrency.toUpperCase();
+
+    if (currenciesMatch) {
+      merged.totalAmount = Math.round(parsed.amount * 100) / 100;
+      merged.confidence = Math.max(merged.confidence, 0.95);
+      if (qrCurrency && !aiCurrency) {
+        merged.currency = qrCurrency.toUpperCase();
+      }
+    } else {
+      merged.confidence = Math.max(merged.confidence, 0.7);
+    }
   }
 
   if (parsed.date) {
@@ -176,6 +188,9 @@ export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]
 
   const noteParts: string[] = [];
   if (parsed.taxId) noteParts.push(`Tax ID: ${parsed.taxId}`);
+  if (parsed.amount && parsed.currency) {
+    noteParts.push(`QR amount: ${parsed.amount} ${parsed.currency}`);
+  }
   noteParts.push(`Barcode: ${barcodes.map(b => b.format).join(', ')}`);
 
   merged.notes = merged.notes

@@ -2,6 +2,7 @@ import type { BarcodeResult } from '../types';
 
 interface ParsedQRData {
   amount?: number;
+  currency?: string;
   date?: string;
   taxId?: string;
   merchant?: string;
@@ -15,6 +16,8 @@ function getReader() {
   }
   return readerModule;
 }
+
+const BARCODE_MAX_DIM = 1200;
 
 export async function scanBarcodesFromImage(input: string | ImageData): Promise<BarcodeResult[]> {
   try {
@@ -31,12 +34,13 @@ export async function scanBarcodesFromImage(input: string | ImageData): Promise<
         img.src = input;
       });
 
+      const scale = Math.min(1, BARCODE_MAX_DIM / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
       const ctx = canvas.getContext('2d');
       if (!ctx) return [];
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
 
@@ -52,7 +56,8 @@ export async function scanBarcodesFromImage(input: string | ImageData): Promise<
         text: r.text,
         format: r.format,
       }));
-  } catch {
+  } catch (err) {
+    console.warn('[barcodeScanner] scan failed:', err);
     return [];
   }
 }
@@ -105,27 +110,47 @@ function tryParseJson(text: string): ParsedQRData | null {
   }
 }
 
+function isTimeLikePart(part: string): boolean {
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(part)) return true;
+  if (/^\d{6}$/.test(part)) {
+    const hh = parseInt(part.slice(0, 2));
+    const mm = parseInt(part.slice(2, 4));
+    const ss = parseInt(part.slice(4, 6));
+    if (hh < 24 && mm < 60 && ss < 60) return true;
+  }
+  return false;
+}
+
 function tryParseIranianTaxQR(text: string): ParsedQRData | null {
   const iranianDomains = ['tax.gov.ir', 'ntsw.ir', 'evat.ir', 'tax.ir', 'stuffam.ir'];
   const isIranianTax = iranianDomains.some(d => text.includes(d));
 
   if (!isIranianTax) {
-    // Try the common Iranian receipt QR format: semicolon-separated fields
-    // Format varies but often: taxId;date;time;amount;...
     const parts = text.split(';');
     if (parts.length >= 4) {
       const result: ParsedQRData = {};
-      for (const part of parts) {
-        const num = parseFloat(part);
-        // Iranian amounts are in Rials, typically 50,000+; use high threshold to avoid matching timestamps/IDs
-        if (!isNaN(num) && num > 50000 && !result.amount) {
-          result.amount = num;
-        }
-        if (/^\d{4}[/-]\d{2}[/-]\d{2}$/.test(part)) {
-          result.date = part.replace(/\//g, '-');
+      const dateParts = new Set<number>();
+
+      for (let i = 0; i < parts.length; i++) {
+        if (/^\d{4}[/-]\d{2}[/-]\d{2}$/.test(parts[i])) {
+          result.date = parts[i].replace(/\//g, '-');
+          dateParts.add(i);
         }
       }
+
+      let bestAmount = -1;
+      for (let i = 1; i < parts.length; i++) {
+        if (dateParts.has(i)) continue;
+        if (isTimeLikePart(parts[i])) continue;
+        const num = parseFloat(parts[i].replace(/,/g, ''));
+        if (!isNaN(num) && num > 0 && num > bestAmount) {
+          bestAmount = num;
+        }
+      }
+
+      if (bestAmount > 0) result.amount = bestAmount;
       if (result.amount || result.date) {
+        result.currency = 'IRR';
         result.taxId = parts[0];
         return result;
       }
@@ -135,7 +160,7 @@ function tryParseIranianTaxQR(text: string): ParsedQRData | null {
 
   try {
     const url = new URL(text);
-    const result: ParsedQRData = {};
+    const result: ParsedQRData = { currency: 'IRR' };
 
     const id = url.searchParams.get('id') || url.searchParams.get('uid') || url.searchParams.get('taxid');
     if (id) result.taxId = id;
@@ -146,7 +171,7 @@ function tryParseIranianTaxQR(text: string): ParsedQRData | null {
       if (!isNaN(amt) && amt > 0) result.amount = amt;
     }
 
-    if (Object.keys(result).length === 0) return null;
+    if (!result.taxId && !result.amount) return null;
     return result;
   } catch {
     return null;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowRightLeft, ArrowRight, ArrowLeft, CheckCircle } from '@lucide/svelte';
+  import { ArrowRightLeft, ArrowRight, ArrowLeft, CheckCircle, AlertTriangle } from '@lucide/svelte';
   import { appData, updateData, dataVersion, effectiveSettlementCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { computeBalances, getStatus } from '$lib/engine/balances';
@@ -84,6 +84,14 @@
   function getSymbol(code: string): string {
     return getCurrencySymbol(code, currencies);
   }
+
+  let excludedCurrencies = $derived.by(() => {
+    if (!settlementCurrency) return [];
+    return nonSettlementCurrencies.filter(c => {
+      const rate = $appData.exchangeRates[c.code];
+      return !rate || rate <= 0;
+    });
+  });
 
   function getStatusColor(balance: number): string {
     if (balance > 0.005) return 'text-success-600 dark:text-success-500';
@@ -198,6 +206,15 @@
     <!-- Step 4: Results -->
     {#if step === 4 && calculated}
       <div class="space-y-6">
+        {#if excludedCurrencies.length > 0}
+          <div class="flex items-start gap-2 p-3 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
+            <AlertTriangle size={16} class="text-warning-600 dark:text-warning-400 mt-0.5 shrink-0" />
+            <p class="text-xs text-warning-700 dark:text-warning-300">
+              {$t('settlement.excludedCurrencies', { currencies: excludedCurrencies.map(c => c.code).join(', ') })}
+            </p>
+          </div>
+        {/if}
+
         <!-- Unified Balances -->
         <div>
           <h3 class="text-sm font-semibold text-[var(--text-secondary)] mb-3">{$t('settlement.unifiedBalances', { currency: settlementCurrency })}</h3>

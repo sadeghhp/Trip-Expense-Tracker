@@ -235,7 +235,7 @@
                 : 'bg-surface-100 dark:bg-surface-800 text-[var(--text-secondary)] cursor-not-allowed'}"
           >
             <span class="inline-flex items-center gap-1.5">
-              {$t('common.next')}
+              {$appData.participants.length > 0 ? $t('common.next') : $t('common.skip')}
               {#if $isRtl}<ChevronLeft size={16} />{:else}<ChevronRight size={16} />{/if}
             </span>
           </button>

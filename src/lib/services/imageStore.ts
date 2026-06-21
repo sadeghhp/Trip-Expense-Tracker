@@ -92,6 +92,19 @@ export async function deleteReceiptImages(ids: string[]): Promise<void> {
   await tx.done;
 }
 
+export async function existingReceiptImageIds(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const db = await getDB();
+  const tx = db.transaction(STORE_NAME, 'readonly');
+  const found = new Set<string>();
+  for (const id of ids) {
+    const key = await tx.store.getKey(id);
+    if (key !== undefined) found.add(id);
+  }
+  await tx.done;
+  return found;
+}
+
 export async function duplicateReceiptImages(idMap: Map<string, string>): Promise<void> {
   if (idMap.size === 0) return;
   const db = await getDB();

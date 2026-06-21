@@ -30,6 +30,7 @@
     "update": "بروزرسانی",
     "add": "افزودن",
     "next": "بعدی",
+    "skip": "رد کردن",
     "import": "وارد کردن",
     "export": "خروجی",
     "close": "بستن",
@@ -180,7 +181,8 @@
     "calculateSettlement": "محاسبه تسویه",
     "unifiedBalances": "تراز یکپارچه ({currency})",
     "settlementTransactions": "تراکنش‌های تسویه",
-    "allSettled": "همه تسویه شده‌اند — نیازی به تراکنش نیست!"
+    "allSettled": "همه تسویه شده‌اند — نیازی به تراکنش نیست!",
+    "excludedCurrencies": "هزینه‌های {currencies} از تسویه حذف شده‌اند زیرا نرخ تبدیل تنظیم نشده است."
   },
   "settings": {
     "appearance": "ظاهر",
@@ -425,7 +427,7 @@
   },
   "wizard": {
     "addPeople": "افزودن اعضای سفر",
-    "addPeopleDesc": "چه کسانی در هزینه‌های این سفر شریک هستند؟",
+    "addPeopleDesc": "چه کسانی در هزینه‌های این سفر شریک هستند؟ بعداً هم می‌توانید اضافه کنید.",
     "chooseCurrencies": "انتخاب ارزها",
     "chooseCurrenciesDesc": "از چه ارزهایی استفاده خواهید کرد؟",
     "namePlaceholder": "نام را وارد کنید...",

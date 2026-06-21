@@ -7,6 +7,7 @@
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
   import { formatAmount } from '$lib/utils/format';
+  import { getEqualSharePreview } from '$lib/engine/shares';
   import { t } from '$lib/i18n';
   import type { Expense, Beneficiary, SplitType } from '$lib/types';
   import ImageViewer from '../ui/ImageViewer.svelte';
@@ -43,9 +44,8 @@
 
   let equalPerPerson = $derived.by(() => {
     if (beneficiaryCount === 0 || parsedAmount <= 0) return '';
-    const totalCents = Math.round(parsedAmount * 100);
-    const perPerson = Math.floor(totalCents / beneficiaryCount) / 100;
-    return formatAmount(perPerson);
+    const { share, exact } = getEqualSharePreview(parsedAmount, paidBy, [...selectedBeneficiaries]);
+    return (exact ? '' : '~') + formatAmount(share);
   });
 
   let customSum = $derived.by(() => {

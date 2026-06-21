@@ -99,7 +99,7 @@
     }
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!parsedImportData) return;
     try {
       if (importMode === 'new') {
@@ -108,7 +108,7 @@
         importAsNewTrip(name, parsedImportData, desc);
         showToast($t('settings.importedAsNew'));
       } else {
-        replaceData(parsedImportData);
+        await replaceData(parsedImportData);
         showToast($t('settings.importedIntoCurrent'));
       }
       importOpen = false;
@@ -179,10 +179,10 @@
     }
   }
 
-  function confirmBackupImport() {
+  async function confirmBackupImport() {
     try {
       const parsed = JSON.parse(backupImportText);
-      replaceAllData(parsed);
+      await replaceAllData(parsed);
       showToast($t('settings.backupRestored'));
       backupImportOpen = false;
       backupImportText = '';

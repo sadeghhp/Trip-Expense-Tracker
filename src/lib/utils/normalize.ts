@@ -1,4 +1,4 @@
-import type { AppData, AppState } from '../types';
+import type { AppData, AppState, Expense } from '../types';
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -24,21 +24,29 @@ export function normalizeData(raw: any): AppData {
     (e: any) => typeof e?.id === 'string' && Array.isArray(e?.beneficiaries)
   );
 
-  // Filter beneficiaries and normalize splitType
+  // Filter beneficiaries, normalize splitType, and coerce numeric fields
   expenses = expenses.map((e: any) => {
-    const filteredBeneficiaries = e.beneficiaries.filter(
-      (b: any) => typeof b?.participantId === 'string' && participantIds.has(b.participantId)
-    );
+    const filteredBeneficiaries = e.beneficiaries
+      .filter(
+        (b: any) => typeof b?.participantId === 'string' && participantIds.has(b.participantId)
+      )
+      .map((b: any) => ({
+        ...b,
+        customAmount: typeof b.customAmount === 'number' && Number.isFinite(b.customAmount) ? b.customAmount : null,
+        customPercentage: typeof b.customPercentage === 'number' && Number.isFinite(b.customPercentage) ? b.customPercentage : null,
+      }));
     const splitType = ['equal', 'custom', 'percentage'].includes(e.splitType) ? e.splitType : 'equal';
-    return { ...e, beneficiaries: filteredBeneficiaries, splitType };
+    const amount = Number(e.amount);
+    return { ...e, amount: Number.isFinite(amount) && amount > 0 ? amount : 0, beneficiaries: filteredBeneficiaries, splitType };
   });
 
-  // Second filter: referential integrity
+  // Second filter: referential integrity + valid amount
   expenses = expenses.filter(
     (e: any) =>
       participantIds.has(e.paidBy) &&
       currencyCodes.has(e.currencyCode) &&
-      e.beneficiaries.length > 0
+      e.beneficiaries.length > 0 &&
+      e.amount > 0
   );
 
   // Clean exchange rates
@@ -84,5 +92,16 @@ export function normalizeAppState(raw: any): AppState {
   return {
     trips: validTrips,
     activeTripId: activeTripId && validIds.has(activeTripId) ? activeTripId : null
+  };
+}
+
+export function stripReceiptImageIds(data: AppData): AppData {
+  return {
+    ...data,
+    expenses: data.expenses.map((e: Expense) => {
+      if (!e.receiptImageId) return e;
+      const { receiptImageId, ...rest } = e;
+      return rest;
+    })
   };
 }

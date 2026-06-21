@@ -1,8 +1,8 @@
 import { writable, derived, get } from 'svelte/store';
 import type { AppData, AppState, Trip } from '../types';
-import { normalizeData, normalizeAppState } from '../utils/normalize';
+import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
-import { deleteReceiptImages, duplicateReceiptImages } from '../services/imageStore';
+import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -132,6 +132,29 @@ function deleteUnreferencedReceiptImages(oldIds: string[], newIds: Set<string>):
   }
 }
 
+function stripOrphanedReceiptImageIds(data: AppData, existingIds: Set<string>): AppData {
+  return {
+    ...data,
+    expenses: data.expenses.map(e => {
+      if (!e.receiptImageId) return e;
+      if (existingIds.has(e.receiptImageId)) return e;
+      const { receiptImageId, ...rest } = e;
+      return rest;
+    })
+  };
+}
+
+async function stripOrphanedFromData(data: AppData): Promise<AppData> {
+  const imageIds = collectReceiptImageIds(data);
+  if (imageIds.length === 0) return data;
+  try {
+    const existing = await existingReceiptImageIds(imageIds);
+    return stripOrphanedReceiptImageIds(data, existing);
+  } catch {
+    return data;
+  }
+}
+
 export function updateData(updater: (data: AppData) => AppData): void {
   appState.update((s) => {
     if (!s.activeTripId) return s;
@@ -147,10 +170,10 @@ export function updateData(updater: (data: AppData) => AppData): void {
   dataVersion.set(++_dataVersion);
 }
 
-export function replaceData(data: AppData): void {
-  const state = get(appState);
-  const trip = state.trips.find(t => t.id === state.activeTripId);
-  const normalized = normalizeData(data);
+export async function replaceData(data: AppData): Promise<void> {
+  const normalized = await stripOrphanedFromData(normalizeData(data));
+  const freshState = get(appState);
+  const trip = freshState.trips.find(t => t.id === freshState.activeTripId);
   if (trip) {
     const newIdSet = new Set(collectReceiptImageIds(normalized));
     deleteUnreferencedReceiptImages(collectReceiptImageIds(trip.data), newIdSet);
@@ -254,7 +277,7 @@ export function importAsNewTrip(name: string, data: AppData, description: string
     archived: false,
     createdAt: now,
     updatedAt: now,
-    data: normalizeData(data)
+    data: stripReceiptImageIds(normalizeData(data))
   };
   appState.update((s) => ({
     ...s,
@@ -321,11 +344,18 @@ export function getFullSnapshot(): AppState {
   return get(appState);
 }
 
-export function replaceAllData(state: AppState): void {
-  const oldState = get(appState);
+export async function replaceAllData(state: AppState): Promise<void> {
   const normalized = normalizeAppState(state);
-  const newIdSet = new Set(collectReceiptImageIdsFromState(normalized));
+  const strippedTrips = await Promise.all(
+    normalized.trips.map(async t => ({
+      ...t,
+      data: await stripOrphanedFromData(t.data)
+    }))
+  );
+  const stripped: AppState = { ...normalized, trips: strippedTrips };
+  const oldState = get(appState);
+  const newIdSet = new Set(collectReceiptImageIdsFromState(stripped));
   deleteUnreferencedReceiptImages(collectReceiptImageIdsFromState(oldState), newIdSet);
-  appState.set(normalized);
+  appState.set(stripped);
   dataVersion.set(++_dataVersion);
 }
