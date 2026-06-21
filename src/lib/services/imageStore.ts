@@ -69,14 +69,23 @@ export async function getReceiptThumbnail(id: string): Promise<string | null> {
   const db = await getDB();
   const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, id);
   if (!record) return null;
-  return URL.createObjectURL(record.thumbnail);
+  return blobToDataUrl(record.thumbnail);
 }
 
 export async function getReceiptImage(id: string): Promise<string | null> {
   const db = await getDB();
   const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, id);
   if (!record) return null;
-  return URL.createObjectURL(record.fullImage);
+  return blobToDataUrl(record.fullImage);
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read blob'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 export async function deleteReceiptImage(id: string): Promise<void> {

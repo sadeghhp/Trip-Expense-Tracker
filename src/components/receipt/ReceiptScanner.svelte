@@ -231,21 +231,22 @@
     onSaved();
   }
 
-  function onCropComplete(_: any, pixels: { x: number; y: number; width: number; height: number }) {
+  function onCropComplete(_percent: { x: number; y: number; width: number; height: number }, pixels: { x: number; y: number; width: number; height: number }) {
     cropPixels = pixels;
   }
 
   function applyCrop(): Promise<string> {
     return new Promise((resolve, reject) => {
-      if (!cropPixels) { resolve(imageDataUrl); return; }
+      const pixels = cropPixels;
+      if (!pixels) { resolve(imageDataUrl); return; }
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = cropPixels!.width;
-        canvas.height = cropPixels!.height;
+        canvas.width = pixels.width;
+        canvas.height = pixels.height;
         const ctx = canvas.getContext('2d');
         if (!ctx) { reject(new Error('Canvas failed')); return; }
-        ctx.drawImage(img, cropPixels!.x, cropPixels!.y, cropPixels!.width, cropPixels!.height, 0, 0, cropPixels!.width, cropPixels!.height);
+        ctx.drawImage(img, pixels.x, pixels.y, pixels.width, pixels.height, 0, 0, pixels.width, pixels.height);
         resolve(canvas.toDataURL('image/jpeg', 0.82));
       };
       img.onerror = () => reject(new Error('Crop failed'));
@@ -338,16 +339,15 @@
       <!-- CROP STATE -->
       {:else if state === 'crop'}
         <div class="space-y-4">
-          <p class="text-sm text-center text-[var(--text-secondary)]">{$t('receipt.cropDescription') || 'Crop the receipt area for better recognition'}</p>
+          <p class="text-sm text-center text-[var(--text-secondary)]">{$t('receipt.cropDescription')}</p>
           <div class="relative w-full h-64 rounded-xl overflow-hidden border border-[var(--card-border)] bg-[var(--app-bg)]">
             <Cropper
               image={imageDataUrl}
-              crop={cropPosition}
-              zoom={cropZoom}
+              bind:crop={cropPosition}
+              bind:zoom={cropZoom}
               aspect={0}
-              on:cropcomplete={({ detail }) => onCropComplete(detail.percent, detail.pixels)}
-              on:cropmove={({ detail }) => { cropPosition = detail; }}
-              on:zoomchange={({ detail }) => { cropZoom = detail; }}
+              showGrid={true}
+              oncropcomplete={(e) => onCropComplete(e.percent, e.pixels)}
             />
           </div>
           <div class="flex gap-3">
@@ -355,14 +355,14 @@
               onclick={skipCrop}
               class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--text-primary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
             >
-              {$t('receipt.skipCrop') || 'Skip'}
+              {$t('receipt.skipCrop')}
             </button>
             <button
               onclick={handleCropConfirm}
               class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all shadow-sm hover:shadow-md"
             >
               <Crop size={16} />
-              {$t('receipt.cropAndContinue') || 'Crop & Continue'}
+              {$t('receipt.cropAndContinue')}
             </button>
           </div>
         </div>

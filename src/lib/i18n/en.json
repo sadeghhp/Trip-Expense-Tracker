@@ -409,7 +409,10 @@
     "errorInvalidBaseUrl": "Invalid base URL. Please enter a valid HTTP or HTTPS URL in Settings.",
     "errorImageTooLarge": "The image is too large. Please use a smaller or lower-resolution photo.",
     "barcodeDetected": "{count} barcode(s) detected",
-    "qrVerified": "Verified by QR code data"
+    "qrVerified": "Verified by QR code data",
+    "cropDescription": "Crop the receipt area for better recognition",
+    "skipCrop": "Skip",
+    "cropAndContinue": "Crop & Continue"
   },
   "currencyNames": {
     "USD": "US Dollar",

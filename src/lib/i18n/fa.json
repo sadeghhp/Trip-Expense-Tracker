@@ -409,7 +409,10 @@
     "errorInvalidBaseUrl": "آدرس پایه نامعتبر است. لطفاً یک آدرس HTTP یا HTTPS معتبر در تنظیمات وارد کنید.",
     "errorImageTooLarge": "تصویر بیش از حد بزرگ است. لطفاً از عکس کوچکتر یا با وضوح کمتر استفاده کنید.",
     "barcodeDetected": "{count} بارکد شناسایی شد",
-    "qrVerified": "تأیید شده توسط اطلاعات QR کد"
+    "qrVerified": "تأیید شده توسط اطلاعات QR کد",
+    "cropDescription": "ناحیه رسید را برای تشخیص بهتر برش دهید",
+    "skipCrop": "رد کردن",
+    "cropAndContinue": "برش و ادامه"
   },
   "currencyNames": {
     "USD": "دلار آمریکا",
