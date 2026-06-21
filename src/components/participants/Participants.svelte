@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
   import { Plus, Pencil, Trash2, Users } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
@@ -94,10 +93,9 @@
     </EmptyState>
   {:else}
     <div class="space-y-2">
-      {#each $appData.participants as participant, i (participant.id)}
+      {#each $appData.participants as participant (participant.id)}
         <div
           class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
-          in:fly={{ y: 15, duration: 250, delay: Math.min(i * 50, 500) }}
         >
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">

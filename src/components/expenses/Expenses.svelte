@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fly } from 'svelte/transition';
   import { Plus, Pencil, Trash2, Receipt, AlertTriangle } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
@@ -119,7 +118,6 @@
       {#each sortedExpenses as expense, i (expense.id)}
         <div
           class="relative p-4 ps-9 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
-          in:fly={{ y: 15, duration: 250, delay: Math.min(i * 50, 500) }}
         >
           <span class="absolute start-0 top-0 bottom-0 w-7 flex items-center justify-center text-[10px] font-semibold text-primary-400/70 dark:text-primary-500/50 select-none">
             {sortedExpenses.length - i}

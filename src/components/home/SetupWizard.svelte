@@ -1,27 +1,21 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
-  import { Users, Coins, Check, ChevronRight, ChevronLeft, Plus, X } from '@lucide/svelte';
-  import { appData, updateData } from '$lib/stores/data';
+  import { Users, Coins, Check, ChevronRight, ChevronLeft, Plus, X, ArrowLeft, ArrowRight } from '@lucide/svelte';
+  import { appData, updateData, activeTrip, exitTrip } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { t, isRtl } from '$lib/i18n';
-  import { validateParticipantName } from '$lib/utils/validation';
+  import { validateParticipantName, isParticipantUsed } from '$lib/utils/validation';
+  import { WIZARD_CURRENCIES } from '$lib/constants/currencies';
   import { generateId } from '$lib/utils/id';
   import type { PredefinedCurrency } from '$lib/types';
 
-  const predefined: PredefinedCurrency[] = [
-    { code: 'USD', symbol: '$', name: 'US Dollar' },
-    { code: 'EUR', symbol: '€', name: 'Euro' },
-    { code: 'GBP', symbol: '£', name: 'British Pound' },
-    { code: 'IRR', symbol: '﷼', name: 'Iranian Rial' },
-    { code: 'TRY', symbol: '₺', name: 'Turkish Lira' },
-    { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham' },
-    { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-    { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-    { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-    { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-    { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-    { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  ];
+  interface Props {
+    onComplete: () => void;
+  }
+
+  let { onComplete }: Props = $props();
+
+  const predefined: PredefinedCurrency[] = WIZARD_CURRENCIES;
 
   let step: 'people' | 'currencies' = $state(
     $appData.participants.length > 0 ? 'currencies' : 'people'
@@ -34,7 +28,7 @@
   let customError = $state('');
 
   let canProceed = $derived($appData.participants.length >= 1);
-  let canFinish = $derived($appData.currencies.length >= 1);
+  let canFinish = $derived($appData.participants.length >= 1 && $appData.currencies.length >= 1);
 
   let flyDir = $derived($isRtl ? -1 : 1);
 
@@ -62,6 +56,10 @@
   }
 
   function removePerson(id: string) {
+    if (isParticipantUsed(id, $appData.expenses)) {
+      showToast($t('participants.cannotDelete'), 'error');
+      return;
+    }
     updateData(d => ({
       ...d,
       participants: d.participants.filter(p => p.id !== id)
@@ -123,14 +121,31 @@
     step = 'people';
   }
 
+  function finish() {
+    if (canFinish) onComplete();
+  }
+
   function isCurrencySelected(code: string): boolean {
     return $appData.currencies.some(c => c.code === code);
   }
 </script>
 
+<!-- Trip header -->
+<div class="flex items-center gap-3 mb-5">
+  <button
+    onclick={() => exitTrip()}
+    class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+  >
+    {#if $isRtl}<ArrowRight size={18} class="text-[var(--text-secondary)]" />{:else}<ArrowLeft size={18} class="text-[var(--text-secondary)]" />{/if}
+  </button>
+  <div class="flex-1 min-w-0">
+    <h2 class="text-lg font-bold text-[var(--text-primary)] truncate">{$activeTrip?.name ?? ''}</h2>
+    <p class="text-xs text-[var(--text-secondary)]">{$t('wizard.step', { current: step === 'people' ? 1 : 2, total: 2 })}</p>
+  </div>
+</div>
+
 <section
   class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-sm overflow-hidden"
-  in:fly={{ y: 20, duration: 300, delay: 100 }}
 >
   <!-- Progress indicator -->
   <div class="flex items-center justify-center gap-3 pt-5 pb-2">
@@ -309,7 +324,7 @@
               </span>
             </button>
             <button
-              onclick={() => {}}
+              onclick={finish}
               disabled={!canFinish}
               class="flex-[2] py-3 rounded-xl text-sm font-semibold transition-all duration-200
                 {canFinish

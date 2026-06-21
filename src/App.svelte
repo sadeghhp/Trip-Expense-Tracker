@@ -17,7 +17,19 @@
   import SettingsTab from './components/settings/Settings.svelte';
   import SetupWizard from './components/home/SetupWizard.svelte';
 
-  let needsSetup = $derived($activeTripId !== null && ($appData.participants.length === 0 || $appData.currencies.length === 0));
+  let wizardPending = $state(false);
+
+  let needsSetup = $derived.by(() => {
+    if (!$activeTripId) return false;
+    const missingPrereqs =
+      $appData.participants.length === 0 || $appData.currencies.length === 0;
+    if (missingPrereqs) return true;
+    return wizardPending;
+  });
+
+  function completeWizard() {
+    wizardPending = false;
+  }
 
   let activeTab: TabId = $state('home');
   let suppressHashUpdate = false;
@@ -110,6 +122,14 @@
     if (previousTripId !== undefined && tripId !== previousTripId && !suppressHashUpdate) {
       activeTab = 'home';
     }
+    if (tripId && tripId !== previousTripId) {
+      const missingPrereqs =
+        $appData.participants.length === 0 || $appData.currencies.length === 0;
+      wizardPending = missingPrereqs;
+    }
+    if (!tripId) {
+      wizardPending = false;
+    }
     previousTripId = tripId;
   });
 
@@ -134,7 +154,7 @@
   <!-- Force setup: block all navigation until people + currencies are defined -->
   <div class="h-full flex flex-col overflow-y-auto">
     <div class="max-w-lg mx-auto w-full px-4 py-8 md:py-12 flex-1 flex flex-col justify-center">
-      <SetupWizard />
+      <SetupWizard onComplete={completeWizard} />
     </div>
   </div>
 {:else}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fly, slide } from 'svelte/transition';
+  import { slide } from 'svelte/transition';
   import {
     Plus, Users, Coins, BarChart3, ArrowRightLeft, Download,
     TrendingUp, Calendar, Receipt, Crown, Sparkles, ChevronLeft, ChevronRight,
@@ -16,7 +16,6 @@
   import type { TabId } from '$lib/types';
   import ExpenseForm from '../expenses/ExpenseForm.svelte';
   import ReceiptScanner from '../receipt/ReceiptScanner.svelte';
-  import SetupWizard from './SetupWizard.svelte';
 
   interface Props {
     onNavigate: (tab: TabId) => void;
@@ -189,6 +188,26 @@
     showExpenseForm = false;
   }
 
+  let hasPrerequisites = $derived(
+    $appData.participants.length > 0 && $appData.currencies.length > 0
+  );
+
+  function openExpenseForm() {
+    if (!hasPrerequisites) {
+      showToast($t('expenses.needParticipantAndCurrency'), 'error');
+      return;
+    }
+    showExpenseForm = true;
+  }
+
+  function openReceiptScanner() {
+    if (!hasPrerequisites) {
+      showToast($t('expenses.needParticipantAndCurrency'), 'error');
+      return;
+    }
+    showReceiptScanner = true;
+  }
+
   function handleClickOutsidePicker(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (!target.closest('[data-currency-picker]')) {
@@ -216,7 +235,6 @@
   <!-- Hero Summary -->
   <section
     class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 p-5 md:p-7 text-white shadow-lg"
-    in:fly={{ y: 20, duration: 300, delay: 50 }}
   >
     <div class="absolute top-0 end-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
     <div class="absolute bottom-0 start-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4"></div>
@@ -317,10 +335,10 @@
   </section>
 
   <!-- Quick Actions -->
-  <section in:fly={{ y: 20, duration: 300, delay: 100 }}>
+  <section>
     <div class="grid grid-cols-3 md:grid-cols-6 gap-2">
       <button
-        onclick={() => showExpenseForm = true}
+        onclick={openExpenseForm}
         class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800/50 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-all active:scale-95"
       >
         <div class="w-9 h-9 rounded-xl bg-primary-500 flex items-center justify-center">
@@ -330,7 +348,7 @@
       </button>
 
       <button
-        onclick={() => showReceiptScanner = true}
+        onclick={openReceiptScanner}
         class="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-800/50 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-all active:scale-95"
       >
         <div class="w-9 h-9 rounded-xl bg-accent-500 flex items-center justify-center">
@@ -395,7 +413,6 @@
   {#if $appData.participants.length > 0 && $appData.expenses.length > 0}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 md:p-5 shadow-sm"
-      in:fly={{ y: 20, duration: 300, delay: 150 }}
     >
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-[var(--text-primary)]">{$t('home.balances')}</h2>
@@ -444,7 +461,6 @@
   {#if settlements.length > 0}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 md:p-5 shadow-sm"
-      in:fly={{ y: 20, duration: 300, delay: 200 }}
     >
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-[var(--text-primary)]">{$t('home.settlement')}</h2>
@@ -489,7 +505,6 @@
   {#if recentExpenses.length > 0}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 md:p-5 shadow-sm"
-      in:fly={{ y: 20, duration: 300, delay: 250 }}
     >
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-sm font-semibold text-[var(--text-primary)]">{$t('home.recentActivity')}</h2>
@@ -533,7 +548,6 @@
   {#if $appData.expenses.length >= 3}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 md:p-5 shadow-sm"
-      in:fly={{ y: 20, duration: 300, delay: 300 }}
     >
       <div class="flex items-center gap-2 mb-3">
         <Sparkles size={14} class="text-accent-500" />
@@ -582,14 +596,10 @@
     </section>
   {/if}
 
-  <!-- Setup Wizard (shown when prerequisites are missing) -->
-  {#if $appData.participants.length === 0 || $appData.currencies.length === 0}
-    <SetupWizard />
-  {:else if $appData.expenses.length === 0}
-    <!-- Empty state for trips that are set up but have no expenses -->
+  <!-- Empty state for trips that are set up but have no expenses -->
+  {#if $appData.expenses.length === 0}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] border-dashed p-8 text-center"
-      in:fly={{ y: 20, duration: 300, delay: 150 }}
     >
       <div class="w-14 h-14 mx-auto rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mb-4">
         <Receipt size={24} class="text-primary-500" />
@@ -600,7 +610,7 @@
       </p>
       <div class="flex flex-col sm:flex-row gap-2 justify-center">
         <button
-          onclick={() => showExpenseForm = true}
+          onclick={openExpenseForm}
           class="px-4 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition-all shadow-sm"
         >
           {$t('home.addFirstExpense')}
@@ -616,9 +626,8 @@
 <!-- Floating Add Expense Button -->
 {#if $appData.participants.length > 0 && $appData.currencies.length > 0}
   <button
-    onclick={() => showExpenseForm = true}
+    onclick={openExpenseForm}
     class="fixed bottom-20 md:bottom-8 end-5 md:end-8 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-[0_8px_30px_var(--fab-shadow)] hover:shadow-[0_12px_40px_var(--fab-shadow)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
-    in:fly={{ y: 20, duration: 300, delay: 400 }}
   >
     <Plus size={24} strokeWidth={2.5} />
   </button>
