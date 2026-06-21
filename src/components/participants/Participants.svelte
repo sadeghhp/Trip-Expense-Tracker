@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
   import { Plus, Pencil, Trash2, Users } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { generateId } from '$lib/utils/id';
@@ -87,29 +88,39 @@
       icon={Users}
       title="No participants yet"
       description="Add the people who are sharing expenses on this trip."
-    />
+    >
+      <button
+        onclick={openAdd}
+        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all hover:shadow-md active:scale-95"
+      >
+        Add First Participant
+      </button>
+    </EmptyState>
   {:else}
     <div class="space-y-2">
-      {#each $appData.participants as participant (participant.id)}
-        <div class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm">
+      {#each $appData.participants as participant, i (participant.id)}
+        <div
+          class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
+          in:fly={{ y: 15, duration: 250, delay: i * 50 }}
+        >
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-              <span class="text-sm font-semibold text-primary-700 dark:text-primary-300">
+              <span class="text-sm font-bold text-primary-700 dark:text-primary-300">
                 {participant.name.charAt(0).toUpperCase()}
               </span>
             </div>
-            <span class="font-medium text-[var(--text-primary)]">{participant.name}</span>
+            <span class="text-base font-medium text-[var(--text-primary)]">{participant.name}</span>
           </div>
           <div class="flex gap-1">
             <button
               onclick={() => openEdit(participant)}
-              class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+              class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
             >
               <Pencil size={16} class="text-[var(--text-secondary)]" />
             </button>
             <button
               onclick={() => requestDelete(participant)}
-              class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-danger-500/10 transition-colors"
+              class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-danger-500/10 active:scale-90 transition-all"
             >
               <Trash2 size={16} class="text-danger-500" />
             </button>
@@ -121,7 +132,7 @@
 
   <button
     onclick={openAdd}
-    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white shadow-lg flex items-center justify-center transition-all active:scale-90"
+    class="fixed bottom-20 right-4 md:bottom-6 md:right-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90"
   >
     <Plus size={24} />
   </button>
@@ -145,7 +156,7 @@
     </div>
     <button
       type="submit"
-      class="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+      class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
       {editingId ? 'Update' : 'Add Participant'}
     </button>

@@ -40,10 +40,10 @@
     {#each currencyCodes as code (code)}
       {@const symbol = getCurrencySymbol(code)}
       {@const entries = Object.entries(balances[code]).filter(([_, e]) => e.paid > 0 || e.owed > 0)}
-      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
+      <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
         <div class="px-4 py-3 border-b border-[var(--card-border)] bg-surface-50 dark:bg-surface-900">
           <div class="flex items-center gap-2">
-            <span class="text-base font-bold">{symbol}</span>
+            <span class="text-lg font-bold">{symbol}</span>
             <span class="text-sm font-semibold text-[var(--text-primary)]">{code}</span>
           </div>
         </div>
@@ -56,32 +56,31 @@
             <div class="px-4 py-3 space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-[var(--text-primary)]">{name}</span>
-                <span class="px-2 py-0.5 rounded-lg text-[11px] font-bold uppercase {getStatusBg(status)} {getStatusColor(status)}">
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase {getStatusBg(status)} {getStatusColor(status)}">
                   {status}
                 </span>
               </div>
 
-              <!-- Bar chart -->
-              <div class="space-y-1">
+              <div class="space-y-1.5">
                 <div class="flex items-center gap-2">
-                  <span class="text-[10px] w-10 text-[var(--text-secondary)]">Paid</span>
-                  <div class="flex-1 h-4 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                    <div class="h-full rounded-full bg-primary-500/70 transition-all" style="width: {(entry.paid / maxVal) * 100}%"></div>
+                  <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">Paid</span>
+                  <div class="flex-1 h-5 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500" style="width: {(entry.paid / maxVal) * 100}%"></div>
                   </div>
-                  <span class="text-xs font-medium text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.paid)}</span>
+                  <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.paid)}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span class="text-[10px] w-10 text-[var(--text-secondary)]">Owed</span>
-                  <div class="flex-1 h-4 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-                    <div class="h-full rounded-full bg-danger-500/50 transition-all" style="width: {(entry.owed / maxVal) * 100}%"></div>
+                  <span class="text-[10px] w-10 text-[var(--text-secondary)] uppercase tracking-wide">Owed</span>
+                  <div class="flex-1 h-5 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-danger-400/60 to-danger-600/60 transition-all duration-500" style="width: {(entry.owed / maxVal) * 100}%"></div>
                   </div>
-                  <span class="text-xs font-medium text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.owed)}</span>
+                  <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-right">{symbol}{formatAmount(entry.owed)}</span>
                 </div>
               </div>
 
               <div class="flex justify-end">
-                <span class="text-xs font-semibold {getStatusColor(status)}">
-                  Net: {entry.net >= 0 ? '+' : ''}{symbol}{formatAmount(entry.net)}
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold {getStatusBg(status)} {getStatusColor(status)}">
+                  Net: {entry.net < 0 ? '-' : '+'}{symbol}{formatAmount(Math.abs(entry.net))}
                 </span>
               </div>
             </div>

@@ -1,9 +1,8 @@
 <script lang="ts">
   import { Sun, Moon, Calendar, Download, Upload, Trash2 } from '@lucide/svelte';
   import { settings, setCalendar, toggleTheme } from '$lib/stores/settings';
-  import { appData, replaceData, clearAllData, getSnapshot } from '$lib/stores/data';
+  import { replaceData, clearAllData, getSnapshot } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
-  import type { CalendarType } from '$lib/types';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import Modal from '../ui/Modal.svelte';
 
@@ -95,9 +94,9 @@
 
 <div class="p-4 md:p-6 space-y-6">
   <!-- Theme -->
-  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold text-[var(--text-primary)]">Appearance</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Appearance</h3>
     </div>
     <div class="p-4">
       <button
@@ -114,17 +113,17 @@
             {$settings.theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
           </span>
         </div>
-        <div class="w-12 h-7 rounded-full p-0.5 transition-colors {$settings.theme === 'dark' ? 'bg-primary-600' : 'bg-surface-200 dark:bg-surface-700'}">
-          <div class="w-6 h-6 rounded-full bg-white shadow transition-transform {$settings.theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}"></div>
+        <div class="w-12 h-7 rounded-full p-0.5 transition-colors {$settings.theme === 'dark' ? 'bg-gradient-to-r from-primary-500 to-primary-700' : 'bg-surface-300'}">
+          <div class="w-6 h-6 rounded-full bg-white shadow-sm transition-transform {$settings.theme === 'dark' ? 'translate-x-5' : 'translate-x-0'}"></div>
         </div>
       </button>
     </div>
   </div>
 
   <!-- Calendar -->
-  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold text-[var(--text-primary)]">Calendar</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Calendar</h3>
     </div>
     <div class="p-4">
       <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
@@ -149,9 +148,9 @@
   </div>
 
   <!-- Import / Export -->
-  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="px-4 py-3 border-b border-[var(--card-border)]">
-      <h3 class="text-sm font-semibold text-[var(--text-primary)]">Data</h3>
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">Data</h3>
     </div>
     <div class="p-4 space-y-2">
       <button
@@ -172,7 +171,7 @@
   </div>
 
   <!-- Danger Zone -->
-  <div class="bg-[var(--card-bg)] border border-danger-500/30 rounded-2xl shadow-sm overflow-hidden">
+  <div class="bg-[var(--card-bg)] border border-danger-500/30 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
     <div class="p-4">
       <button
         onclick={() => clearConfirm = true}
@@ -201,7 +200,7 @@
     {/if}
     <button
       onclick={handleImportPaste}
-      class="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+      class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
     >
       Validate & Import
     </button>

@@ -17,6 +17,11 @@ function loadSettings(): AppSettings {
   }
 }
 
+function applyTheme(theme: ThemeType): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+}
+
 const initial = loadSettings();
 export const settings = writable<AppSettings>(initial);
 
@@ -26,11 +31,6 @@ settings.subscribe((s) => {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
   applyTheme(s.theme);
 });
-
-function applyTheme(theme: ThemeType): void {
-  if (typeof document === 'undefined') return;
-  document.documentElement.classList.toggle('dark', theme === 'dark');
-}
 
 export function setCalendar(cal: CalendarType): void {
   settings.update(s => ({ ...s, calendar: cal }));

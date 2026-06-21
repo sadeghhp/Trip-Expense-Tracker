@@ -32,8 +32,12 @@ function saveToStorage(data: AppData): void {
 const initial = loadFromStorage();
 export const appData = writable<AppData>(initial);
 
+let initialized = false;
 appData.subscribe((data) => {
-  saveToStorage(data);
+  if (initialized) {
+    saveToStorage(data);
+  }
+  initialized = true;
 });
 
 export function updateData(updater: (data: AppData) => AppData): void {

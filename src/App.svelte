@@ -35,23 +35,25 @@
     <Header title={tabTitles[activeTab]} />
 
     <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
-      {#key activeTab}
-        <div in:fly={{ x: 10, duration: 200, delay: 50 }} out:fly={{ x: -10, duration: 150 }}>
-          {#if activeTab === 'participants'}
-            <Participants {showToast} />
-          {:else if activeTab === 'currencies'}
-            <Currencies {showToast} />
-          {:else if activeTab === 'expenses'}
-            <Expenses {showToast} />
-          {:else if activeTab === 'balances'}
-            <Balances />
-          {:else if activeTab === 'settlement'}
-            <Settlement {showToast} />
-          {:else if activeTab === 'settings'}
-            <SettingsTab {showToast} />
-          {/if}
-        </div>
-      {/key}
+      <div class="max-w-3xl mx-auto">
+        {#key activeTab}
+          <div in:fly={{ x: 20, duration: 250, delay: 60 }} out:fly={{ x: -20, duration: 180 }}>
+            {#if activeTab === 'participants'}
+              <Participants {showToast} />
+            {:else if activeTab === 'currencies'}
+              <Currencies {showToast} />
+            {:else if activeTab === 'expenses'}
+              <Expenses {showToast} />
+            {:else if activeTab === 'balances'}
+              <Balances />
+            {:else if activeTab === 'settlement'}
+              <Settlement {showToast} />
+            {:else if activeTab === 'settings'}
+              <SettingsTab {showToast} />
+            {/if}
+          </div>
+        {/key}
+      </div>
     </div>
   </main>
 </div>

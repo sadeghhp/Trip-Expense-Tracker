@@ -2,7 +2,6 @@
   import { X } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { appData, updateData } from '$lib/stores/data';
-  import { settings } from '$lib/stores/settings';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
@@ -25,27 +24,27 @@
   let paidBy = $state(expense?.paidBy ?? $appData.participants[0]?.id ?? '');
   let splitType: SplitType = $state(expense?.splitType ?? 'equal');
   let selectedBeneficiaries: Set<string> = $state(
-    new Set(expense?.beneficiaries.map(b => b.participantId) ?? $appData.participants.map(p => p.id))
+    new Set(expense ? expense.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id))
   );
   let customAmounts: Record<string, string> = $state(
-    Object.fromEntries(expense?.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) ?? [])
+    Object.fromEntries(expense ? expense.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : [])
   );
   let customPercentages: Record<string, string> = $state(
-    Object.fromEntries(expense?.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) ?? [])
+    Object.fromEntries(expense ? expense.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) : [])
   );
   let formError = $state('');
 
   let beneficiaryCount = $derived(selectedBeneficiaries.size);
   let parsedAmount = $derived(parseFloat(amount) || 0);
 
-  let equalPerPerson = $derived(() => {
+  let equalPerPerson = $derived.by(() => {
     if (beneficiaryCount === 0 || parsedAmount <= 0) return '';
     const totalCents = Math.round(parsedAmount * 100);
     const perPerson = Math.floor(totalCents / beneficiaryCount) / 100;
     return formatAmount(perPerson);
   });
 
-  let customSum = $derived(() => {
+  let customSum = $derived.by(() => {
     let sum = 0;
     for (const pid of selectedBeneficiaries) {
       sum += parseFloat(customAmounts[pid] || '0') || 0;
@@ -53,7 +52,7 @@
     return sum;
   });
 
-  let percentageSum = $derived(() => {
+  let percentageSum = $derived.by(() => {
     let sum = 0;
     for (const pid of selectedBeneficiaries) {
       sum += parseFloat(customPercentages[pid] || '0') || 0;
@@ -249,21 +248,19 @@
       <!-- Live preview -->
       {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
         <div class="px-3 py-2 rounded-xl bg-surface-100 dark:bg-surface-800 text-xs text-[var(--text-secondary)]">
-          {equalPerPerson()} each ({beneficiaryCount} {beneficiaryCount === 1 ? 'person' : 'people'})
+          {equalPerPerson} each ({beneficiaryCount} {beneficiaryCount === 1 ? 'person' : 'people'})
         </div>
       {/if}
       {#if splitType === 'custom'}
-        {@const sum = customSum()}
-        <div class="px-3 py-2 rounded-xl text-xs {Math.abs(sum - parsedAmount) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
-          Sum: {formatAmount(sum)} / {formatAmount(parsedAmount)}
-          {Math.abs(sum - parsedAmount) < 0.01 ? '✓' : '✗'}
+        <div class="px-3 py-2 rounded-xl text-xs {Math.abs(customSum - parsedAmount) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
+          Sum: {formatAmount(customSum)} / {formatAmount(parsedAmount)}
+          {Math.abs(customSum - parsedAmount) < 0.01 ? '✓' : '✗'}
         </div>
       {/if}
       {#if splitType === 'percentage'}
-        {@const sum = percentageSum()}
-        <div class="px-3 py-2 rounded-xl text-xs {Math.abs(sum - 100) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
-          Sum: {sum.toFixed(2)}% / 100%
-          {Math.abs(sum - 100) < 0.01 ? '✓' : '✗'}
+        <div class="px-3 py-2 rounded-xl text-xs {Math.abs(percentageSum - 100) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
+          Sum: {percentageSum.toFixed(2)}% / 100%
+          {Math.abs(percentageSum - 100) < 0.01 ? '✓' : '✗'}
         </div>
       {/if}
 
@@ -273,7 +270,7 @@
 
       <button
         type="submit"
-        class="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+        class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
       >
         {expense ? 'Update Expense' : 'Add Expense'}
       </button>

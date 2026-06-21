@@ -5,7 +5,7 @@
 
   const icons = { success: CheckCircle, error: XCircle, info: Info };
   const colors = {
-    success: 'bg-success-500 text-white',
+    success: 'bg-success-600 text-white',
     error: 'bg-danger-500 text-white',
     info: 'bg-primary-600 text-white'
   };
@@ -15,7 +15,7 @@
   {#each $toasts as msg (msg.id)}
     {@const Icon = icons[msg.type]}
     <div
-      class="flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg {colors[msg.type]}"
+      class="flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg backdrop-blur-sm {colors[msg.type]}"
       transition:fly={{ y: -20, duration: 200 }}
     >
       <Icon size={18} />

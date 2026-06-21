@@ -24,6 +24,17 @@
   let nonSettlementCurrencies = $derived(currencies.filter(c => c.code !== settlementCurrency));
   let onlySingleCurrency = $derived(currencies.length <= 1);
 
+  let dataVersion = $derived(
+    JSON.stringify([$appData.expenses, $appData.participants, $appData.currencies])
+  );
+  let lastCalcVersion: string = $state('');
+
+  $effect(() => {
+    if (calculated && dataVersion !== lastCalcVersion) {
+      calculated = false;
+    }
+  });
+
   function selectSettlementCurrency(code: string) {
     updateData(d => ({ ...d, settlementCurrency: code }));
     calculated = false;
@@ -63,6 +74,7 @@
     );
     transactions = computeSettlementTransactions(unifiedBalances);
     calculated = true;
+    lastCalcVersion = dataVersion;
     step = 4;
   }
 
@@ -154,7 +166,7 @@
         {/if}
         <button
           onclick={() => step = 3}
-          class="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
         >
           Next
         </button>
@@ -173,7 +185,7 @@
         </p>
         <button
           onclick={calculate}
-          class="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+          class="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md"
         >
           Calculate Settlement
         </button>
@@ -192,7 +204,7 @@
               <div class="flex items-center justify-between p-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl">
                 <span class="text-sm font-medium text-[var(--text-primary)]">{ub.name}</span>
                 <span class="text-sm font-bold {getStatusColor(ub.balance)}">
-                  {ub.balance >= 0 ? '+' : ''}{getSymbol(settlementCurrency)}{formatAmount(ub.balance)}
+                  {ub.balance < 0 ? '-' : '+'}{getSymbol(settlementCurrency)}{formatAmount(Math.abs(ub.balance))}
                 </span>
               </div>
             {/each}
@@ -210,7 +222,7 @@
           {:else}
             <div class="space-y-2">
               {#each transactions as tx, i (i)}
-                <div class="flex items-center gap-3 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl">
+                <div class="flex items-center gap-3 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl hover:shadow-md transition-all duration-200">
                   <div class="flex-1 text-right">
                     <span class="text-sm font-medium text-danger-500">{tx.fromName}</span>
                   </div>
