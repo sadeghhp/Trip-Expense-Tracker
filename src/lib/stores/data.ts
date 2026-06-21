@@ -173,10 +173,8 @@ export function clearAllData(): void {
   const state = get(appState);
   const trip = state.trips.find(t => t.id === state.activeTripId);
   if (trip) {
-    const imageIds = trip.data.expenses
-      .map(e => e.receiptImageId)
-      .filter((id): id is string => !!id);
-    deleteReceiptImages(imageIds).catch(() => {});
+    const imageIds = collectReceiptImageIds(trip.data);
+    if (imageIds.length > 0) deleteReceiptImages(imageIds).catch(() => {});
   }
   appState.update((s) => {
     if (!s.activeTripId) return s;
@@ -218,10 +216,8 @@ export function deleteTrip(tripId: string): void {
   const state = get(appState);
   const trip = state.trips.find(t => t.id === tripId);
   if (trip) {
-    const imageIds = trip.data.expenses
-      .map(e => e.receiptImageId)
-      .filter((id): id is string => !!id);
-    deleteReceiptImages(imageIds).catch(() => {});
+    const imageIds = collectReceiptImageIds(trip.data);
+    if (imageIds.length > 0) deleteReceiptImages(imageIds).catch(() => {});
   }
   appState.update((s) => ({
     ...s,

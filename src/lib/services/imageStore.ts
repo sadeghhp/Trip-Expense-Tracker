@@ -96,16 +96,17 @@ export async function duplicateReceiptImages(idMap: Map<string, string>): Promis
   if (idMap.size === 0) return;
   const db = await getDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
-  const promises: Promise<void>[] = [];
+  const missing: string[] = [];
   for (const [oldId, newId] of idMap) {
-    promises.push(
-      tx.store.get(oldId).then((record: ReceiptImageRecord | undefined) => {
-        if (record) {
-          return tx.store.put({ ...record, id: newId, createdAt: Date.now() }) as unknown as Promise<void>;
-        }
-      })
-    );
+    const record: ReceiptImageRecord | undefined = await tx.store.get(oldId);
+    if (record) {
+      await tx.store.put({ ...record, id: newId, createdAt: Date.now() });
+    } else {
+      missing.push(oldId);
+    }
   }
-  await Promise.all(promises);
   await tx.done;
+  if (missing.length > 0) {
+    throw new Error(`Missing receipt images: ${missing.join(', ')}`);
+  }
 }

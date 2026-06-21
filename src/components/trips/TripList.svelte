@@ -18,6 +18,7 @@
   let sortBy: SortOption = $state('newest');
   let searchQuery = $state('');
   let showSortMenu = $state(false);
+  let duplicatingId: string | null = $state(null);
 
   let deleteMessage = $derived(
     $t('trips.deleteMessage', { name: deleteConfirm?.name ?? '' })
@@ -98,11 +99,15 @@
 
   async function handleDuplicate(trip: Trip, e: Event) {
     e.stopPropagation();
+    if (duplicatingId) return;
+    duplicatingId = trip.id;
     try {
       await duplicateTrip(trip.id);
       showToast($t('trips.duplicated'));
     } catch {
       showToast($t('trips.duplicateFailed'), 'error');
+    } finally {
+      duplicatingId = null;
     }
   }
 
@@ -266,7 +271,8 @@
                       {:else}
                         <button
                           onclick={(e) => handleDuplicate(trip, e)}
-                          class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all"
+                          disabled={duplicatingId === trip.id}
+                          class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-100 dark:hover:bg-surface-800 active:scale-90 transition-all disabled:opacity-50 disabled:pointer-events-none"
                           title={$t('trips.duplicate')}
                         >
                           <Copy size={14} class="text-[var(--text-secondary)]" />
