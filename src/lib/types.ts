@@ -80,7 +80,7 @@ export interface AppState {
   activeTripId: string | null;
 }
 
-export type TabId = 'participants' | 'currencies' | 'expenses' | 'balances' | 'settlement' | 'settings';
+export type TabId = 'home' | 'participants' | 'currencies' | 'expenses' | 'balances' | 'settlement' | 'settings';
 
 export interface PredefinedCurrency {
   code: string;

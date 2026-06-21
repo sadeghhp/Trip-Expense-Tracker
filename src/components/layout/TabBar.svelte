@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Users, Coins, Receipt, BarChart3, ArrowRightLeft, Settings } from '@lucide/svelte';
+  import { Home, Users, Coins, Receipt, BarChart3, ArrowRightLeft, Settings } from '@lucide/svelte';
   import type { TabId } from '$lib/types';
 
   interface Props {
@@ -10,8 +10,17 @@
   let { activeTab, onTabChange }: Props = $props();
 
   const tabs: { id: TabId; label: string; icon: any }[] = [
+    { id: 'home', label: 'Home', icon: Home },
     { id: 'participants', label: 'People', icon: Users },
     { id: 'currencies', label: 'Currency', icon: Coins },
+    { id: 'expenses', label: 'Expenses', icon: Receipt },
+    { id: 'balances', label: 'Balances', icon: BarChart3 },
+    { id: 'settlement', label: 'Settle', icon: ArrowRightLeft },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
+  const mobileTabs: { id: TabId; label: string; icon: any }[] = [
+    { id: 'home', label: 'Home', icon: Home },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'balances', label: 'Balances', icon: BarChart3 },
     { id: 'settlement', label: 'Settle', icon: ArrowRightLeft },
@@ -55,7 +64,7 @@
 <!-- Mobile bottom tab bar -->
 <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--tab-bg)]/95 backdrop-blur-lg border-t border-[var(--tab-border)] safe-area-bottom">
   <div class="flex justify-around items-center h-16 px-1">
-    {#each tabs as tab}
+    {#each mobileTabs as tab}
       <button
         onclick={() => onTabChange(tab.id)}
         class="relative flex flex-col items-center justify-center gap-0.5 w-full h-full rounded-lg transition-all duration-200 active:scale-90

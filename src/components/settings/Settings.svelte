@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database } from '@lucide/svelte';
+  import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info } from '@lucide/svelte';
   import { settings, setCalendar, toggleTheme } from '$lib/stores/settings';
   import { showToast } from '$lib/stores/toast';
   import { replaceData, clearAllData, getSnapshot, activeTrip, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
@@ -345,6 +345,25 @@
         <Trash2 size={20} class="text-danger-500" />
         <span class="text-sm font-medium text-danger-500">Clear Trip Data</span>
       </button>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-[var(--card-border)]">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">About</h3>
+    </div>
+    <div class="p-4 space-y-3">
+      <div class="flex items-start gap-3">
+        <Info size={20} class="text-primary-500 shrink-0 mt-0.5" />
+        <div>
+          <p class="text-sm font-medium text-[var(--text-primary)]">Trip Expense Tracker</p>
+          <p class="text-xs text-[var(--text-secondary)]">Version 2.0.0</p>
+        </div>
+      </div>
+      <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+        A simple, offline-first app to track and split trip expenses among friends. All data is stored locally on your device.
+      </p>
     </div>
   </div>
 </div>

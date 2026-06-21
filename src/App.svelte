@@ -7,6 +7,7 @@
   import Header from './components/layout/Header.svelte';
   import Toast from './components/ui/Toast.svelte';
   import TripList from './components/trips/TripList.svelte';
+  import HomeDashboard from './components/home/HomeDashboard.svelte';
   import Participants from './components/participants/Participants.svelte';
   import Currencies from './components/currencies/Currencies.svelte';
   import Expenses from './components/expenses/Expenses.svelte';
@@ -14,12 +15,13 @@
   import Settlement from './components/settlement/Settlement.svelte';
   import SettingsTab from './components/settings/Settings.svelte';
 
-  let activeTab: TabId = $state('expenses');
+  let activeTab: TabId = $state('home');
   let suppressHashUpdate = false;
 
-  const validTabs = new Set<string>(['participants', 'currencies', 'expenses', 'balances', 'settlement', 'settings']);
+  const validTabs = new Set<string>(['home', 'participants', 'currencies', 'expenses', 'balances', 'settlement', 'settings']);
 
   const tabTitles: Record<TabId, string> = {
+    home: 'Home',
     participants: 'Participants',
     currencies: 'Currencies',
     expenses: 'Expenses',
@@ -88,7 +90,7 @@
   }
 
   function handleBack() {
-    activeTab = 'expenses';
+    activeTab = 'home';
     exitTrip();
   }
 </script>
@@ -100,17 +102,21 @@
     <TabBar {activeTab} onTabChange={handleTabChange} />
 
     <main class="flex-1 flex flex-col h-full overflow-hidden">
-      <Header
-        title={tabTitles[activeTab]}
-        subtitle={$activeTrip?.name}
-        onBack={handleBack}
-      />
+      {#if activeTab !== 'home'}
+        <Header
+          title={tabTitles[activeTab]}
+          subtitle={$activeTrip?.name}
+          onBack={handleBack}
+        />
+      {/if}
 
       <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
-        <div class="max-w-3xl mx-auto">
+        <div class="{activeTab === 'home' ? 'max-w-2xl mx-auto' : 'max-w-3xl mx-auto'}">
           {#key activeTab}
             <div in:fly={{ x: 20, duration: 250, delay: 60 }} out:fly={{ x: -20, duration: 180 }}>
-              {#if activeTab === 'participants'}
+              {#if activeTab === 'home'}
+                <HomeDashboard onNavigate={handleTabChange} />
+              {:else if activeTab === 'participants'}
                 <Participants />
               {:else if activeTab === 'currencies'}
                 <Currencies />
