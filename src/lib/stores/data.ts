@@ -43,7 +43,7 @@ function loadFromStorage(): AppState {
           updatedAt: now,
           data: oldData
         };
-        const state: AppState = { trips: [trip], activeTripId: null };
+        const state: AppState = { trips: [trip], activeTripId: trip.id };
         localStorage.removeItem(OLD_STORAGE_KEY);
         return state;
       }
@@ -56,7 +56,19 @@ function loadFromStorage(): AppState {
   }
 }
 
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
 function saveToStorage(state: AppState): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    saveTimer = null;
+  }, 300);
+}
+
+function saveToStorageImmediate(state: AppState): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = null;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -71,6 +83,14 @@ appState.subscribe((state) => {
   initialized = true;
 });
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (saveTimer) {
+      saveToStorageImmediate(get(appState));
+    }
+  });
+}
+
 export const activeTripId = derived(appState, ($s) => $s.activeTripId);
 export const trips = derived(appState, ($s) => $s.trips);
 export const activeTrip = derived(appState, ($s) =>
@@ -82,6 +102,9 @@ export const appData = derived(appState, ($s) => {
   const trip = $s.trips.find((t) => t.id === $s.activeTripId);
   return trip?.data ?? createEmptyData();
 });
+
+let _dataVersion = 0;
+export const dataVersion = writable(_dataVersion);
 
 export function updateData(updater: (data: AppData) => AppData): void {
   appState.update((s) => {
@@ -95,6 +118,7 @@ export function updateData(updater: (data: AppData) => AppData): void {
       )
     };
   });
+  dataVersion.set(++_dataVersion);
 }
 
 export function replaceData(data: AppData): void {
@@ -109,6 +133,7 @@ export function replaceData(data: AppData): void {
       )
     };
   });
+  dataVersion.set(++_dataVersion);
 }
 
 export function clearAllData(): void {
@@ -123,6 +148,7 @@ export function clearAllData(): void {
       )
     };
   });
+  dataVersion.set(++_dataVersion);
 }
 
 export function getSnapshot(): AppData {
@@ -237,4 +263,5 @@ export function getFullSnapshot(): AppState {
 
 export function replaceAllData(state: AppState): void {
   appState.set(normalizeAppState(state));
+  dataVersion.set(++_dataVersion);
 }

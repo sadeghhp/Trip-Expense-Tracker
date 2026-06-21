@@ -3,7 +3,7 @@
   import { slide } from 'svelte/transition';
   import { appData } from '$lib/stores/data';
   import { computeBalances, getStatus } from '$lib/engine/balances';
-  import { formatAmount } from '$lib/utils/format';
+  import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
   import EmptyState from '../layout/EmptyState.svelte';
 
   let balances = $derived(computeBalances($appData.expenses));
@@ -15,12 +15,12 @@
     collapsed[code] = !collapsed[code];
   }
 
-  function getParticipantName(id: string): string {
-    return $appData.participants.find(p => p.id === id)?.name ?? 'Unknown';
+  function nameFor(id: string): string {
+    return getParticipantName(id, $appData.participants);
   }
 
-  function getCurrencySymbol(code: string): string {
-    return $appData.currencies.find(c => c.code === code)?.symbol ?? '';
+  function symbolFor(code: string): string {
+    return getCurrencySymbol(code, $appData.currencies);
   }
 
   function getStatusColor(status: string): string {
@@ -45,7 +45,7 @@
     />
   {:else}
     {#each currencyCodes as code (code)}
-      {@const symbol = getCurrencySymbol(code)}
+      {@const symbol = symbolFor(code)}
       {@const entries = Object.entries(balances[code]).filter(([_, e]) => e.paid > 0 || e.owed > 0)}
       <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
         <button
@@ -71,7 +71,7 @@
             <div class="divide-y divide-[var(--card-border)]">
               {#each entries as [pid, entry] (pid)}
                 {@const status = getStatus(entry.net)}
-                {@const name = getParticipantName(pid)}
+                {@const name = nameFor(pid)}
                 {@const maxVal = Math.max(entry.paid, entry.owed) || 1}
                 <div class="px-4 py-3 space-y-2">
                   <div class="flex items-center justify-between">

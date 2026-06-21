@@ -2,6 +2,7 @@
   import { X } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { appData, updateData } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
@@ -12,10 +13,9 @@
     expense: Expense | null;
     onSave: () => void;
     onClose: () => void;
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
   }
 
-  let { expense, onSave, onClose, showToast }: Props = $props();
+  let { expense, onSave, onClose }: Props = $props();
 
   let date = $state(expense?.date ?? getTodayISO());
   let description = $state(expense?.description ?? '');

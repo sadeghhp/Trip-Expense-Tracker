@@ -1,17 +1,12 @@
 <script lang="ts">
   import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database } from '@lucide/svelte';
   import { settings, setCalendar, toggleTheme } from '$lib/stores/settings';
+  import { showToast } from '$lib/stores/toast';
   import { replaceData, clearAllData, getSnapshot, activeTrip, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import Modal from '../ui/Modal.svelte';
   import CsvImportWizard from './CsvImportWizard.svelte';
-
-  interface Props {
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
-  }
-
-  let { showToast }: Props = $props();
 
   let clearConfirm = $state(false);
   let importOpen = $state(false);
@@ -19,6 +14,7 @@
   let importConfirm = $state(false);
   let importError = $state('');
   let importMode: 'replace' | 'new' = $state('replace');
+  let parsedImportData: any = $state(null);
   let csvImportOpen = $state(false);
   let dragOver = $state(false);
   let loadedFileName = $state('');
@@ -90,6 +86,7 @@
       if (!Array.isArray(parsed.participants)) throw new Error('Missing participants array');
       if (!Array.isArray(parsed.currencies)) throw new Error('Missing currencies array');
       if (!Array.isArray(parsed.expenses)) throw new Error('Missing expenses array');
+      parsedImportData = parsed;
       importConfirm = true;
     } catch (e: any) {
       importError = e.message || 'Invalid JSON';
@@ -97,20 +94,21 @@
   }
 
   function confirmImport() {
+    if (!parsedImportData) return;
     try {
-      const parsed = JSON.parse(importText);
       if (importMode === 'new') {
-        const name = parsed.tripName || 'Imported Trip';
-        const desc = parsed.tripDescription || '';
-        importAsNewTrip(name, parsed, desc);
+        const name = parsedImportData.tripName || 'Imported Trip';
+        const desc = parsedImportData.tripDescription || '';
+        importAsNewTrip(name, parsedImportData, desc);
         showToast('Imported as new trip');
       } else {
-        replaceData(parsed);
+        replaceData(parsedImportData);
         showToast('Data imported into current trip');
       }
       importOpen = false;
       importText = '';
       importConfirm = false;
+      parsedImportData = null;
       loadedFileName = '';
     } catch (e: any) {
       showToast('Import failed: ' + e.message, 'error');
@@ -214,8 +212,8 @@
     "paidBy": "participant-id-1",
     "splitType": "equal",
     "beneficiaries": [
-      { "participantId": "participant-id-1", "customAmount": null },
-      { "participantId": "participant-id-2", "customAmount": null }
+      { "participantId": "participant-id-1", "customAmount": null, "customPercentage": null },
+      { "participantId": "participant-id-2", "customAmount": null, "customPercentage": null }
     ]
   }],
   "exchangeRates": {},
@@ -457,7 +455,6 @@
 <CsvImportWizard
   open={csvImportOpen}
   onClose={() => { csvImportOpen = false; }}
-  showToast={showToast}
 />
 
 <Modal open={backupImportOpen} title="Restore Full Backup" onClose={() => backupImportOpen = false}>

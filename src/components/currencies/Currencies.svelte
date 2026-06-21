@@ -1,17 +1,12 @@
 <script lang="ts">
   import { Plus, Pencil, Trash2, Coins, Check } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import { validateCurrencyCode, isCurrencyUsed } from '$lib/utils/validation';
   import type { Currency, PredefinedCurrency } from '$lib/types';
   import Modal from '../ui/Modal.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
-
-  interface Props {
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
-  }
-
-  let { showToast }: Props = $props();
 
   const predefined: PredefinedCurrency[] = [
     { code: 'USD', symbol: '$', name: 'US Dollar' },

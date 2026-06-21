@@ -47,7 +47,7 @@
   </div>
   <div class="px-3 lg:px-4 py-4 border-t border-[var(--tab-border)]">
     <div class="text-[10px] text-center lg:text-left text-[var(--text-secondary)] opacity-60">
-      v1.0
+      v2.0
     </div>
   </div>
 </nav>

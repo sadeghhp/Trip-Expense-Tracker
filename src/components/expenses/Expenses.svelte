@@ -2,19 +2,14 @@
   import { fly } from 'svelte/transition';
   import { Plus, Pencil, Trash2, Receipt } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import { settings } from '$lib/stores/settings';
   import { formatDateDisplay } from '$lib/engine/calendar';
-  import { formatAmount } from '$lib/utils/format';
+  import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
   import type { Expense } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
-
-  interface Props {
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
-  }
-
-  let { showToast }: Props = $props();
 
   let showForm = $state(false);
   let editingExpense: Expense | null = $state(null);
@@ -59,12 +54,12 @@
     deleteConfirm = null;
   }
 
-  function getCurrencySymbol(code: string): string {
-    return $appData.currencies.find(c => c.code === code)?.symbol ?? code;
+  function symbolFor(code: string): string {
+    return getCurrencySymbol(code, $appData.currencies);
   }
 
-  function getPayerName(id: string): string {
-    return $appData.participants.find(p => p.id === id)?.name ?? 'Unknown';
+  function nameFor(id: string): string {
+    return getParticipantName(id, $appData.participants);
   }
 </script>
 
@@ -87,7 +82,7 @@
       {#each sortedExpenses as expense, i (expense.id)}
         <div
           class="p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
-          in:fly={{ y: 15, duration: 250, delay: i * 50 }}
+          in:fly={{ y: 15, duration: 250, delay: Math.min(i * 50, 500) }}
         >
           <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
@@ -99,12 +94,12 @@
               </div>
               <div class="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
                 <span>{formatDateDisplay(expense.date, $settings.calendar)}</span>
-                <span>paid by {getPayerName(expense.paidBy)}</span>
+                <span>paid by {nameFor(expense.paidBy)}</span>
               </div>
             </div>
             <div class="flex items-center gap-2 ml-3">
               <span class="text-lg font-bold text-[var(--text-primary)]">
-                {getCurrencySymbol(expense.currencyCode)}{formatAmount(expense.amount)}
+                {symbolFor(expense.currencyCode)}{formatAmount(expense.amount)}
               </span>
               <div class="flex gap-0.5">
                 <button
@@ -125,7 +120,7 @@
           <div class="mt-2 flex items-center gap-1 flex-wrap">
             <span class="text-[10px] tracking-wide uppercase text-[var(--text-secondary)]">Split ({expense.splitType}):</span>
             {#each expense.beneficiaries.slice(0, 4) as b}
-              {@const name = getPayerName(b.participantId)}
+              {@const name = nameFor(b.participantId)}
               <span class="px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-900/30 text-[10px] font-medium text-primary-700 dark:text-primary-300">
                 {name}
               </span>
@@ -152,7 +147,6 @@
     expense={editingExpense}
     onSave={handleSaved}
     onClose={() => { showForm = false; editingExpense = null; }}
-    {showToast}
   />
 {/if}
 

@@ -226,13 +226,14 @@
         {:else}
           <div class="grid gap-3 sm:grid-cols-2">
             {#each filteredTrips as trip, i (trip.id)}
+              {@const summary = getExpenseSummary(trip)}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div
                 onclick={() => handleTripClick(trip)}
                 class="text-left w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group
                   {trip.archived ? 'opacity-60' : 'cursor-pointer hover:border-primary-200 dark:hover:border-primary-800'}"
-                in:fly={{ y: 15, duration: 250, delay: i * 50 }}
+                in:fly={{ y: 15, duration: 250, delay: Math.min(i * 50, 500) }}
               >
                 <div class="p-4 space-y-3">
                   <div class="flex items-start justify-between gap-2">
@@ -305,9 +306,9 @@
                     </span>
                   </div>
 
-                  {#if getExpenseSummary(trip)}
+                  {#if summary}
                     <div class="text-xs font-medium text-primary-600 dark:text-primary-400 truncate">
-                      {getExpenseSummary(trip)}
+                      {summary}
                     </div>
                   {/if}
 

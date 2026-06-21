@@ -14,15 +14,15 @@
     type ImportResult
   } from '$lib/utils/csv-transformer';
   import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import type { Participant, Currency } from '$lib/types';
 
   interface Props {
     open: boolean;
     onClose: () => void;
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
   }
 
-  let { open, onClose, showToast }: Props = $props();
+  let { open, onClose }: Props = $props();
 
   let step = $state<1 | 2 | 3 | 4>(1);
   let csvResult = $state<CsvParseResult | null>(null);
@@ -243,7 +243,7 @@
         {#if !csvResult}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer
+            class="relative border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer
               {dragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-[var(--card-border)] hover:border-primary-400'}"
             ondragover={(e) => { e.preventDefault(); dragOver = true; }}
             ondragleave={() => { dragOver = false; }}

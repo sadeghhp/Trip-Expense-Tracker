@@ -2,7 +2,6 @@
   import { fly } from 'svelte/transition';
   import { onMount } from 'svelte';
   import type { TabId } from '$lib/types';
-  import { showToast } from '$lib/stores/toast';
   import { activeTripId, activeTrip, exitTrip, switchTrip, trips } from '$lib/stores/data';
   import TabBar from './components/layout/TabBar.svelte';
   import Header from './components/layout/Header.svelte';
@@ -112,17 +111,17 @@
           {#key activeTab}
             <div in:fly={{ x: 20, duration: 250, delay: 60 }} out:fly={{ x: -20, duration: 180 }}>
               {#if activeTab === 'participants'}
-                <Participants {showToast} />
+                <Participants />
               {:else if activeTab === 'currencies'}
-                <Currencies {showToast} />
+                <Currencies />
               {:else if activeTab === 'expenses'}
-                <Expenses {showToast} />
+                <Expenses />
               {:else if activeTab === 'balances'}
                 <Balances />
               {:else if activeTab === 'settlement'}
-                <Settlement {showToast} />
+                <Settlement />
               {:else if activeTab === 'settings'}
-                <SettingsTab {showToast} />
+                <SettingsTab />
               {/if}
             </div>
           {/key}

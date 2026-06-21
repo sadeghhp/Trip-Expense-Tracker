@@ -21,41 +21,6 @@ export function gregorianToJalali(gy: number, gm: number, gd: number): [number, 
   return [jy, jm, jd];
 }
 
-export function jalaliToGregorian(jy: number, jm: number, jd: number): [number, number, number] {
-  jy += 1595;
-  let days = -355668 + (365 * jy) + Math.floor(jy / 33) * 8 + Math.floor((jy % 33 + 3) / 4)
-    + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-
-  let gy = 400 * Math.floor(days / 146097);
-  days = days % 146097;
-
-  if (days > 36524) {
-    gy += 100 * Math.floor(--days / 36524);
-    days = days % 36524;
-    if (days >= 365) days++;
-  }
-
-  gy += 4 * Math.floor(days / 1461);
-  days = days % 1461;
-
-  if (days > 365) {
-    gy += Math.floor((days - 1) / 365);
-    days = (days - 1) % 365;
-  }
-
-  let gm = 0;
-  const gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365];
-  for (let i = 11; i >= 0; i--) {
-    if (days >= gdm[i]) {
-      gm = i + 1;
-      break;
-    }
-  }
-  const gd = days - gdm[gm - 1] + 1;
-
-  return [gy, gm, gd];
-}
-
 export function formatDateDisplay(isoDate: string, calendar: 'gregorian' | 'jalali'): string {
   if (!isoDate) return '';
   const parts = isoDate.split('-');

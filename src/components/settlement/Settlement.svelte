@@ -1,18 +1,13 @@
 <script lang="ts">
   import { ArrowRightLeft, ArrowRight, CheckCircle } from '@lucide/svelte';
-  import { appData, updateData } from '$lib/stores/data';
+  import { appData, updateData, dataVersion } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import { computeBalances, getStatus } from '$lib/engine/balances';
   import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
   import { validateSettlement } from '$lib/utils/validation';
-  import { formatAmount } from '$lib/utils/format';
+  import { formatAmount, getCurrencySymbol } from '$lib/utils/format';
   import type { UnifiedBalance, SettlementTransaction } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
-
-  interface Props {
-    showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
-  }
-
-  let { showToast }: Props = $props();
 
   let step = $state(1);
   let unifiedBalances: UnifiedBalance[] = $state([]);
@@ -24,13 +19,10 @@
   let nonSettlementCurrencies = $derived(currencies.filter(c => c.code !== settlementCurrency));
   let onlySingleCurrency = $derived(currencies.length <= 1);
 
-  let dataVersion = $derived(
-    JSON.stringify([$appData.expenses, $appData.participants, $appData.currencies])
-  );
-  let lastCalcVersion: string = $state('');
+  let lastCalcVersion: number = $state(-1);
 
   $effect(() => {
-    if (calculated && dataVersion !== lastCalcVersion) {
+    if (calculated && $dataVersion !== lastCalcVersion) {
       calculated = false;
     }
   });
@@ -74,12 +66,12 @@
     );
     transactions = computeSettlementTransactions(unifiedBalances);
     calculated = true;
-    lastCalcVersion = dataVersion;
+    lastCalcVersion = $dataVersion;
     step = 4;
   }
 
   function getSymbol(code: string): string {
-    return currencies.find(c => c.code === code)?.symbol ?? '';
+    return getCurrencySymbol(code, currencies);
   }
 
   function getStatusColor(balance: number): string {
