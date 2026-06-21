@@ -106,6 +106,11 @@ export interface ReceiptLineItem {
   amount: number;
 }
 
+export interface BarcodeResult {
+  text: string;
+  format: string;
+}
+
 export interface ReceiptData {
   title: string;
   date: string | null;
@@ -118,6 +123,7 @@ export interface ReceiptData {
   tip: number | null;
   confidence: number;
   notes: string | null;
+  barcodeData?: BarcodeResult[];
 }
 
 export interface AISettings {

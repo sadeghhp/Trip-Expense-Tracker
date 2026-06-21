@@ -1,5 +1,6 @@
 import { getAISettings, getChatCompletionsUrl } from '../stores/aiSettings';
-import type { ReceiptData } from '../types';
+import type { BarcodeResult, ReceiptData } from '../types';
+import { parseReceiptQR } from './barcodeScanner';
 
 const RECEIPT_EXTRACTION_PROMPT = `Analyze this receipt image and extract the expense information.
 
@@ -150,4 +151,36 @@ export async function analyzeReceipt(imageDataUrl: string): Promise<ReceiptData>
   }
 
   return parseAndValidateReceiptJson(rawText);
+}
+
+export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]): ReceiptData {
+  if (barcodes.length === 0) return receipt;
+
+  receipt.barcodeData = barcodes;
+
+  const parsed = parseReceiptQR(barcodes);
+  if (!parsed) return receipt;
+
+  if (parsed.amount && parsed.amount > 0) {
+    receipt.totalAmount = Math.round(parsed.amount * 100) / 100;
+    receipt.confidence = Math.max(receipt.confidence, 0.95);
+  }
+
+  if (parsed.date) {
+    receipt.date = parsed.date;
+  }
+
+  if (parsed.merchant) {
+    receipt.merchant = parsed.merchant;
+  }
+
+  const noteParts: string[] = [];
+  if (parsed.taxId) noteParts.push(`Tax ID: ${parsed.taxId}`);
+  noteParts.push(`Barcode: ${barcodes.map(b => `${b.format}`).join(', ')}`);
+
+  receipt.notes = receipt.notes
+    ? `${receipt.notes} | ${noteParts.join(' | ')}`
+    : noteParts.join(' | ');
+
+  return receipt;
 }

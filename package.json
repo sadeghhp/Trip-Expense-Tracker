@@ -9,7 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@lucide/svelte": "^0.511.0"
+    "@lucide/svelte": "^0.511.0",
+    "idb": "^8.0.3",
+    "svelte-easy-crop": "^5.0.1",
+    "zxing-wasm": "^3.1.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.1.0",

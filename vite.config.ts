@@ -17,6 +17,9 @@ export default defineConfig({
       $lib: path.resolve('./src/lib')
     }
   },
+  optimizeDeps: {
+    exclude: ['zxing-wasm']
+  },
   plugins: [
     svelte(),
     tailwindcss(),
@@ -52,7 +55,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg}'],
+        globPatterns: ['**/*.{js,css,html,svg,wasm}'],
         navigateFallback: assetPath('index.html'),
         runtimeCaching: []
       }

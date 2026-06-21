@@ -7,10 +7,11 @@
   import { generateId } from '$lib/utils/id';
   import { validateExpense } from '$lib/utils/validation';
   import { formatAmount } from '$lib/utils/format';
-  import { analyzeReceipt } from '$lib/services/receiptScanner';
+  import { analyzeReceipt, mergeBarcodeData } from '$lib/services/receiptScanner';
+  import { scanBarcodesFromImage } from '$lib/services/barcodeScanner';
   import { getAISettings } from '$lib/stores/aiSettings';
   import { t } from '$lib/i18n';
-  import type { Expense, Beneficiary, SplitType, ReceiptData } from '$lib/types';
+  import type { Expense, Beneficiary, SplitType, ReceiptData, BarcodeResult } from '$lib/types';
 
   interface Props {
     onClose: () => void;
@@ -25,6 +26,7 @@
   let imageDataUrl: string = $state('');
   let errorMessage: string = $state('');
   let receiptData: ReceiptData | null = $state(null);
+  let barcodeResults: BarcodeResult[] = $state([]);
 
   // Review form state
   let description = $state('');
@@ -103,7 +105,13 @@
 
     state = 'analyzing';
     try {
-      receiptData = await analyzeReceipt(imageDataUrl);
+      const [receipt, barcodes] = await Promise.all([
+        analyzeReceipt(imageDataUrl),
+        scanBarcodesFromImage(imageDataUrl),
+      ]);
+
+      barcodeResults = barcodes;
+      receiptData = mergeBarcodeData(receipt, barcodes);
       populateReviewForm(receiptData);
       state = 'review';
     } catch (err: unknown) {
@@ -344,6 +352,18 @@
               <CheckCircle2 size={16} class={receiptData.confidence >= 0.8 ? 'text-success-600 dark:text-success-400' : 'text-warning-600 dark:text-warning-400'} />
               <span class="text-xs {receiptData.confidence >= 0.8 ? 'text-success-700 dark:text-success-300' : 'text-warning-700 dark:text-warning-300'}">
                 {$t('receipt.reviewDescription')} ({Math.round(receiptData.confidence * 100)}% {$t('receipt.confidence')})
+              </span>
+            </div>
+          {/if}
+
+          <!-- Barcode detection badge -->
+          {#if barcodeResults.length > 0}
+            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+              <svg class="w-4 h-4 text-primary-600 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2v16H3V4zm4 0h1v16H7V4zm3 0h2v16h-2V4zm4 0h3v16h-3V4zm5 0h2v16h-2V4z" />
+              </svg>
+              <span class="text-xs text-primary-700 dark:text-primary-300">
+                {receiptData?.barcodeData?.some(b => b.format === 'QRCode') ? $t('receipt.qrVerified') : $t('receipt.barcodeDetected', { count: barcodeResults.length })}
               </span>
             </div>
           {/if}

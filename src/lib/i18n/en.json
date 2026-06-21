@@ -407,7 +407,9 @@
     "errorGeneric": "Receipt analysis failed. Please check your API key, model name, or network connection.",
     "errorEmptyResponse": "The AI model returned an empty response. Please try again or use a different model.",
     "errorInvalidBaseUrl": "Invalid base URL. Please enter a valid HTTP or HTTPS URL in Settings.",
-    "errorImageTooLarge": "The image is too large. Please use a smaller or lower-resolution photo."
+    "errorImageTooLarge": "The image is too large. Please use a smaller or lower-resolution photo.",
+    "barcodeDetected": "{count} barcode(s) detected",
+    "qrVerified": "Verified by QR code data"
   },
   "currencyNames": {
     "USD": "US Dollar",
