@@ -1,0 +1,53 @@
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import path from 'path';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      $lib: path.resolve('./src/lib')
+    }
+  },
+  plugins: [
+    svelte(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icons/*.svg'],
+      manifest: {
+        name: 'Trip Expense Tracker',
+        short_name: 'TripExpense',
+        description: 'Track and settle group travel expenses offline',
+        theme_color: '#4f46e5',
+        background_color: '#0f172a',
+        display: 'standalone',
+        orientation: 'any',
+        start_url: '/',
+        icons: [
+          {
+            src: 'icons/icon-192.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml'
+          },
+          {
+            src: 'icons/icon-512.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml'
+          },
+          {
+            src: 'icons/icon-512.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg}'],
+        runtimeCaching: []
+      }
+    })
+  ]
+});
