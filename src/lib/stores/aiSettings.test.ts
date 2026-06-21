@@ -48,12 +48,12 @@ describe('aiSettings', () => {
   });
 
   it('testConnection returns true on successful response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true } as Response));
     expect(await testConnection()).toBe(true);
   });
 
   it('testConnection returns false on failed response', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false } as Response));
     expect(await testConnection()).toBe(false);
   });
 

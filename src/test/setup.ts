@@ -1,9 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, vi } from 'vitest';
+import { resetFactoryCounter } from './factories';
 
+let uuidCounter = 0;
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
   Object.defineProperty(crypto, 'randomUUID', {
-    value: () => '00000000-0000-4000-8000-000000000000'
+    value: () => `00000000-0000-4000-8000-${String(++uuidCounter).padStart(12, '0')}`,
+    configurable: true
   });
 }
 
@@ -36,4 +39,6 @@ afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   vi.useRealTimers();
+  resetFactoryCounter();
+  uuidCounter = 0;
 });
