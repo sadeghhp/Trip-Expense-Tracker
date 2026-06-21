@@ -64,6 +64,9 @@
     return sum;
   });
 
+  let allSelected = $derived(selectedBeneficiaries.size === $appData.participants.length);
+  let noneSelected = $derived(selectedBeneficiaries.size === 0);
+
   function toggleBeneficiary(pid: string) {
     const next = new Set(selectedBeneficiaries);
     if (next.has(pid)) {
@@ -72,6 +75,14 @@
       next.add(pid);
     }
     selectedBeneficiaries = next;
+  }
+
+  function selectAllBeneficiaries() {
+    selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
+  }
+
+  function clearAllBeneficiaries() {
+    selectedBeneficiaries = new Set();
   }
 
   function handleSubmit() {
@@ -218,9 +229,34 @@
 
       <!-- Beneficiaries -->
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">
-          {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
-        </label>
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-medium text-[var(--text-secondary)]">
+            {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
+          </label>
+          <div class="flex items-center gap-2">
+            {#if !allSelected}
+              <button
+                type="button"
+                onclick={selectAllBeneficiaries}
+                class="text-xs text-primary-600 dark:text-primary-400 font-medium hover:underline"
+              >
+                {$t('expenseForm.selectAll')}
+              </button>
+            {/if}
+            {#if !noneSelected && !allSelected}
+              <span class="text-xs text-[var(--text-secondary)]">·</span>
+            {/if}
+            {#if !noneSelected}
+              <button
+                type="button"
+                onclick={clearAllBeneficiaries}
+                class="text-xs text-[var(--text-secondary)] font-medium hover:underline"
+              >
+                {$t('expenseForm.clearAll')}
+              </button>
+            {/if}
+          </div>
+        </div>
         <div class="space-y-2 max-h-48 overflow-y-auto">
           {#each $appData.participants as p (p.id)}
             {@const selected = selectedBeneficiaries.has(p.id)}

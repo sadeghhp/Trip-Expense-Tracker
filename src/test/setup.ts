@@ -3,12 +3,8 @@ import { afterEach, vi } from 'vitest';
 import { resetFactoryCounter } from './factories';
 
 let uuidCounter = 0;
-if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
-  Object.defineProperty(crypto, 'randomUUID', {
-    value: () => `00000000-0000-4000-8000-${String(++uuidCounter).padStart(12, '0')}`,
-    configurable: true
-  });
-}
+const deterministicUUID = () => `00000000-0000-4000-8000-${String(++uuidCounter).padStart(12, '0')}` as `${string}-${string}-${string}-${string}-${string}`;
+vi.stubGlobal('crypto', { ...crypto, randomUUID: deterministicUUID });
 
 if (!HTMLElement.prototype.animate) {
   HTMLElement.prototype.animate = vi.fn(() => ({
@@ -40,5 +36,4 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
   resetFactoryCounter();
-  uuidCounter = 0;
 });

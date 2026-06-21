@@ -114,7 +114,9 @@
     "customSum": "جمع: {sum} / {total}",
     "percentageSum": "جمع: {sum}% / ۱۰۰%",
     "updateExpense": "بروزرسانی هزینه",
-    "addExpense": "افزودن هزینه"
+    "addExpense": "افزودن هزینه",
+    "selectAll": "انتخاب همه",
+    "clearAll": "پاک کردن"
   },
   "participants": {
     "noParticipantsTitle": "هنوز شرکت‌کننده‌ای اضافه نشده",

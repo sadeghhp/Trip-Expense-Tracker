@@ -114,7 +114,9 @@
     "customSum": "Sum: {sum} / {total}",
     "percentageSum": "Sum: {sum}% / 100%",
     "updateExpense": "Update Expense",
-    "addExpense": "Add Expense"
+    "addExpense": "Add Expense",
+    "selectAll": "Select All",
+    "clearAll": "Clear"
   },
   "participants": {
     "noParticipantsTitle": "No participants yet",
