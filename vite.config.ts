@@ -6,6 +6,10 @@ import path from 'path';
 
 const base = process.env.GITHUB_ACTIONS ? '/Trip-Expense-Tracker/' : '/';
 
+function assetPath(relativePath: string): string {
+  return `${base}${relativePath.replace(/^\//, '')}`;
+}
+
 export default defineConfig({
   base,
   resolve: {
@@ -30,17 +34,17 @@ export default defineConfig({
         start_url: base,
         icons: [
           {
-            src: 'icons/icon-192.svg',
+            src: assetPath('icons/icon-192.svg'),
             sizes: '192x192',
             type: 'image/svg+xml'
           },
           {
-            src: 'icons/icon-512.svg',
+            src: assetPath('icons/icon-512.svg'),
             sizes: '512x512',
             type: 'image/svg+xml'
           },
           {
-            src: 'icons/icon-512.svg',
+            src: assetPath('icons/icon-512.svg'),
             sizes: '512x512',
             type: 'image/svg+xml',
             purpose: 'maskable'
@@ -49,6 +53,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg}'],
+        navigateFallback: assetPath('index.html'),
         runtimeCaching: []
       }
     })
