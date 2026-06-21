@@ -17,9 +17,7 @@ export default defineConfig({
       $lib: path.resolve('./src/lib')
     }
   },
-  optimizeDeps: {
-    exclude: ['zxing-wasm']
-  },
+  assetsInclude: ['**/*.wasm'],
   plugins: [
     svelte(),
     tailwindcss(),

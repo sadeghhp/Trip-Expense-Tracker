@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { X, Camera, Upload, RotateCcw, Sparkles, AlertCircle, Loader2, ShieldAlert, CheckCircle2 } from '@lucide/svelte';
+  import { X, Camera, Upload, RotateCcw, Sparkles, AlertCircle, Loader2, ShieldAlert, CheckCircle2, Crop } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
@@ -9,8 +9,10 @@
   import { formatAmount } from '$lib/utils/format';
   import { analyzeReceipt, mergeBarcodeData } from '$lib/services/receiptScanner';
   import { scanBarcodesFromImage } from '$lib/services/barcodeScanner';
+  import { saveReceiptImage } from '$lib/services/imageStore';
   import { getAISettings } from '$lib/stores/aiSettings';
   import { t } from '$lib/i18n';
+  import Cropper from 'svelte-easy-crop';
   import type { Expense, Beneficiary, SplitType, ReceiptData, BarcodeResult } from '$lib/types';
 
   interface Props {
@@ -20,13 +22,18 @@
 
   let { onClose, onSaved }: Props = $props();
 
-  type ScannerState = 'capture' | 'preview' | 'analyzing' | 'review' | 'error';
+  type ScannerState = 'capture' | 'crop' | 'preview' | 'analyzing' | 'review' | 'error';
 
   let state: ScannerState = $state('capture');
   let imageDataUrl: string = $state('');
   let errorMessage: string = $state('');
   let receiptData: ReceiptData | null = $state(null);
   let barcodeResults: BarcodeResult[] = $state([]);
+
+  // Crop state
+  let cropPosition = $state({ x: 0, y: 0 });
+  let cropZoom = $state(1);
+  let cropPixels: { x: number; y: number; width: number; height: number } | null = $state(null);
 
   // Review form state
   let description = $state('');
@@ -82,7 +89,10 @@
     }
     try {
       imageDataUrl = await compressImage(file);
-      state = 'preview';
+      cropPosition = { x: 0, y: 0 };
+      cropZoom = 1;
+      cropPixels = null;
+      state = 'crop';
     } catch {
       errorMessage = $t('receipt.readError');
       state = 'error';
@@ -168,7 +178,7 @@
     selectedBeneficiaries = next;
   }
 
-  function handleSave() {
+  async function handleSave() {
     const parsed = parseFloat(amount);
     if (isNaN(parsed) || parsed <= 0) {
       formError = $t('validation.amountPositive');
@@ -181,6 +191,8 @@
       customPercentage: null
     }));
 
+    const receiptImageId = imageDataUrl ? generateId() : undefined;
+
     const expenseData: Expense = {
       id: generateId(),
       date,
@@ -191,6 +203,7 @@
       splitType,
       beneficiaries,
       source: 'receipt_ai',
+      receiptImageId,
       aiMetadata: receiptData ? {
         merchant: receiptData.merchant,
         category: receiptData.category,
@@ -205,11 +218,50 @@
       return;
     }
 
+    if (receiptImageId && imageDataUrl) {
+      try {
+        await saveReceiptImage(receiptImageId, imageDataUrl);
+      } catch { /* non-critical: expense still saves without image */ }
+    }
+
     updateData(d => ({
       ...d,
       expenses: [...d.expenses, expenseData]
     }));
     onSaved();
+  }
+
+  function onCropComplete(_: any, pixels: { x: number; y: number; width: number; height: number }) {
+    cropPixels = pixels;
+  }
+
+  function applyCrop(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!cropPixels) { resolve(imageDataUrl); return; }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = cropPixels!.width;
+        canvas.height = cropPixels!.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas failed')); return; }
+        ctx.drawImage(img, cropPixels!.x, cropPixels!.y, cropPixels!.width, cropPixels!.height, 0, 0, cropPixels!.width, cropPixels!.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => reject(new Error('Crop failed'));
+      img.src = imageDataUrl;
+    });
+  }
+
+  async function handleCropConfirm() {
+    try {
+      imageDataUrl = await applyCrop();
+    } catch { /* keep original if crop fails */ }
+    state = 'preview';
+  }
+
+  function skipCrop() {
+    state = 'preview';
   }
 
   function goManual() {
@@ -260,7 +312,7 @@
 
           <div class="grid grid-cols-2 gap-3">
             <button
-              onclick={() => fileInput?.click()}
+              onclick={() => { if (fileInput) { fileInput.setAttribute('capture', 'environment'); fileInput.click(); } }}
               class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-primary-300 dark:border-primary-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
               <Camera size={24} class="text-primary-600 dark:text-primary-400" />
@@ -268,7 +320,7 @@
             </button>
 
             <button
-              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); fileInput.addEventListener('change', () => fileInput?.setAttribute('capture', 'environment'), { once: true }); fileInput.click(); } }}
+              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); const restore = () => fileInput?.setAttribute('capture', 'environment'); fileInput.addEventListener('change', restore, { once: true }); fileInput.addEventListener('cancel', restore, { once: true }); fileInput.click(); } }}
               class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-[var(--card-border)] hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
               <Upload size={24} class="text-[var(--text-secondary)]" />
@@ -280,6 +332,38 @@
           <div class="flex gap-2 p-3 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
             <ShieldAlert size={16} class="text-warning-600 dark:text-warning-400 shrink-0 mt-0.5" />
             <p class="text-xs text-warning-700 dark:text-warning-300">{$t('receipt.privacyNotice')}</p>
+          </div>
+        </div>
+
+      <!-- CROP STATE -->
+      {:else if state === 'crop'}
+        <div class="space-y-4">
+          <p class="text-sm text-center text-[var(--text-secondary)]">{$t('receipt.cropDescription') || 'Crop the receipt area for better recognition'}</p>
+          <div class="relative w-full h-64 rounded-xl overflow-hidden border border-[var(--card-border)] bg-[var(--app-bg)]">
+            <Cropper
+              image={imageDataUrl}
+              crop={cropPosition}
+              zoom={cropZoom}
+              aspect={0}
+              on:cropcomplete={({ detail }) => onCropComplete(detail.percent, detail.pixels)}
+              on:cropmove={({ detail }) => { cropPosition = detail; }}
+              on:zoomchange={({ detail }) => { cropZoom = detail; }}
+            />
+          </div>
+          <div class="flex gap-3">
+            <button
+              onclick={skipCrop}
+              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-[var(--card-border)] text-sm font-medium text-[var(--text-primary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
+            >
+              {$t('receipt.skipCrop') || 'Skip'}
+            </button>
+            <button
+              onclick={handleCropConfirm}
+              class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-medium transition-all shadow-sm hover:shadow-md"
+            >
+              <Crop size={16} />
+              {$t('receipt.cropAndContinue') || 'Crop & Continue'}
+            </button>
           </div>
         </div>
 
@@ -382,7 +466,7 @@
           {/if}
 
           <!-- Review form -->
-          <form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="space-y-4">
+          <form onsubmit={async (e) => { e.preventDefault(); await handleSave(); }} class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
               <input type="text" bind:value={description}

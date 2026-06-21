@@ -7,24 +7,38 @@ interface ParsedQRData {
   merchant?: string;
 }
 
-export async function scanBarcodesFromImage(imageDataUrl: string): Promise<BarcodeResult[]> {
+let readerModule: Promise<typeof import('zxing-wasm/reader')> | null = null;
+
+function getReader() {
+  if (!readerModule) {
+    readerModule = import('zxing-wasm/reader');
+  }
+  return readerModule;
+}
+
+export async function scanBarcodesFromImage(input: string | ImageData): Promise<BarcodeResult[]> {
   try {
-    const { readBarcodes } = await import('zxing-wasm/reader');
+    const { readBarcodes } = await getReader();
 
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = imageDataUrl;
-    });
+    let imageData: ImageData;
+    if (input instanceof ImageData) {
+      imageData = input;
+    } else {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = input;
+      });
 
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return [];
-    ctx.drawImage(img, 0, 0);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return [];
+      ctx.drawImage(img, 0, 0);
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
 
     const results = await readBarcodes(imageData, {
       formats: ['QRCode', 'EAN13', 'EAN8', 'Code128', 'Code39', 'PDF417', 'DataMatrix'],
@@ -92,12 +106,10 @@ function tryParseJson(text: string): ParsedQRData | null {
 }
 
 function tryParseIranianTaxQR(text: string): ParsedQRData | null {
-  // Iranian tax system QR codes typically contain URLs or structured data
-  // Patterns: https://tax.gov.ir/..., https://ntsw.ir/..., or similar
   const iranianDomains = ['tax.gov.ir', 'ntsw.ir', 'evat.ir', 'tax.ir', 'stuffam.ir'];
   const isIranianTax = iranianDomains.some(d => text.includes(d));
 
-  if (!isIranianTax && !text.startsWith('{')) {
+  if (!isIranianTax) {
     // Try the common Iranian receipt QR format: semicolon-separated fields
     // Format varies but often: taxId;date;time;amount;...
     const parts = text.split(';');
@@ -105,7 +117,8 @@ function tryParseIranianTaxQR(text: string): ParsedQRData | null {
       const result: ParsedQRData = {};
       for (const part of parts) {
         const num = parseFloat(part);
-        if (!isNaN(num) && num > 1000 && !result.amount) {
+        // Iranian amounts are in Rials, typically 50,000+; use high threshold to avoid matching timestamps/IDs
+        if (!isNaN(num) && num > 50000 && !result.amount) {
           result.amount = num;
         }
         if (/^\d{4}[/-]\d{2}[/-]\d{2}$/.test(part)) {

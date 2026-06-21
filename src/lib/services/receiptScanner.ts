@@ -156,31 +156,31 @@ export async function analyzeReceipt(imageDataUrl: string): Promise<ReceiptData>
 export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]): ReceiptData {
   if (barcodes.length === 0) return receipt;
 
-  receipt.barcodeData = barcodes;
+  const merged = { ...receipt, barcodeData: barcodes };
 
   const parsed = parseReceiptQR(barcodes);
-  if (!parsed) return receipt;
+  if (!parsed) return merged;
 
   if (parsed.amount && parsed.amount > 0) {
-    receipt.totalAmount = Math.round(parsed.amount * 100) / 100;
-    receipt.confidence = Math.max(receipt.confidence, 0.95);
+    merged.totalAmount = Math.round(parsed.amount * 100) / 100;
+    merged.confidence = Math.max(merged.confidence, 0.95);
   }
 
   if (parsed.date) {
-    receipt.date = parsed.date;
+    merged.date = parsed.date;
   }
 
   if (parsed.merchant) {
-    receipt.merchant = parsed.merchant;
+    merged.merchant = parsed.merchant;
   }
 
   const noteParts: string[] = [];
   if (parsed.taxId) noteParts.push(`Tax ID: ${parsed.taxId}`);
-  noteParts.push(`Barcode: ${barcodes.map(b => `${b.format}`).join(', ')}`);
+  noteParts.push(`Barcode: ${barcodes.map(b => b.format).join(', ')}`);
 
-  receipt.notes = receipt.notes
-    ? `${receipt.notes} | ${noteParts.join(' | ')}`
+  merged.notes = merged.notes
+    ? `${merged.notes} | ${noteParts.join(' | ')}`
     : noteParts.join(' | ');
 
-  return receipt;
+  return merged;
 }
