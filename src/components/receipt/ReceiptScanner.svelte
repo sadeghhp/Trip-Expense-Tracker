@@ -95,7 +95,7 @@
 
   async function analyze() {
     const settings = getAISettings();
-    if (!settings.apiKey || !settings.model) {
+    if (!settings.baseUrl || !settings.apiKey || !settings.model) {
       errorMessage = $t('receipt.noApiConfig');
       state = 'error';
       return;

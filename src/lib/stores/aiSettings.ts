@@ -35,12 +35,24 @@ export function updateAISettings(partial: Partial<AISettings>): void {
   aiSettings.update(s => ({ ...s, ...partial }));
 }
 
+export function getChatCompletionsUrl(baseUrl: string): string {
+  try {
+    const parsed = new URL(baseUrl);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('Invalid URL scheme');
+    }
+  } catch {
+    throw new Error('receipt.errorInvalidBaseUrl');
+  }
+  return `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+}
+
 export async function testConnection(): Promise<boolean> {
   const { baseUrl, apiKey, model } = getAISettings();
   if (!baseUrl || !apiKey || !model) return false;
 
   try {
-    const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+    const url = getChatCompletionsUrl(baseUrl);
     const response = await fetch(url, {
       method: 'POST',
       headers: {

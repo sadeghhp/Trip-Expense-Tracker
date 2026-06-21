@@ -1,4 +1,4 @@
-import { getAISettings } from '../stores/aiSettings';
+import { getAISettings, getChatCompletionsUrl } from '../stores/aiSettings';
 import type { ReceiptData } from '../types';
 
 const RECEIPT_EXTRACTION_PROMPT = `Analyze this receipt image and extract the expense information.
@@ -108,7 +108,7 @@ export async function analyzeReceipt(imageDataUrl: string): Promise<ReceiptData>
     ? `${settings.customPrompt}\n\nYou are a receipt extraction assistant. Return only valid JSON.`
     : 'You are a receipt extraction assistant. Return only valid JSON.';
 
-  const url = `${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const url = getChatCompletionsUrl(settings.baseUrl);
   const response = await fetch(url, {
     method: 'POST',
     headers: {
