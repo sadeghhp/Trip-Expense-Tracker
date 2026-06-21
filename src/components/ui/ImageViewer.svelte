@@ -2,6 +2,7 @@
   import { X } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { getReceiptImage } from '$lib/services/imageStore';
+  import { t } from '$lib/i18n';
 
   interface Props {
     imageId: string;
@@ -53,7 +54,7 @@
   </button>
 
   {#if loading}
-    <div class="text-white/60 text-sm">Loading...</div>
+    <div class="text-white/60 text-sm">{$t('receipt.loadingImage')}</div>
   {:else if imageUrl}
     <img
       src={imageUrl}
@@ -62,6 +63,6 @@
       transition:fly={{ y: 20, duration: 200 }}
     />
   {:else}
-    <div class="text-white/60 text-sm">Image not found</div>
+    <div class="text-white/60 text-sm">{$t('receipt.imageNotFound')}</div>
   {/if}
 </div>

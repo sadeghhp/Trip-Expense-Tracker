@@ -96,10 +96,14 @@
     deleteConfirm = null;
   }
 
-  function handleDuplicate(trip: Trip, e: Event) {
+  async function handleDuplicate(trip: Trip, e: Event) {
     e.stopPropagation();
-    duplicateTrip(trip.id);
-    showToast($t('trips.duplicated'));
+    try {
+      await duplicateTrip(trip.id);
+      showToast($t('trips.duplicated'));
+    } catch {
+      showToast($t('trips.duplicateFailed'), 'error');
+    }
   }
 
   function handleArchive(trip: Trip, e: Event) {

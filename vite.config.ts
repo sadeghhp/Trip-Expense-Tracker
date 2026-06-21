@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-const base = process.env.GITHUB_ACTIONS ? '/Trip-Expense-Tracker/' : '/';
+const base =
+  process.env.VITE_BASE_PATH ??
+  (process.env.GITHUB_ACTIONS ? '/Trip-Expense-Tracker/' : '/');
 
 function assetPath(relativePath: string): string {
   return `${base}${relativePath.replace(/^\//, '')}`;

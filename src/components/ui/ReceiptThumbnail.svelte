@@ -14,6 +14,7 @@
   $effect(() => {
     let active = true;
     let currentUrl: string | null = null;
+    url = null;
 
     getReceiptThumbnail(imageId).then((u) => {
       if (active) {

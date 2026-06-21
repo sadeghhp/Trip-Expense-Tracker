@@ -269,6 +269,7 @@
     "deleteMessage": "Are you sure you want to delete \"{name}\" and all its data? This cannot be undone.",
     "deleted": "Trip deleted",
     "duplicated": "Trip duplicated",
+    "duplicateFailed": "Failed to duplicate trip",
     "archivedToast": "Trip archived",
     "restored": "Trip restored",
     "unarchive": "Unarchive",
@@ -418,7 +419,9 @@
     "skipCrop": "Skip",
     "cropAndContinue": "Crop & Continue",
     "viewReceipt": "View Receipt",
-    "tapToView": "Tap to view scanned receipt"
+    "tapToView": "Tap to view scanned receipt",
+    "loadingImage": "Loading...",
+    "imageNotFound": "Image not found"
   },
   "currencyNames": {
     "USD": "US Dollar",

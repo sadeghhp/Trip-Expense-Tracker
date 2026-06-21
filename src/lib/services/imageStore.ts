@@ -92,20 +92,6 @@ export async function deleteReceiptImages(ids: string[]): Promise<void> {
   await tx.done;
 }
 
-export async function duplicateReceiptImage(oldId: string, newId: string): Promise<boolean> {
-  const db = await getDB();
-  const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, oldId);
-  if (!record) return false;
-  const newRecord: ReceiptImageRecord = {
-    id: newId,
-    fullImage: record.fullImage,
-    thumbnail: record.thumbnail,
-    createdAt: Date.now()
-  };
-  await db.put(STORE_NAME, newRecord);
-  return true;
-}
-
 export async function duplicateReceiptImages(idMap: Map<string, string>): Promise<void> {
   if (idMap.size === 0) return;
   const db = await getDB();

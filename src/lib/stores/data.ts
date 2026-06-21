@@ -111,6 +111,27 @@ export const effectiveSettlementCurrency = derived(appData, ($d) =>
 let _dataVersion = 0;
 export const dataVersion = writable(_dataVersion);
 
+function collectReceiptImageIds(data: AppData): string[] {
+  return data.expenses
+    .map(e => e.receiptImageId)
+    .filter((id): id is string => !!id);
+}
+
+function collectReceiptImageIdsFromState(state: AppState): string[] {
+  const ids: string[] = [];
+  for (const trip of state.trips) {
+    ids.push(...collectReceiptImageIds(trip.data));
+  }
+  return ids;
+}
+
+function deleteUnreferencedReceiptImages(oldIds: string[], newIds: Set<string>): void {
+  const toDelete = oldIds.filter(id => !newIds.has(id));
+  if (toDelete.length > 0) {
+    deleteReceiptImages(toDelete).catch(() => {});
+  }
+}
+
 export function updateData(updater: (data: AppData) => AppData): void {
   appState.update((s) => {
     if (!s.activeTripId) return s;
@@ -127,13 +148,20 @@ export function updateData(updater: (data: AppData) => AppData): void {
 }
 
 export function replaceData(data: AppData): void {
+  const state = get(appState);
+  const trip = state.trips.find(t => t.id === state.activeTripId);
+  const normalized = normalizeData(data);
+  if (trip) {
+    const newIdSet = new Set(collectReceiptImageIds(normalized));
+    deleteUnreferencedReceiptImages(collectReceiptImageIds(trip.data), newIdSet);
+  }
   appState.update((s) => {
     if (!s.activeTripId) return s;
     return {
       ...s,
       trips: s.trips.map((t) =>
         t.id === s.activeTripId
-          ? { ...t, data: normalizeData(data), updatedAt: new Date().toISOString() }
+          ? { ...t, data: normalized, updatedAt: new Date().toISOString() }
           : t
       )
     };
@@ -239,7 +267,7 @@ export function importAsNewTrip(name: string, data: AppData, description: string
   }));
 }
 
-export function duplicateTrip(tripId: string): void {
+export async function duplicateTrip(tripId: string): Promise<void> {
   const state = get(appState);
   const source = state.trips.find((t) => t.id === tripId);
   if (!source) return;
@@ -256,7 +284,7 @@ export function duplicateTrip(tripId: string): void {
   }
 
   if (imageIdMap.size > 0) {
-    duplicateReceiptImages(imageIdMap).catch(() => {});
+    await duplicateReceiptImages(imageIdMap);
   }
 
   const trip: Trip = {
@@ -298,6 +326,10 @@ export function getFullSnapshot(): AppState {
 }
 
 export function replaceAllData(state: AppState): void {
-  appState.set(normalizeAppState(state));
+  const oldState = get(appState);
+  const normalized = normalizeAppState(state);
+  const newIdSet = new Set(collectReceiptImageIdsFromState(normalized));
+  deleteUnreferencedReceiptImages(collectReceiptImageIdsFromState(oldState), newIdSet);
+  appState.set(normalized);
   dataVersion.set(++_dataVersion);
 }

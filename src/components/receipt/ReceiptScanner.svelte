@@ -9,7 +9,7 @@
   import { formatAmount } from '$lib/utils/format';
   import { analyzeReceipt, mergeBarcodeData } from '$lib/services/receiptScanner';
   import { scanBarcodesFromImage } from '$lib/services/barcodeScanner';
-  import { saveReceiptImage } from '$lib/services/imageStore';
+  import { saveReceiptImage, deleteReceiptImage } from '$lib/services/imageStore';
   import { getAISettings } from '$lib/stores/aiSettings';
   import { t } from '$lib/i18n';
   import Cropper from 'svelte-easy-crop';
@@ -235,6 +235,7 @@
 
     const error = validateExpense(expenseData, $appData);
     if (error) {
+      if (receiptImageId) deleteReceiptImage(receiptImageId).catch(() => {});
       formError = $t(error.key, error.params);
       return;
     }
