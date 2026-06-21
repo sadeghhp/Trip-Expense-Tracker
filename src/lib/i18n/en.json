@@ -203,6 +203,7 @@
     "about": "About",
     "appName": "Trip Expense Tracker",
     "version": "Version 2.0.0",
+    "buildLabel": "Build",
     "aboutDesc": "A simple, offline-first app to track and split trip expenses among friends. All data is stored locally on your device.",
     "importTitle": "Import Data",
     "dropJsonFile": "Drop JSON file here",

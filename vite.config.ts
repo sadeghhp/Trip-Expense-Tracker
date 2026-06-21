@@ -12,6 +12,9 @@ function assetPath(relativePath: string): string {
 
 export default defineConfig({
   base,
+  define: {
+    __BUILD_NUMBER__: JSON.stringify(process.env.VITE_BUILD_NUMBER || 'dev'),
+  },
   resolve: {
     alias: {
       $lib: path.resolve('./src/lib')

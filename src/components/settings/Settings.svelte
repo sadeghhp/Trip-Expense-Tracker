@@ -519,7 +519,7 @@
         <Info size={20} class="text-primary-500 shrink-0 mt-0.5" />
         <div>
           <p class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.appName')}</p>
-          <p class="text-xs text-[var(--text-secondary)]">{$t('settings.version')}</p>
+          <p class="text-xs text-[var(--text-secondary)]">{$t('settings.version')} &middot; {$t('settings.buildLabel')} {__BUILD_NUMBER__}</p>
         </div>
       </div>
       <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
