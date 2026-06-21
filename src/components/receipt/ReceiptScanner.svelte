@@ -25,7 +25,7 @@
 
   type ScannerState = 'capture' | 'crop' | 'preview' | 'analyzing' | 'review' | 'error';
 
-  let state: ScannerState = $state('capture');
+  let scannerState: ScannerState = $state('capture');
   let imageDataUrl: string = $state('');
   let errorMessage: string = $state('');
   let receiptData: ReceiptData | null = $state(null);
@@ -96,7 +96,7 @@
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       errorMessage = $t('receipt.invalidImage');
-      state = 'error';
+      scannerState = 'error';
       return;
     }
     try {
@@ -105,16 +105,16 @@
       cropZoom = 1;
       cropPixels = null;
       cropAspect = await getImageAspect(imageDataUrl);
-      state = 'crop';
+      scannerState = 'crop';
     } catch {
       errorMessage = $t('receipt.readError');
-      state = 'error';
+      scannerState = 'error';
     }
   }
 
   function retake() {
     imageDataUrl = '';
-    state = 'capture';
+    scannerState = 'capture';
     if (fileInput) fileInput.value = '';
   }
 
@@ -131,11 +131,11 @@
     const settings = getAISettings();
     if (!settings.baseUrl || !settings.apiKey || !settings.model) {
       errorMessage = $t('receipt.noApiConfig');
-      state = 'error';
+      scannerState = 'error';
       return;
     }
 
-    state = 'analyzing';
+    scannerState = 'analyzing';
     try {
       const [receipt, barcodes] = await Promise.all([
         analyzeReceipt(imageDataUrl),
@@ -145,12 +145,12 @@
       barcodeResults = barcodes;
       receiptData = mergeBarcodeData(receipt, barcodes);
       populateReviewForm(receiptData);
-      state = 'review';
+      scannerState = 'review';
     } catch (err: unknown) {
       const key = err instanceof Error ? err.message : '';
       const translated = key ? $t(key) : '';
       errorMessage = (translated && translated !== key) ? translated : $t('receipt.errorDescription');
-      state = 'error';
+      scannerState = 'error';
     }
   }
 
@@ -281,11 +281,11 @@
     try {
       imageDataUrl = await applyCrop();
     } catch { /* keep original if crop fails */ }
-    state = 'preview';
+    scannerState = 'preview';
   }
 
   function skipCrop() {
-    state = 'preview';
+    scannerState = 'preview';
   }
 
   function goManual() {
@@ -315,7 +315,7 @@
     <div class="flex-1 overflow-y-auto px-5 py-4">
 
       <!-- CAPTURE STATE -->
-      {#if state === 'capture'}
+      {#if scannerState === 'capture'}
         <div class="space-y-4">
           <div class="text-center py-8">
             <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mx-auto mb-4">
@@ -359,7 +359,7 @@
         </div>
 
       <!-- CROP STATE -->
-      {:else if state === 'crop'}
+      {:else if scannerState === 'crop'}
         <div class="space-y-4">
           <p class="text-sm text-center text-[var(--text-secondary)]">{$t('receipt.cropDescription')}</p>
           <div class="relative w-full h-64 rounded-xl overflow-hidden border border-[var(--card-border)] bg-[var(--app-bg)]">
@@ -391,7 +391,7 @@
         </div>
 
       <!-- PREVIEW STATE -->
-      {:else if state === 'preview'}
+      {:else if scannerState === 'preview'}
         <div class="space-y-4">
           <div class="relative rounded-xl overflow-hidden border border-[var(--card-border)]">
             <img src={imageDataUrl} alt="Receipt preview" class="w-full max-h-64 object-contain bg-[var(--app-bg)]" />
@@ -416,7 +416,7 @@
         </div>
 
       <!-- ANALYZING STATE -->
-      {:else if state === 'analyzing'}
+      {:else if scannerState === 'analyzing'}
         <div class="text-center py-12">
           <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mx-auto mb-4">
             <Loader2 size={32} class="text-primary-600 dark:text-primary-400 animate-spin" />
@@ -426,7 +426,7 @@
         </div>
 
       <!-- ERROR STATE -->
-      {:else if state === 'error'}
+      {:else if scannerState === 'error'}
         <div class="text-center py-8 space-y-4">
           <div class="w-16 h-16 rounded-2xl bg-danger-50 dark:bg-danger-900/20 flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={32} class="text-danger-500" />
@@ -451,7 +451,7 @@
         </div>
 
       <!-- REVIEW STATE -->
-      {:else if state === 'review'}
+      {:else if scannerState === 'review'}
         <div class="space-y-4">
           <!-- Confidence badge -->
           {#if receiptData}

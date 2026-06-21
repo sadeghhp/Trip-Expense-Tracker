@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -26,6 +27,7 @@
     "@vitest/coverage-v8": "^4.1.9",
     "jsdom": "^29.1.1",
     "svelte": "^5.33.14",
+    "svelte-check": "^4.6.0",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
