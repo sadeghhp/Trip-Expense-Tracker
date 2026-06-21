@@ -93,7 +93,7 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-base font-semibold text-[var(--text-primary)] truncate">{expense.description}</span>
-                <span class="shrink-0 px-2 py-0.5 rounded-lg bg-surface-100 dark:bg-surface-800 text-[10px] font-bold tracking-wide uppercase text-[var(--text-secondary)]">
+                <span class="shrink-0 px-2 py-0.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-[10px] font-bold tracking-wide uppercase text-primary-600 dark:text-primary-300">
                   {expense.currencyCode}
                 </span>
               </div>

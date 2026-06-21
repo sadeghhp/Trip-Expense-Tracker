@@ -104,15 +104,15 @@
           onclick={() => { if (s <= 3 || calculated) step = s; }}
           class="w-8 h-8 rounded-full text-xs font-bold transition-all
             {step === s
-              ? 'bg-primary-600 text-white scale-110'
+              ? 'bg-primary-600 text-white scale-110 shadow-md'
               : s < step || (s === 4 && calculated)
                 ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
-                : 'bg-surface-100 dark:bg-surface-800 text-[var(--text-secondary)]'}"
+                : 'bg-surface-200 dark:bg-surface-700 text-[var(--text-secondary)]'}"
         >
           {s}
         </button>
         {#if s < 4}
-          <div class="w-8 h-0.5 rounded {s < step ? 'bg-primary-500' : 'bg-surface-200 dark:bg-surface-700'}"></div>
+          <div class="w-8 h-0.5 rounded {s < step ? 'bg-primary-500' : 'bg-surface-300 dark:bg-surface-700'}"></div>
         {/if}
       {/each}
     </div>

@@ -247,7 +247,7 @@
 
       <!-- Live preview -->
       {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
-        <div class="px-3 py-2 rounded-xl bg-surface-100 dark:bg-surface-800 text-xs text-[var(--text-secondary)]">
+        <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
           {equalPerPerson} each ({beneficiaryCount} {beneficiaryCount === 1 ? 'person' : 'people'})
         </div>
       {/if}

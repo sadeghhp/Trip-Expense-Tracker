@@ -1,69 +1,69 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50: oklch(0.97 0.02 180);
-  --color-primary-100: oklch(0.93 0.04 180);
-  --color-primary-200: oklch(0.87 0.07 180);
-  --color-primary-300: oklch(0.78 0.1 180);
-  --color-primary-400: oklch(0.68 0.13 180);
-  --color-primary-500: oklch(0.58 0.13 180);
-  --color-primary-600: oklch(0.5 0.12 180);
-  --color-primary-700: oklch(0.43 0.1 180);
-  --color-primary-800: oklch(0.36 0.08 180);
-  --color-primary-900: oklch(0.28 0.06 180);
+  --color-primary-50: oklch(0.96 0.03 180);
+  --color-primary-100: oklch(0.92 0.06 180);
+  --color-primary-200: oklch(0.85 0.1 180);
+  --color-primary-300: oklch(0.76 0.13 180);
+  --color-primary-400: oklch(0.66 0.14 180);
+  --color-primary-500: oklch(0.55 0.14 180);
+  --color-primary-600: oklch(0.47 0.13 180);
+  --color-primary-700: oklch(0.4 0.11 180);
+  --color-primary-800: oklch(0.33 0.09 180);
+  --color-primary-900: oklch(0.26 0.07 180);
 
-  --color-accent-50: oklch(0.97 0.02 75);
-  --color-accent-100: oklch(0.94 0.05 75);
-  --color-accent-200: oklch(0.9 0.09 75);
-  --color-accent-300: oklch(0.84 0.13 75);
-  --color-accent-400: oklch(0.78 0.15 75);
-  --color-accent-500: oklch(0.72 0.15 75);
-  --color-accent-600: oklch(0.63 0.14 75);
+  --color-accent-50: oklch(0.97 0.03 75);
+  --color-accent-100: oklch(0.93 0.06 75);
+  --color-accent-200: oklch(0.88 0.1 75);
+  --color-accent-300: oklch(0.82 0.14 75);
+  --color-accent-400: oklch(0.76 0.16 75);
+  --color-accent-500: oklch(0.7 0.15 75);
+  --color-accent-600: oklch(0.62 0.14 75);
 
-  --color-success-50: oklch(0.97 0.02 155);
-  --color-success-100: oklch(0.93 0.05 155);
-  --color-success-200: oklch(0.87 0.09 155);
-  --color-success-500: oklch(0.68 0.15 155);
-  --color-success-600: oklch(0.58 0.14 155);
-  --color-success-700: oklch(0.48 0.12 155);
+  --color-success-50: oklch(0.96 0.03 155);
+  --color-success-100: oklch(0.92 0.06 155);
+  --color-success-200: oklch(0.85 0.1 155);
+  --color-success-500: oklch(0.64 0.16 155);
+  --color-success-600: oklch(0.55 0.15 155);
+  --color-success-700: oklch(0.46 0.13 155);
 
-  --color-danger-50: oklch(0.97 0.02 20);
-  --color-danger-100: oklch(0.93 0.04 20);
-  --color-danger-200: oklch(0.88 0.08 20);
-  --color-danger-500: oklch(0.63 0.2 20);
-  --color-danger-600: oklch(0.55 0.2 20);
-  --color-danger-700: oklch(0.47 0.17 20);
+  --color-danger-50: oklch(0.97 0.02 25);
+  --color-danger-100: oklch(0.93 0.05 25);
+  --color-danger-200: oklch(0.87 0.09 25);
+  --color-danger-500: oklch(0.62 0.2 25);
+  --color-danger-600: oklch(0.54 0.2 25);
+  --color-danger-700: oklch(0.46 0.17 25);
 
   --color-warning-50: oklch(0.97 0.03 70);
-  --color-warning-100: oklch(0.94 0.06 70);
-  --color-warning-200: oklch(0.9 0.1 70);
-  --color-warning-500: oklch(0.76 0.15 70);
-  --color-warning-600: oklch(0.66 0.14 70);
+  --color-warning-100: oklch(0.93 0.07 70);
+  --color-warning-200: oklch(0.88 0.11 70);
+  --color-warning-500: oklch(0.74 0.16 70);
+  --color-warning-600: oklch(0.64 0.15 70);
 
-  --color-surface-50: oklch(0.985 0.003 240);
-  --color-surface-100: oklch(0.965 0.005 240);
-  --color-surface-200: oklch(0.925 0.008 240);
-  --color-surface-300: oklch(0.88 0.01 240);
-  --color-surface-400: oklch(0.72 0.012 240);
-  --color-surface-500: oklch(0.56 0.014 240);
-  --color-surface-600: oklch(0.44 0.016 240);
-  --color-surface-700: oklch(0.34 0.016 240);
-  --color-surface-800: oklch(0.22 0.015 240);
-  --color-surface-900: oklch(0.16 0.014 240);
-  --color-surface-950: oklch(0.11 0.012 240);
+  --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
+  --color-surface-950: #020617;
 }
 
 :root {
   --app-bg: var(--color-surface-50);
-  --card-bg: white;
+  --card-bg: #ffffff;
   --card-border: var(--color-surface-200);
   --text-primary: var(--color-surface-900);
-  --text-secondary: var(--color-surface-600);
-  --tab-bg: white;
+  --text-secondary: var(--color-surface-500);
+  --tab-bg: #ffffff;
   --tab-border: var(--color-surface-200);
-  --header-bg: oklch(0.97 0.01 180 / 0.85);
-  --header-border: oklch(0.87 0.04 180 / 0.3);
-  --fab-shadow: oklch(0.5 0.12 180 / 0.35);
+  --header-bg: rgba(248, 250, 252, 0.85);
+  --header-border: rgba(14, 116, 106, 0.12);
+  --fab-shadow: rgba(13, 148, 136, 0.35);
 }
 
 .dark {
@@ -74,9 +74,9 @@
   --text-secondary: var(--color-surface-400);
   --tab-bg: var(--color-surface-950);
   --tab-border: var(--color-surface-800);
-  --header-bg: oklch(0.11 0.012 240 / 0.85);
+  --header-bg: rgba(2, 6, 23, 0.85);
   --header-border: var(--color-surface-800);
-  --fab-shadow: oklch(0.3 0.08 180 / 0.4);
+  --fab-shadow: rgba(13, 148, 136, 0.4);
 }
 
 html, body {
@@ -84,7 +84,7 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
@@ -120,11 +120,11 @@ input[type="number"] {
 }
 
 ::selection {
-  background-color: oklch(0.87 0.07 180 / 0.4);
+  background-color: rgba(13, 148, 136, 0.25);
 }
 
 .dark ::selection {
-  background-color: oklch(0.5 0.12 180 / 0.3);
+  background-color: rgba(13, 148, 136, 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -137,7 +137,7 @@ input[type="number"] {
 }
 
 :focus-visible {
-  outline: 2px solid oklch(0.58 0.13 180);
+  outline: 2px solid #0d9488;
   outline-offset: 2px;
   border-radius: 8px;
 }

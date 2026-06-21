@@ -1,8 +1,10 @@
-import { writable, get } from 'svelte/store';
-import type { AppData } from '../types';
-import { normalizeData } from '../utils/normalize';
+import { writable, derived, get } from 'svelte/store';
+import type { AppData, AppState, Trip } from '../types';
+import { normalizeData, normalizeAppState } from '../utils/normalize';
+import { generateId } from '../utils/id';
 
-const STORAGE_KEY = 'trip-expense-tracker-data';
+const STORAGE_KEY = 'trip-expense-tracker-state';
+const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
 
 function createEmptyData(): AppData {
   return {
@@ -14,44 +16,175 @@ function createEmptyData(): AppData {
   };
 }
 
-function loadFromStorage(): AppData {
+function createEmptyState(): AppState {
+  return { trips: [], activeTripId: null };
+}
+
+function loadFromStorage(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createEmptyData();
-    const parsed = JSON.parse(raw);
-    return normalizeData(parsed);
+    if (raw) {
+      return normalizeAppState(JSON.parse(raw));
+    }
+
+    // Migrate from old single-data format
+    const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+    if (oldRaw) {
+      const oldData = normalizeData(JSON.parse(oldRaw));
+      const hasContent = oldData.participants.length > 0 || oldData.expenses.length > 0 || oldData.currencies.length > 0;
+      if (hasContent) {
+        const now = new Date().toISOString();
+        const trip: Trip = {
+          id: generateId(),
+          name: 'My Trip',
+          description: '',
+          createdAt: now,
+          updatedAt: now,
+          data: oldData
+        };
+        const state: AppState = { trips: [trip], activeTripId: null };
+        localStorage.removeItem(OLD_STORAGE_KEY);
+        return state;
+      }
+      localStorage.removeItem(OLD_STORAGE_KEY);
+    }
+
+    return createEmptyState();
   } catch {
-    return createEmptyData();
+    return createEmptyState();
   }
 }
 
-function saveToStorage(data: AppData): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function saveToStorage(state: AppState): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 const initial = loadFromStorage();
-export const appData = writable<AppData>(initial);
+const appState = writable<AppState>(initial);
 
 let initialized = false;
-appData.subscribe((data) => {
+appState.subscribe((state) => {
   if (initialized) {
-    saveToStorage(data);
+    saveToStorage(state);
   }
   initialized = true;
 });
 
+export const activeTripId = derived(appState, ($s) => $s.activeTripId);
+export const trips = derived(appState, ($s) => $s.trips);
+export const activeTrip = derived(appState, ($s) =>
+  $s.activeTripId ? $s.trips.find((t) => t.id === $s.activeTripId) ?? null : null
+);
+
+export const appData = derived(appState, ($s) => {
+  if (!$s.activeTripId) return createEmptyData();
+  const trip = $s.trips.find((t) => t.id === $s.activeTripId);
+  return trip?.data ?? createEmptyData();
+});
+
 export function updateData(updater: (data: AppData) => AppData): void {
-  appData.update(updater);
+  appState.update((s) => {
+    if (!s.activeTripId) return s;
+    return {
+      ...s,
+      trips: s.trips.map((t) =>
+        t.id === s.activeTripId
+          ? { ...t, data: updater(t.data), updatedAt: new Date().toISOString() }
+          : t
+      )
+    };
+  });
 }
 
 export function replaceData(data: AppData): void {
-  appData.set(normalizeData(data));
+  appState.update((s) => {
+    if (!s.activeTripId) return s;
+    return {
+      ...s,
+      trips: s.trips.map((t) =>
+        t.id === s.activeTripId
+          ? { ...t, data: normalizeData(data), updatedAt: new Date().toISOString() }
+          : t
+      )
+    };
+  });
 }
 
 export function clearAllData(): void {
-  appData.set(createEmptyData());
+  appState.update((s) => {
+    if (!s.activeTripId) return s;
+    return {
+      ...s,
+      trips: s.trips.map((t) =>
+        t.id === s.activeTripId
+          ? { ...t, data: createEmptyData(), updatedAt: new Date().toISOString() }
+          : t
+      )
+    };
+  });
 }
 
 export function getSnapshot(): AppData {
   return get(appData);
+}
+
+export function createTrip(name: string, description: string = ''): void {
+  const now = new Date().toISOString();
+  const trip: Trip = {
+    id: generateId(),
+    name,
+    description,
+    createdAt: now,
+    updatedAt: now,
+    data: createEmptyData()
+  };
+  appState.update((s) => ({
+    ...s,
+    trips: [...s.trips, trip],
+    activeTripId: trip.id
+  }));
+}
+
+export function deleteTrip(tripId: string): void {
+  appState.update((s) => ({
+    ...s,
+    trips: s.trips.filter((t) => t.id !== tripId),
+    activeTripId: s.activeTripId === tripId ? null : s.activeTripId
+  }));
+}
+
+export function switchTrip(tripId: string): void {
+  appState.update((s) => ({ ...s, activeTripId: tripId }));
+}
+
+export function updateTrip(tripId: string, updates: { name?: string; description?: string }): void {
+  appState.update((s) => ({
+    ...s,
+    trips: s.trips.map((t) =>
+      t.id === tripId
+        ? { ...t, ...updates, updatedAt: new Date().toISOString() }
+        : t
+    )
+  }));
+}
+
+export function exitTrip(): void {
+  appState.update((s) => ({ ...s, activeTripId: null }));
+}
+
+export function importAsNewTrip(name: string, data: AppData, description: string = ''): void {
+  const now = new Date().toISOString();
+  const trip: Trip = {
+    id: generateId(),
+    name,
+    description,
+    createdAt: now,
+    updatedAt: now,
+    data: normalizeData(data)
+  };
+  appState.update((s) => ({
+    ...s,
+    trips: [...s.trips, trip],
+    activeTripId: trip.id
+  }));
 }

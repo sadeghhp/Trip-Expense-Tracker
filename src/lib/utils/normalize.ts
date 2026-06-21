@@ -1,4 +1,5 @@
-import type { AppData } from '../types';
+import type { AppData, AppState } from '../types';
+import { generateId } from './id';
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -60,5 +61,28 @@ export function normalizeData(raw: any): AppData {
     expenses,
     exchangeRates: cleanedRates,
     settlementCurrency
+  };
+}
+
+export function normalizeAppState(raw: any): AppState {
+  const trips = Array.isArray(raw?.trips) ? raw.trips : [];
+  const activeTripId = typeof raw?.activeTripId === 'string' ? raw.activeTripId : null;
+
+  const validTrips = trips
+    .filter((t: any) => typeof t?.id === 'string' && typeof t?.name === 'string' && t?.data)
+    .map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      description: typeof t.description === 'string' ? t.description : '',
+      createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
+      updatedAt: typeof t.updatedAt === 'string' ? t.updatedAt : new Date().toISOString(),
+      data: normalizeData(t.data)
+    }));
+
+  const validIds = new Set(validTrips.map((t: any) => t.id));
+
+  return {
+    trips: validTrips,
+    activeTripId: activeTripId && validIds.has(activeTripId) ? activeTripId : null
   };
 }

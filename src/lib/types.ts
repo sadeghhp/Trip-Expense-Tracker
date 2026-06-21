@@ -65,6 +65,20 @@ export interface SettlementTransaction {
   amount: number;
 }
 
+export interface Trip {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  data: AppData;
+}
+
+export interface AppState {
+  trips: Trip[];
+  activeTripId: string | null;
+}
+
 export type TabId = 'participants' | 'currencies' | 'expenses' | 'balances' | 'settlement' | 'settings';
 
 export interface PredefinedCurrency {

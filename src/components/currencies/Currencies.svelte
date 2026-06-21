@@ -198,8 +198,8 @@
         {#each $appData.currencies as currency (currency.code)}
           <div class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-surface-100 dark:bg-surface-800 flex items-center justify-center">
-                <span class="text-base font-medium">{currency.symbol}</span>
+              <div class="w-10 h-10 rounded-full bg-primary-50 border border-primary-200 dark:bg-primary-900/30 dark:border-primary-700 flex items-center justify-center">
+                <span class="text-base font-bold text-primary-600 dark:text-primary-300">{currency.symbol}</span>
               </div>
               <span class="text-base font-medium text-[var(--text-primary)]">{currency.code}</span>
             </div>
