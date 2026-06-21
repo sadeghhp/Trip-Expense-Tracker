@@ -1,0 +1,30 @@
+import '@testing-library/jest-dom/vitest';
+import { afterEach, vi } from 'vitest';
+
+afterEach(() => {
+  localStorage.clear();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
+
+if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+  Object.defineProperty(crypto, 'randomUUID', {
+    value: () => '00000000-0000-4000-8000-000000000000'
+  });
+}
+
+const originalCreateElement = document.createElement.bind(document);
+vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+  const el = originalCreateElement(tagName, options);
+  if (tagName.toLowerCase() === 'canvas') {
+    const canvas = el as HTMLCanvasElement;
+    canvas.getContext = vi.fn(() => ({
+      drawImage: vi.fn(),
+      getImageData: vi.fn(() => new ImageData(1, 1))
+    })) as unknown as typeof canvas.getContext;
+    canvas.toBlob = vi.fn((cb: BlobCallback) => {
+      cb(new Blob(['test'], { type: 'image/jpeg' }));
+    }) as typeof canvas.toBlob;
+  }
+  return el;
+});
