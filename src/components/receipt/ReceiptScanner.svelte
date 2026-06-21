@@ -119,6 +119,15 @@
     if (fileInput) fileInput.value = '';
   }
 
+  function openCameraRear() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
+    input.onchange = (e) => handleFileSelect(e);
+    input.click();
+  }
+
   async function analyze() {
     const settings = getAISettings();
     if (!settings.baseUrl || !settings.apiKey || !settings.model) {
@@ -322,14 +331,13 @@
             bind:this={fileInput}
             type="file"
             accept="image/*"
-            capture="environment"
             class="hidden"
             onchange={handleFileSelect}
           />
 
           <div class="grid grid-cols-2 gap-3">
             <button
-              onclick={() => { if (fileInput) { fileInput.setAttribute('capture', 'environment'); fileInput.click(); } }}
+              onclick={() => { openCameraRear(); }}
               class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-primary-300 dark:border-primary-700 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
               <Camera size={24} class="text-primary-600 dark:text-primary-400" />
@@ -337,7 +345,7 @@
             </button>
 
             <button
-              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); const restore = () => fileInput?.setAttribute('capture', 'environment'); fileInput.addEventListener('change', restore, { once: true }); fileInput.addEventListener('cancel', restore, { once: true }); fileInput.click(); } }}
+              onclick={() => { if (fileInput) { fileInput.removeAttribute('capture'); fileInput.click(); } }}
               class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-[var(--card-border)] hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
             >
               <Upload size={24} class="text-[var(--text-secondary)]" />
