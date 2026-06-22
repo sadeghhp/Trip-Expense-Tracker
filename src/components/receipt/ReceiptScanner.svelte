@@ -312,7 +312,7 @@
   transition:fly={{ duration: 150 }}
 >
   <div
-    class="w-full md:max-w-lg md:mx-4 bg-[var(--card-bg)] rounded-t-3xl md:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+    class="w-full md:max-w-lg md:mx-4 bg-[var(--card-bg)] rounded-t-3xl md:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col safe-area-bottom"
     transition:fly={{ y: 100, duration: 250 }}
   >
     <!-- Header -->

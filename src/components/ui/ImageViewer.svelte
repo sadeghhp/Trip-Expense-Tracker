@@ -48,7 +48,8 @@
 >
   <button
     onclick={onClose}
-    class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-colors"
+    class="absolute z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-colors"
+    style="top: calc(1rem + var(--safe-top)); right: calc(1rem + var(--safe-right));"
   >
     <X size={20} class="text-white" />
   </button>

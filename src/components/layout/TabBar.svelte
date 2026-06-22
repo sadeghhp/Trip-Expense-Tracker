@@ -94,9 +94,3 @@
     {/each}
   </div>
 </nav>
-
-<style>
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
-</style>

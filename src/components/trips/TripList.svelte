@@ -154,19 +154,21 @@
 </div>
 {:else}
 <div class="h-full flex flex-col">
-  <header class="sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 h-14 bg-[var(--header-bg)] backdrop-blur-xl border-b border-[var(--header-border)]">
-    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{$t('tabBar.brand')}</h1>
-    <button
-      onclick={() => showSettings = true}
-      class="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
-      title={$t('tabs.settings')}
-    >
-      <Settings size={20} class="text-[var(--text-secondary)]" />
-    </button>
+  <header class="sticky top-0 z-40 safe-area-top bg-[var(--header-bg)] backdrop-blur-xl border-b border-[var(--header-border)] relative">
+    <div class="flex items-center justify-between px-4 md:px-6 h-14">
+      <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">{$t('tabBar.brand')}</h1>
+      <button
+        onclick={() => showSettings = true}
+        class="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
+        title={$t('tabs.settings')}
+      >
+        <Settings size={20} class="text-[var(--text-secondary)]" />
+      </button>
+    </div>
     <div class="h-1 absolute bottom-0 inset-x-0 bg-gradient-to-r from-primary-500/0 via-primary-500/20 to-primary-500/0"></div>
   </header>
 
-  <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
+  <div class="flex-1 overflow-y-auto mobile-scroll-pb md:pb-4">
     <div class="max-w-3xl mx-auto p-4 md:p-6">
       {#if $trips.length === 0}
         <EmptyState
@@ -356,7 +358,7 @@
   {#if $trips.length > 0}
     <button
       onclick={openCreate}
-      class="fixed bottom-4 end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90 z-50"
+      class="fixed mobile-fab-no-tab end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 hover:scale-105 text-white shadow-lg shadow-[var(--fab-shadow)] flex items-center justify-center transition-all active:scale-90 z-50"
     >
       <Plus size={24} />
     </button>

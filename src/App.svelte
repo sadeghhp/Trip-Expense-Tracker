@@ -152,7 +152,7 @@
   <TripList />
 {:else if needsSetup}
   <!-- Force setup: block all navigation until people + currencies are defined -->
-  <div class="h-full flex flex-col overflow-y-auto">
+  <div class="h-full flex flex-col overflow-y-auto safe-area-top">
     <div class="max-w-lg mx-auto w-full px-4 py-8 md:py-12 flex-1 flex flex-col justify-center">
       <SetupWizard onComplete={completeWizard} />
     </div>
@@ -170,7 +170,7 @@
         />
       {/if}
 
-      <div class="flex-1 overflow-y-auto pb-20 md:pb-4">
+      <div class="flex-1 overflow-y-auto mobile-scroll-pb md:pb-4">
         <div class="{activeTab === 'home' ? 'max-w-2xl mx-auto' : 'max-w-3xl mx-auto'}">
           {#key activeTab}
             <div in:fly={{ x: flyInX, duration: 250, delay: 60 }} out:fly={{ x: flyOutX, duration: 180 }}>

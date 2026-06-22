@@ -218,7 +218,7 @@
 
 <svelte:window onclick={handleClickOutsidePicker} />
 
-<div class="px-4 md:px-6 py-4 md:py-6 space-y-5">
+<div class="px-4 md:px-6 py-4 md:py-6 space-y-5 safe-area-top">
   <!-- Mini Header with back navigation -->
   <div class="flex items-center gap-3 -mt-1 mb-1">
     <button
@@ -627,7 +627,7 @@
 {#if $appData.participants.length > 0 && $appData.currencies.length > 0}
   <button
     onclick={openExpenseForm}
-    class="fixed bottom-20 md:bottom-8 end-5 md:end-8 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-[0_8px_30px_var(--fab-shadow)] hover:shadow-[0_12px_40px_var(--fab-shadow)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
+    class="fixed mobile-fab md:bottom-8 end-5 md:end-8 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-[0_8px_30px_var(--fab-shadow)] hover:shadow-[0_12px_40px_var(--fab-shadow)] hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center"
   >
     <Plus size={24} strokeWidth={2.5} />
   </button>

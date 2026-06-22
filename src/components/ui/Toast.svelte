@@ -11,7 +11,7 @@
   };
 </script>
 
-<div class="fixed top-4 inset-x-4 md:start-auto md:end-4 md:w-80 z-[200] flex flex-col gap-2">
+<div class="fixed mobile-toast-top md:top-4 inset-x-4 md:start-auto md:end-4 md:w-80 z-[200] flex flex-col gap-2">
   {#each $toasts as msg (msg.id)}
     {@const Icon = icons[msg.type]}
     <div
