@@ -12,7 +12,7 @@ A privacy-first Progressive Web App for tracking and settling group travel expen
 [![PWA](https://img.shields.io/badge/PWA-Offline_Ready-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Live Demo](https://your-username.github.io/Trip-Expense-Tracker/) · [Report Bug](https://github.com/your-username/Trip-Expense-Tracker/issues) · [Request Feature](https://github.com/your-username/Trip-Expense-Tracker/issues)
+[Live Demo](https://sadeghhp.github.io/Trip-Expense-Tracker/) · [Report Bug](https://github.com/sadeghhp/Trip-Expense-Tracker/issues) · [Request Feature](https://github.com/sadeghhp/Trip-Expense-Tracker/issues)
 
 </div>
 
@@ -209,7 +209,7 @@ src/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Trip-Expense-Tracker.git
+git clone https://github.com/sadeghhp/Trip-Expense-Tracker.git
 cd Trip-Expense-Tracker
 
 # Install dependencies
