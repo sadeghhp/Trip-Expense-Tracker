@@ -40,7 +40,7 @@ const IMPORTABLE_ENTRY_TYPES = [
   'payment_from_tankhah'
 ];
 
-const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'موجودی اولیه سفر', 'هر نفر']);
+const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'همه', 'موجودی اولیه سفر', 'هر نفر']);
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥',
@@ -346,7 +346,7 @@ function resolveBeneficiaries(
   allParticipants: Participant[],
   lookup: Map<string, string>
 ): Beneficiary[] {
-  if (payeeName === 'گروه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
+  if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
     return allParticipants.map(p => makeBeneficiary(p.id));
   }
 
