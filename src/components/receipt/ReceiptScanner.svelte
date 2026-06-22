@@ -542,11 +542,11 @@
             </div>
 
             <!-- Beneficiaries -->
-            <fieldset class="border-0 p-0 m-0">
+            <div role="group" aria-labelledby="receipt-beneficiaries-label">
               <div class="flex items-center justify-between mb-2">
-                <legend class="text-xs font-medium text-[var(--text-secondary)]">
+                <span id="receipt-beneficiaries-label" class="text-xs font-medium text-[var(--text-secondary)]">
                   {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
-                </legend>
+                </span>
                 <div class="flex items-center gap-2">
                   {#if !allSelected}
                     <button
@@ -591,7 +591,7 @@
                   </div>
                 {/each}
               </div>
-            </fieldset>
+            </div>
 
             <!-- Equal split preview -->
             {#if beneficiaryCount > 0 && parsedAmount > 0}

@@ -539,8 +539,9 @@
 
 <Modal open={importOpen} title={$t('settings.importTitle')} onClose={() => importOpen = false}>
   <div class="space-y-4">
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
+      role="region"
+      aria-label={$t('settings.dropJsonFile')}
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
         {dragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-[var(--card-border)] hover:border-primary-400'}"
       ondragover={(e) => { e.preventDefault(); dragOver = true; }}
@@ -584,8 +585,8 @@
       ></textarea>
     </div>
 
-    <fieldset class="border-0 p-0 m-0">
-      <legend class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('settings.importAs')}</legend>
+    <div role="group" aria-labelledby="import-mode-label">
+      <span id="import-mode-label" class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('settings.importAs')}</span>
       <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
         <button
           onclick={() => importMode = 'replace'}
@@ -602,7 +603,7 @@
           {$t('settings.createNewTrip')}
         </button>
       </div>
-    </fieldset>
+    </div>
 
     {#if importError}
       <p class="text-xs text-danger-500">{importError}</p>
@@ -648,8 +649,9 @@
 
 <Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => backupImportOpen = false}>
   <div class="space-y-4">
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
+      role="region"
+      aria-label={$t('settings.dropBackupFile')}
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
         {backupDragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-[var(--card-border)] hover:border-primary-400'}"
       ondragover={(e) => { e.preventDefault(); backupDragOver = true; }}

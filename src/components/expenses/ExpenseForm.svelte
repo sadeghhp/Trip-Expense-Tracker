@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { X, Image as ImageIcon } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
   import { appData, updateData } from '$lib/stores/data';
@@ -32,21 +33,24 @@
   let customPercentages: Record<string, string> = $state({});
 
   $effect(() => {
-    date = expense?.date ?? getTodayISO();
-    description = expense?.description ?? '';
-    currencyCode = expense?.currencyCode ?? $appData.currencies[0]?.code ?? '';
-    amount = expense?.amount?.toString() ?? '';
-    paidBy = expense?.paidBy ?? $appData.participants[0]?.id ?? '';
-    splitType = expense?.splitType ?? 'equal';
-    selectedBeneficiaries = new Set(
-      expense ? expense.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id)
-    );
-    customAmounts = Object.fromEntries(
-      expense ? expense.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : []
-    );
-    customPercentages = Object.fromEntries(
-      expense ? expense.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) : []
-    );
+    const e = expense;
+    untrack(() => {
+      date = e?.date ?? getTodayISO();
+      description = e?.description ?? '';
+      currencyCode = e?.currencyCode ?? $appData.currencies[0]?.code ?? '';
+      amount = e?.amount?.toString() ?? '';
+      paidBy = e?.paidBy ?? $appData.participants[0]?.id ?? '';
+      splitType = e?.splitType ?? 'equal';
+      selectedBeneficiaries = new Set(
+        e ? e.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id)
+      );
+      customAmounts = Object.fromEntries(
+        e ? e.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : []
+      );
+      customPercentages = Object.fromEntries(
+        e ? e.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) : []
+      );
+    });
   });
   let formError = $state('');
   let showReceiptViewer = $state(false);
@@ -221,8 +225,8 @@
       </div>
 
       <!-- Split type -->
-      <fieldset class="border-0 p-0 m-0">
-        <legend class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</legend>
+      <div role="group" aria-labelledby="split-type-label">
+        <span id="split-type-label" class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</span>
         <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
           {#each ['equal', 'custom', 'percentage'] as st}
             <button
@@ -237,14 +241,14 @@
             </button>
           {/each}
         </div>
-      </fieldset>
+      </div>
 
       <!-- Beneficiaries -->
-      <fieldset class="border-0 p-0 m-0">
+      <div role="group" aria-labelledby="beneficiaries-label">
         <div class="flex items-center justify-between mb-2">
-          <legend class="text-xs font-medium text-[var(--text-secondary)]">
+          <span id="beneficiaries-label" class="text-xs font-medium text-[var(--text-secondary)]">
             {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
-          </legend>
+          </span>
           <div class="flex items-center gap-2">
             {#if !allSelected}
               <button
@@ -316,7 +320,7 @@
             </div>
           {/each}
         </div>
-      </fieldset>
+      </div>
 
       <!-- Live preview -->
       {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}

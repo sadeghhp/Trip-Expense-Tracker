@@ -23,7 +23,9 @@
 
   $effect(() => {
     if (showForm) {
-      tick().then(() => codeInputEl?.focus());
+      let active = true;
+      tick().then(() => tick()).then(() => { if (active) codeInputEl?.focus(); });
+      return () => { active = false; };
     }
   });
 

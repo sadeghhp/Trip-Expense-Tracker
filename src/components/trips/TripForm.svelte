@@ -24,7 +24,9 @@
       nameInput = trip?.name ?? '';
       descriptionInput = trip?.description ?? '';
       formError = '';
-      tick().then(() => nameInputEl?.focus());
+      let active = true;
+      tick().then(() => tick()).then(() => { if (active) nameInputEl?.focus(); });
+      return () => { active = false; };
     }
   });
 

@@ -20,7 +20,9 @@
 
   $effect(() => {
     if (showForm) {
-      tick().then(() => nameInputEl?.focus());
+      let active = true;
+      tick().then(() => tick()).then(() => { if (active) nameInputEl?.focus(); });
+      return () => { active = false; };
     }
   });
 
