@@ -47,7 +47,7 @@
         </div>
       {/if}
       <h3 class="text-lg font-semibold text-[var(--text-primary)] text-center mb-2">{title}</h3>
-      <p class="text-sm text-[var(--text-secondary)] text-center mb-6">{message}</p>
+      <p class="text-sm text-[var(--text-secondary)] text-center mb-6 whitespace-pre-line">{message}</p>
       <div class="flex gap-3">
         <button
           onclick={onCancel}
