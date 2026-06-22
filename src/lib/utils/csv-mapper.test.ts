@@ -61,6 +61,56 @@ describe('detectColumnMapping', () => {
     expect(mapping.flag).toBe('Flag');
     expect(mapping.notes).toBe('Notes');
   });
+
+  it('does not map Payee column as description', () => {
+    const mapping = detectColumnMapping(['Date', 'Amount', 'Payee', 'Paid by']);
+    expect(mapping.description).toBeNull();
+    expect(mapping.payee).toBe('Payee');
+    expect(mapping.payer).toBe('Paid by');
+  });
+
+  it('does not match headers containing "to" as substring', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'Store', 'Beneficiary']);
+    expect(mapping.payee).toBe('Beneficiary');
+  });
+
+  it('matches standalone "To" header as payee', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'From', 'To']);
+    expect(mapping.payer).toBe('From');
+    expect(mapping.payee).toBe('To');
+  });
+
+  it('does not match "Total" as payee or "Invalid" as id', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Total', 'Invalid', 'Payee']);
+    expect(mapping.amount).toBe('Total');
+    expect(mapping.id).toBeNull();
+    expect(mapping.payee).toBe('Payee');
+  });
+
+  it('does not match "Prototype" as entry type', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'Prototype']);
+    expect(mapping.entryType).toBeNull();
+  });
+
+  it('does not assign same header to multiple fields', () => {
+    const mapping = detectColumnMapping(['Date', 'Amount', 'Notes']);
+    expect(mapping.date).toBe('Date');
+    expect(mapping.amount).toBe('Amount');
+    expect(mapping.notes).toBe('Notes');
+    const values = [mapping.date, mapping.amount, mapping.notes].filter(Boolean);
+    expect(new Set(values).size).toBe(values.length);
+  });
+
+  it('maps Paid by as payer and Beneficiary as payee', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'Paid by', 'Beneficiary']);
+    expect(mapping.payer).toBe('Paid by');
+    expect(mapping.payee).toBe('Beneficiary');
+  });
+
+  it('maps recipient as payee', () => {
+    const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'Recipient']);
+    expect(mapping.payee).toBe('Recipient');
+  });
 });
 
 describe('getMappingCompleteness', () => {

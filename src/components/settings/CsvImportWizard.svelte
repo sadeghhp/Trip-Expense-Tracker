@@ -133,9 +133,7 @@
 
     participantMappings = extracted.confirmed.map(name => {
       const match = existing.find(p =>
-        p.name.toLowerCase() === name.toLowerCase() ||
-        p.name.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(p.name.toLowerCase())
+        p.name.toLowerCase() === name.toLowerCase()
       );
       return {
         csvName: name,

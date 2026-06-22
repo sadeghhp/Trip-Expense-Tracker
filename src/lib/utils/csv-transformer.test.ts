@@ -114,6 +114,12 @@ describe('extractUniqueNames', () => {
     const result = extractUniqueNames(rows, baseMapping);
     expect(result.ambiguous.find(a => a.name === 'Shop')?.occurrences).toBe(2);
   });
+
+  it('does not substring-match payer names against payees', () => {
+    const rows = [{ Payer: 'Ali', Payee: 'Alice', Type: 'expense', Amount: '100', Currency: 'USD' }];
+    const result = extractUniqueNames(rows, baseMapping);
+    expect(result.ambiguous.some(a => a.name === 'Alice')).toBe(true);
+  });
 });
 
 describe('extractUniqueCurrencies', () => {
@@ -256,10 +262,11 @@ describe('transformCsvToExpenses', () => {
     expect(result.expenses[0].beneficiaries).toHaveLength(2);
   });
 
-  it('defaults to all participants for unresolvable payee', () => {
+  it('skips row when payee is unresolvable', () => {
     const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Unknown', Type: 'expense' }];
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
-    expect(result.expenses[0].beneficiaries).toHaveLength(2);
+    expect(result.expenses).toHaveLength(0);
+    expect(result.skippedRows[0].reason).toBe('Could not determine beneficiaries');
   });
 
   it('tracks flagged rows', () => {
@@ -280,5 +287,26 @@ describe('transformCsvToExpenses', () => {
     const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '-25', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }];
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
     expect(result.expenses[0].amount).toBe(25);
+  });
+
+  it('does not fuzzy-match participant names', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Ali', Payee: 'Bob', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(0);
+    expect(result.skippedRows[0].reason).toContain('Unknown payer: Ali');
+  });
+
+  it('shows descriptive message when payer column is not mapped', () => {
+    const noPayerMapping = { ...baseMapping, payer: null };
+    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, noPayerMapping, [], participants, currencies, []);
+    expect(result.skippedRows[0].reason).toBe('No payer column mapped or payer is empty');
+  });
+
+  it('skips row when pipe-separated payees are all unresolvable', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'X|Y|Z', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(0);
+    expect(result.skippedRows[0].reason).toBe('Could not determine beneficiaries');
   });
 });

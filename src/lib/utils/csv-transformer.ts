@@ -100,8 +100,7 @@ function matchesKnownPayer(name: string, payers: Set<string>): boolean {
   if (!name) return false;
   const lower = name.toLowerCase();
   for (const payer of payers) {
-    const p = payer.toLowerCase();
-    if (p === lower || p.includes(lower) || lower.includes(p)) return true;
+    if (payer.toLowerCase() === lower) return true;
   }
   return false;
 }
@@ -272,7 +271,10 @@ export function transformCsvToExpenses(
     const payerName = mapping.payer ? row[mapping.payer].trim() : '';
     const payerId = resolveParticipantId(payerName, participantLookup);
     if (!payerId) {
-      result.skippedRows.push({ row: rowNum, reason: `Unknown payer: ${payerName}` });
+      const reason = payerName
+        ? `Unknown payer: ${payerName}`
+        : 'No payer column mapped or payer is empty';
+      result.skippedRows.push({ row: rowNum, reason });
       continue;
     }
 
@@ -334,12 +336,7 @@ function resolveParticipantId(
 ): string | null {
   if (!name) return null;
   const lower = name.toLowerCase();
-  if (lookup.has(lower)) return lookup.get(lower)!;
-
-  for (const [key, id] of lookup.entries()) {
-    if (key.includes(lower) || lower.includes(key)) return id;
-  }
-  return null;
+  return lookup.get(lower) ?? null;
 }
 
 function resolveBeneficiaries(
@@ -368,7 +365,7 @@ function resolveBeneficiaries(
       const id = resolveParticipantId(n, lookup);
       if (id) ids.push(id);
     }
-    return ids.length > 0 ? ids.map(makeBeneficiary) : allParticipants.map(p => makeBeneficiary(p.id));
+    return ids.length > 0 ? ids.map(makeBeneficiary) : [];
   }
 
   const payeeId = resolveParticipantId(payeeName, lookup);
@@ -376,5 +373,5 @@ function resolveBeneficiaries(
     return [makeBeneficiary(payeeId)];
   }
 
-  return allParticipants.map(p => makeBeneficiary(p.id));
+  return [];
 }
