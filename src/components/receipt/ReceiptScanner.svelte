@@ -502,20 +502,20 @@
           <!-- Review form -->
           <form onsubmit={async (e) => { e.preventDefault(); await handleSave(); }} class="space-y-4">
             <div>
-              <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
-              <input type="text" bind:value={description}
+              <label for="receipt-description" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
+              <input id="receipt-description" type="text" bind:value={description}
                 class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.date')}</label>
-                <input type="date" bind:value={date}
+                <label for="receipt-date" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.date')}</label>
+                <input id="receipt-date" type="date" bind:value={date}
                   class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
               </div>
               <div>
-                <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.currency')}</label>
-                <select bind:value={currencyCode}
+                <label for="receipt-currency" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.currency')}</label>
+                <select id="receipt-currency" bind:value={currencyCode}
                   class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
                   {#each $appData.currencies as c}
                     <option value={c.code}>{c.symbol} {c.code}</option>
@@ -526,13 +526,13 @@
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.amount')}</label>
-                <input type="number" bind:value={amount} step="0.01" min="0"
+                <label for="receipt-amount" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.amount')}</label>
+                <input id="receipt-amount" type="number" bind:value={amount} step="0.01" min="0"
                   class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
               </div>
               <div>
-                <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
-                <select bind:value={paidBy}
+                <label for="receipt-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
+                <select id="receipt-paid-by" bind:value={paidBy}
                   class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
                   {#each $appData.participants as p}
                     <option value={p.id}>{p.name}</option>
@@ -542,11 +542,11 @@
             </div>
 
             <!-- Beneficiaries -->
-            <div>
+            <fieldset class="border-0 p-0 m-0">
               <div class="flex items-center justify-between mb-2">
-                <label class="text-xs font-medium text-[var(--text-secondary)]">
+                <legend class="text-xs font-medium text-[var(--text-secondary)]">
                   {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
-                </label>
+                </legend>
                 <div class="flex items-center gap-2">
                   {#if !allSelected}
                     <button
@@ -591,7 +591,7 @@
                   </div>
                 {/each}
               </div>
-            </div>
+            </fieldset>
 
             <!-- Equal split preview -->
             {#if beneficiaryCount > 0 && parsedAmount > 0}

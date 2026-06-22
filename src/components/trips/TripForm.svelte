@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { createTrip, updateTrip } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import type { Trip } from '$lib/types';
@@ -16,12 +17,14 @@
   let nameInput = $state('');
   let descriptionInput = $state('');
   let formError = $state('');
+  let nameInputEl = $state<HTMLInputElement | undefined>();
 
   $effect(() => {
     if (open) {
       nameInput = trip?.name ?? '';
       descriptionInput = trip?.description ?? '';
       formError = '';
+      tick().then(() => nameInputEl?.focus());
     }
   });
 
@@ -48,12 +51,12 @@
     <div>
       <label for="trip-name" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('tripForm.nameLabel')}</label>
       <input
+        bind:this={nameInputEl}
         id="trip-name"
         type="text"
         bind:value={nameInput}
         placeholder={$t('tripForm.namePlaceholder')}
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-        autofocus
       />
       {#if formError}
         <p class="mt-1.5 text-xs text-danger-500">{formError}</p>

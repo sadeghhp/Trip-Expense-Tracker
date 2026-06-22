@@ -344,8 +344,9 @@
     </div>
     <div class="p-4 space-y-4">
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.baseUrl')}</label>
+        <label for="ai-base-url" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.baseUrl')}</label>
         <input
+          id="ai-base-url"
           type="text"
           value={$aiSettings.baseUrl}
           oninput={(e) => updateAISettings({ baseUrl: (e.target as HTMLInputElement).value })}
@@ -355,9 +356,10 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.apiKey')}</label>
+        <label for="ai-api-key" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.apiKey')}</label>
         <div class="relative">
           <input
+            id="ai-api-key"
             type={showApiKey ? 'text' : 'password'}
             value={$aiSettings.apiKey}
             oninput={(e) => updateAISettings({ apiKey: (e.target as HTMLInputElement).value })}
@@ -379,8 +381,9 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.model')}</label>
+        <label for="ai-model" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.model')}</label>
         <input
+          id="ai-model"
           type="text"
           value={$aiSettings.model}
           oninput={(e) => updateAISettings({ model: (e.target as HTMLInputElement).value })}
@@ -390,8 +393,9 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.customPrompt')}</label>
+        <label for="ai-custom-prompt" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('settings.ai.customPrompt')}</label>
         <textarea
+          id="ai-custom-prompt"
           value={$aiSettings.customPrompt}
           oninput={(e) => updateAISettings({ customPrompt: (e.target as HTMLTextAreaElement).value })}
           placeholder={$t('settings.ai.customPromptPlaceholder')}
@@ -535,6 +539,7 @@
 
 <Modal open={importOpen} title={$t('settings.importTitle')} onClose={() => importOpen = false}>
   <div class="space-y-4">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
         {dragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-[var(--card-border)] hover:border-primary-400'}"
@@ -579,8 +584,8 @@
       ></textarea>
     </div>
 
-    <div>
-      <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('settings.importAs')}</label>
+    <fieldset class="border-0 p-0 m-0">
+      <legend class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('settings.importAs')}</legend>
       <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
         <button
           onclick={() => importMode = 'replace'}
@@ -597,7 +602,7 @@
           {$t('settings.createNewTrip')}
         </button>
       </div>
-    </div>
+    </fieldset>
 
     {#if importError}
       <p class="text-xs text-danger-500">{importError}</p>
@@ -643,6 +648,7 @@
 
 <Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => backupImportOpen = false}>
   <div class="space-y-4">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer
         {backupDragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-[var(--card-border)] hover:border-primary-400'}"

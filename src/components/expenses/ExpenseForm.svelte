@@ -21,21 +21,33 @@
 
   let { expense, onSave, onClose }: Props = $props();
 
-  let date = $state(expense?.date ?? getTodayISO());
-  let description = $state(expense?.description ?? '');
-  let currencyCode = $state(expense?.currencyCode ?? $appData.currencies[0]?.code ?? '');
-  let amount = $state(expense?.amount?.toString() ?? '');
-  let paidBy = $state(expense?.paidBy ?? $appData.participants[0]?.id ?? '');
-  let splitType: SplitType = $state(expense?.splitType ?? 'equal');
-  let selectedBeneficiaries: Set<string> = $state(
-    new Set(expense ? expense.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id))
-  );
-  let customAmounts: Record<string, string> = $state(
-    Object.fromEntries(expense ? expense.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : [])
-  );
-  let customPercentages: Record<string, string> = $state(
-    Object.fromEntries(expense ? expense.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) : [])
-  );
+  let date = $state('');
+  let description = $state('');
+  let currencyCode = $state('');
+  let amount = $state('');
+  let paidBy = $state('');
+  let splitType: SplitType = $state('equal');
+  let selectedBeneficiaries: Set<string> = $state(new Set());
+  let customAmounts: Record<string, string> = $state({});
+  let customPercentages: Record<string, string> = $state({});
+
+  $effect(() => {
+    date = expense?.date ?? getTodayISO();
+    description = expense?.description ?? '';
+    currencyCode = expense?.currencyCode ?? $appData.currencies[0]?.code ?? '';
+    amount = expense?.amount?.toString() ?? '';
+    paidBy = expense?.paidBy ?? $appData.participants[0]?.id ?? '';
+    splitType = expense?.splitType ?? 'equal';
+    selectedBeneficiaries = new Set(
+      expense ? expense.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id)
+    );
+    customAmounts = Object.fromEntries(
+      expense ? expense.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : []
+    );
+    customPercentages = Object.fromEntries(
+      expense ? expense.beneficiaries.map(b => [b.participantId, b.customPercentage?.toString() ?? '']) : []
+    );
+  });
   let formError = $state('');
   let showReceiptViewer = $state(false);
 
@@ -170,13 +182,13 @@
       <!-- Date & Description -->
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.date')}</label>
-          <input type="date" bind:value={date}
+          <label for="expense-date" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.date')}</label>
+          <input id="expense-date" type="date" bind:value={date}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.currency')}</label>
-          <select bind:value={currencyCode}
+          <label for="expense-currency" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.currency')}</label>
+          <select id="expense-currency" bind:value={currencyCode}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.currencies as c}
               <option value={c.code}>{c.symbol} {c.code}</option>
@@ -186,20 +198,20 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
-        <input type="text" bind:value={description} placeholder={$t('expenseForm.descriptionPlaceholder')}
+        <label for="expense-description" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.description')}</label>
+        <input id="expense-description" type="text" bind:value={description} placeholder={$t('expenseForm.descriptionPlaceholder')}
           class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.amount')}</label>
-          <input type="number" bind:value={amount} placeholder="0.00" step="0.01" min="0"
+          <label for="expense-amount" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.amount')}</label>
+          <input id="expense-amount" type="number" bind:value={amount} placeholder="0.00" step="0.01" min="0"
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
-          <select bind:value={paidBy}
+          <label for="expense-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
+          <select id="expense-paid-by" bind:value={paidBy}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.participants as p}
               <option value={p.id}>{p.name}</option>
@@ -209,8 +221,8 @@
       </div>
 
       <!-- Split type -->
-      <div>
-        <label class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</label>
+      <fieldset class="border-0 p-0 m-0">
+        <legend class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</legend>
         <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
           {#each ['equal', 'custom', 'percentage'] as st}
             <button
@@ -225,14 +237,14 @@
             </button>
           {/each}
         </div>
-      </div>
+      </fieldset>
 
       <!-- Beneficiaries -->
-      <div>
+      <fieldset class="border-0 p-0 m-0">
         <div class="flex items-center justify-between mb-2">
-          <label class="text-xs font-medium text-[var(--text-secondary)]">
+          <legend class="text-xs font-medium text-[var(--text-secondary)]">
             {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
-          </label>
+          </legend>
           <div class="flex items-center gap-2">
             {#if !allSelected}
               <button
@@ -304,7 +316,7 @@
             </div>
           {/each}
         </div>
-      </div>
+      </fieldset>
 
       <!-- Live preview -->
       {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}

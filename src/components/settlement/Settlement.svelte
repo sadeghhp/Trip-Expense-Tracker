@@ -159,10 +159,11 @@
           <div class="space-y-3">
             {#each nonSettlementCurrencies as c (c.code)}
               <div class="p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl">
-                <label class="block text-xs text-[var(--text-secondary)] mb-2">
+                <label for="rate-{c.code}" class="block text-xs text-[var(--text-secondary)] mb-2">
                   {$t('settlement.rateLabel', { settlement: settlementCurrency, currency: c.code })}
                 </label>
                 <input
+                  id="rate-{c.code}"
                   type="number"
                   step="any"
                   min="0"

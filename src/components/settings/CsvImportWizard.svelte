@@ -358,11 +358,12 @@
         <div class="space-y-2">
           {#each mappingFields as field}
             <div class="flex items-center gap-2">
-              <label class="w-28 text-xs font-medium text-[var(--text-primary)] shrink-0">
+              <label for="map-{field.key}" class="w-28 text-xs font-medium text-[var(--text-primary)] shrink-0">
                 {$t(field.labelKey)}
                 {#if field.required}<span class="text-danger-500">*</span>{/if}
               </label>
               <select
+                id="map-{field.key}"
                 value={mapping[field.key] ?? ''}
                 onchange={(e) => { mapping[field.key] = (e.target as HTMLSelectElement).value || null; }}
                 class="flex-1 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"

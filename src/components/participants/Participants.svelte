@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { Plus, Pencil, Trash2, Users } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
@@ -15,6 +16,13 @@
   let nameInput = $state('');
   let formError = $state('');
   let deleteConfirm: Participant | null = $state(null);
+  let nameInputEl = $state<HTMLInputElement | undefined>();
+
+  $effect(() => {
+    if (showForm) {
+      tick().then(() => nameInputEl?.focus());
+    }
+  });
 
   function openAdd() {
     editingId = null;
@@ -137,12 +145,12 @@
     <div>
       <label for="name" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('participants.nameLabel')}</label>
       <input
+        bind:this={nameInputEl}
         id="name"
         type="text"
         bind:value={nameInput}
         placeholder={$t('participants.namePlaceholder')}
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-        autofocus
       />
       {#if formError}
         <p class="mt-1.5 text-xs text-danger-500">{formError}</p>

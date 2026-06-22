@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { Plus, Pencil, Trash2, Coins, Check } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
@@ -18,6 +19,13 @@
   let symbolInput = $state('');
   let formError = $state('');
   let deleteConfirm: Currency | null = $state(null);
+  let codeInputEl = $state<HTMLInputElement | undefined>();
+
+  $effect(() => {
+    if (showForm) {
+      tick().then(() => codeInputEl?.focus());
+    }
+  });
 
   function openAdd() {
     editingCode = null;
@@ -214,13 +222,13 @@ class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] da
     <div>
       <label for="code" class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">{$t('currencies.codeLabel')}</label>
       <input
+        bind:this={codeInputEl}
         id="code"
         type="text"
         bind:value={codeInput}
         placeholder={$t('currencies.codePlaceholder')}
         maxlength="5"
         class="w-full px-4 py-3 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-        autofocus
       />
     </div>
     <div>
