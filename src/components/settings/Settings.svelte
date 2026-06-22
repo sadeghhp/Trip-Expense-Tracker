@@ -3,7 +3,7 @@
   import { settings, setCalendar, toggleTheme, setAppLocale } from '$lib/stores/settings';
   import { aiSettings, updateAISettings, testConnection } from '$lib/stores/aiSettings';
   import { showToast } from '$lib/stores/toast';
-  import { replaceData, clearAllData, getSnapshot, activeTrip, activeTripId, importAsNewTrip, getFullSnapshot, replaceAllData } from '$lib/stores/data';
+  import { replaceData, clearAllData, getSnapshot, activeTrip, activeTripId, importAsNewTrip, getFullSnapshot, replaceAllData, trips } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
   import { t, isRtl } from '$lib/i18n';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
@@ -26,12 +26,25 @@
   let backupImportConfirm = $state(false);
   let backupDragOver = $state(false);
   let backupLoadedFileName = $state('');
+  let backupParsed: any = $state(null);
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024;
   let showApiKey = $state(false);
   let aiTestLoading = $state(false);
   let hardReloading = $state(false);
 
+  let backupSummary = $derived.by(() => {
+    if (!backupParsed) return '';
+    const tripCount = Array.isArray(backupParsed.trips) ? backupParsed.trips.length : 0;
+    const existingCount = $trips.length;
+    return $t('settings.restoreSummary', { backupCount: tripCount, existingCount: existingCount });
+  });
+
   function handleJsonFile(file: File) {
+    if (file.size > MAX_FILE_SIZE) {
+      importError = $t('validation.fileTooLarge');
+      return;
+    }
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
       importError = $t('validation.pleaseSelectJson');
       return;
@@ -137,6 +150,10 @@
   }
 
   function handleBackupFile(file: File) {
+    if (file.size > MAX_FILE_SIZE) {
+      backupImportError = $t('validation.fileTooLarge');
+      return;
+    }
     if (!file.name.endsWith('.json') && file.type !== 'application/json') {
       backupImportError = $t('validation.pleaseSelectJson');
       return;
@@ -172,7 +189,13 @@
     try {
       const parsed = JSON.parse(backupImportText);
       if (!parsed || typeof parsed !== 'object') throw new Error($t('validation.invalidJsonObject'));
-      if (!Array.isArray(parsed.trips)) throw new Error($t('validation.missingTripsArray'));
+      if (!Array.isArray(parsed.trips)) {
+        if (Array.isArray(parsed.participants)) {
+          throw new Error($t('validation.looksLikeSingleTrip'));
+        }
+        throw new Error($t('validation.missingTripsArray'));
+      }
+      backupParsed = parsed;
       backupImportConfirm = true;
     } catch (e: any) {
       backupImportError = e.message || $t('validation.invalidJson');
@@ -180,14 +203,15 @@
   }
 
   async function confirmBackupImport() {
+    if (!backupParsed) return;
     try {
-      const parsed = JSON.parse(backupImportText);
-      await replaceAllData(parsed);
+      await replaceAllData(backupParsed);
       showToast($t('settings.backupRestored'));
       backupImportOpen = false;
       backupImportText = '';
       backupImportConfirm = false;
       backupLoadedFileName = '';
+      backupParsed = null;
     } catch (e: any) {
       showToast($t('settings.restoreFailed', { message: e.message }), 'error');
     }
@@ -471,7 +495,7 @@
         </div>
       </button>
       <button
-        onclick={() => { backupImportOpen = true; backupImportText = ''; backupImportError = ''; backupLoadedFileName = ''; backupDragOver = false; }}
+        onclick={() => { backupImportOpen = true; backupImportText = ''; backupImportError = ''; backupLoadedFileName = ''; backupDragOver = false; backupParsed = null; }}
         class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
       >
         <Database size={20} class="text-primary-500" />
@@ -647,7 +671,7 @@
   onClose={() => { csvImportOpen = false; }}
 />
 
-<Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => backupImportOpen = false}>
+<Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => { backupImportOpen = false; backupParsed = null; }}>
   <div class="space-y-4">
     <div
       role="region"
@@ -710,9 +734,9 @@
 <ConfirmDialog
   open={backupImportConfirm}
   title={$t('settings.restoreConfirmTitle')}
-  message={$t('settings.restoreConfirmMessage')}
+  message={backupSummary ? `${$t('settings.restoreConfirmMessage')}\n\n${backupSummary}` : $t('settings.restoreConfirmMessage')}
   confirmLabel={$t('settings.restore')}
   destructive={true}
   onConfirm={confirmBackupImport}
-  onCancel={() => backupImportConfirm = false}
+  onCancel={() => { backupImportConfirm = false; backupParsed = null; }}
 />

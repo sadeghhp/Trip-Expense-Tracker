@@ -239,6 +239,19 @@ describe('normalizeAppState', () => {
     expect(trip.archived).toBe(false);
     expect(trip.createdAt).toBeTruthy();
   });
+
+  it('deduplicates trips by id, keeping last occurrence', () => {
+    const result = normalizeAppState({
+      trips: [
+        { id: 't-1', name: 'First', data: makeAppData() },
+        { id: 't-2', name: 'Other', data: makeAppData() },
+        { id: 't-1', name: 'Duplicate', data: makeAppData() }
+      ],
+      activeTripId: 't-1'
+    });
+    expect(result.trips).toHaveLength(2);
+    expect(result.trips.find(t => t.id === 't-1')?.name).toBe('Duplicate');
+  });
 });
 
 describe('stripReceiptImageIds', () => {

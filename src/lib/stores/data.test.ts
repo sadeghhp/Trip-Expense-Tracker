@@ -166,6 +166,38 @@ describe('data store', () => {
     expect(get(activeTripId)).toBe('t-new');
   });
 
+  it('replaceAllData batches image ID lookups into a single call', async () => {
+    const { existingReceiptImageIds } = await import('../services/imageStore');
+    (existingReceiptImageIds as ReturnType<typeof vi.fn>).mockClear();
+
+    const state = {
+      trips: [
+        {
+          id: 't-a',
+          name: 'Trip A',
+          description: '',
+          archived: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          data: makeAppData({ expenses: [makeExpense({ receiptImageId: 'img-a' })] })
+        },
+        {
+          id: 't-b',
+          name: 'Trip B',
+          description: '',
+          archived: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          data: makeAppData({ expenses: [makeExpense({ receiptImageId: 'img-b' })] })
+        }
+      ],
+      activeTripId: 't-a'
+    };
+    await replaceAllData(state);
+    expect(existingReceiptImageIds).toHaveBeenCalledTimes(1);
+    expect(existingReceiptImageIds).toHaveBeenCalledWith(['img-a', 'img-b']);
+  });
+
   it('appData returns empty defaults when no active trip', () => {
     exitTrip();
     expect(get(appData)).toEqual({

@@ -346,12 +346,20 @@ export function getFullSnapshot(): AppState {
 
 export async function replaceAllData(state: AppState): Promise<void> {
   const normalized = normalizeAppState(state);
-  const strippedTrips = await Promise.all(
-    normalized.trips.map(async t => ({
-      ...t,
-      data: await stripOrphanedFromData(t.data)
-    }))
-  );
+
+  const allImageIds = collectReceiptImageIdsFromState(normalized);
+  let existingIds = new Set<string>();
+  if (allImageIds.length > 0) {
+    try {
+      existingIds = await existingReceiptImageIds(allImageIds);
+    } catch {}
+  }
+
+  const strippedTrips = normalized.trips.map(t => ({
+    ...t,
+    data: stripOrphanedReceiptImageIds(t.data, existingIds)
+  }));
+
   const stripped: AppState = { ...normalized, trips: strippedTrips };
   const oldState = get(appState);
   const newIdSet = new Set(collectReceiptImageIdsFromState(stripped));

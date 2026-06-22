@@ -87,10 +87,16 @@ export function normalizeAppState(raw: any): AppState {
       data: normalizeData(t.data)
     }));
 
-  const validIds = new Set(validTrips.map((t: any) => t.id));
+  const deduped = new Map<string, (typeof validTrips)[0]>();
+  for (const trip of validTrips) {
+    deduped.set(trip.id, trip);
+  }
+  const uniqueTrips = [...deduped.values()];
+
+  const validIds = new Set(uniqueTrips.map((t: any) => t.id));
 
   return {
-    trips: validTrips,
+    trips: uniqueTrips,
     activeTripId: activeTripId && validIds.has(activeTripId) ? activeTripId : null
   };
 }

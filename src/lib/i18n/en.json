@@ -227,6 +227,7 @@
     "validateRestore": "Validate & Restore",
     "restoreConfirmTitle": "Restore Full Backup?",
     "restoreConfirmMessage": "This will replace ALL your trips with the data from the backup file. All current trips will be lost. This cannot be undone.",
+    "restoreSummary": "Backup contains {backupCount} trip(s). Your current {existingCount} trip(s) will be replaced.",
     "restore": "Restore",
     "dataExported": "Data exported successfully",
     "importedAsNew": "Imported as new trip",
@@ -318,7 +319,9 @@
     "missingCurrencies": "Missing currencies array",
     "missingExpenses": "Missing expenses array",
     "invalidJson": "Invalid JSON",
-    "missingTripsArray": "Missing trips array — this does not look like a full backup"
+    "missingTripsArray": "Missing trips array — this does not look like a full backup",
+    "looksLikeSingleTrip": "This looks like a single trip export, not a full backup. Use 'Import Data' to restore it.",
+    "fileTooLarge": "File is too large (max 50 MB)."
   },
   "csvImport": {
     "title": "Import CSV",
