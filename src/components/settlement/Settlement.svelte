@@ -3,7 +3,7 @@
   import { appData, updateData, dataVersion, effectiveSettlementCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { computeBalances, getStatus } from '$lib/engine/balances';
-  import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
+  import { computeUnifiedBalances, computeSettlementTransactions, recalculateExchangeRates } from '$lib/engine/settlement';
   import { validateSettlement } from '$lib/utils/validation';
   import { formatAmount, getCurrencySymbol } from '$lib/utils/format';
   import { t, isRtl } from '$lib/i18n';
@@ -29,7 +29,11 @@
   });
 
   function selectSettlementCurrency(code: string) {
-    updateData(d => ({ ...d, settlementCurrency: code }));
+    updateData(d => {
+      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
+      const newRates = recalculateExchangeRates(d.exchangeRates, oldSettlement, code);
+      return { ...d, settlementCurrency: code, exchangeRates: newRates };
+    });
     calculated = false;
   }
 

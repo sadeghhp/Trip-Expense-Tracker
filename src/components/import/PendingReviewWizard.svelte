@@ -3,8 +3,9 @@
   import { fly } from 'svelte/transition';
   import { t } from '$lib/i18n';
   import { appData, removePendingItem } from '$lib/stores/data';
-  import type { PendingImportItem, Expense } from '$lib/types';
+  import type { PendingImportItem } from '$lib/types';
   import { formatAmount } from '$lib/utils/format';
+  import { buildExpenseFromPendingItem } from '$lib/utils/pending-import';
   import ExpenseForm from '../expenses/ExpenseForm.svelte';
 
   interface Props {
@@ -13,6 +14,10 @@
   }
 
   let { open, onClose }: Props = $props();
+
+  $effect(() => {
+    if (open) reset();
+  });
 
   let currentIndex = $state(0);
   let addedCount = $state(0);
@@ -45,11 +50,10 @@
     if (!currentItem) return;
     removePendingItem(currentItem.id);
     dismissedCount++;
-    if (currentIndex >= items.length) {
-      currentIndex = Math.max(0, items.length - 1);
-    }
     if (items.length === 0) {
       showSummary = true;
+    } else if (currentIndex >= items.length) {
+      currentIndex = items.length - 1;
     }
   }
 
@@ -73,11 +77,10 @@
       addedCount++;
       pendingItemForForm = null;
     }
-    if (currentIndex >= items.length) {
-      currentIndex = Math.max(0, items.length - 1);
-    }
     if (items.length === 0) {
       showSummary = true;
+    } else if (currentIndex >= items.length) {
+      currentIndex = items.length - 1;
     }
   }
 
@@ -86,27 +89,9 @@
     pendingItemForForm = null;
   }
 
-  function buildPrefilledExpense(): Expense | null {
+  function buildPrefilledExpense() {
     if (!pendingItemForForm) return null;
-    const item = pendingItemForForm;
-    const payerId = item.payerName
-      ? $appData.participants.find(p => p.name.toLowerCase() === item.payerName!.toLowerCase())?.id
-      : undefined;
-
-    return {
-      id: '',
-      date: item.date ?? '',
-      description: item.description ?? '',
-      currencyCode: item.currencyCode ?? $appData.currencies[0]?.code ?? '',
-      amount: item.amount ?? 0,
-      paidBy: payerId ?? $appData.participants[0]?.id ?? '',
-      splitType: 'equal',
-      beneficiaries: $appData.participants.map(p => ({
-        participantId: p.id,
-        customAmount: null,
-        customPercentage: null
-      }))
-    };
+    return buildExpenseFromPendingItem(pendingItemForForm, $appData.participants, $appData.currencies);
   }
 
   function handleKeydown(e: KeyboardEvent) {

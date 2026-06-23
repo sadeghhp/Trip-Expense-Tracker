@@ -230,13 +230,15 @@ export function transformCsvToExpenses(
     'loan_disbursement', 'allowance_grant', 'debt_statement'
   ]);
 
+  const now = new Date().toISOString();
+
   function skipRow(row: CsvRow, rowNum: number, reason: string, partial: Partial<PendingImportItem> = {}) {
     result.skippedRows.push({ row: rowNum, reason });
     result.pendingItems.push({
       id: generateId(),
       rawData: { ...row },
       reason,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
       ...partial
     });
   }

@@ -10,7 +10,7 @@
   import { settings } from '$lib/stores/settings';
   import { t, isRtl } from '$lib/i18n';
   import { computeBalances } from '$lib/engine/balances';
-  import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
+  import { computeUnifiedBalances, computeSettlementTransactions, recalculateExchangeRates } from '$lib/engine/settlement';
   import { formatDateDisplay, getTodayISO } from '$lib/engine/calendar';
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
   import type { TabId } from '$lib/types';
@@ -180,7 +180,11 @@
   });
 
   function selectCurrency(code: string) {
-    updateData(d => ({ ...d, settlementCurrency: code }));
+    updateData(d => {
+      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
+      const newRates = recalculateExchangeRates(d.exchangeRates, oldSettlement, code);
+      return { ...d, settlementCurrency: code, exchangeRates: newRates };
+    });
     showCurrencyPicker = false;
   }
 

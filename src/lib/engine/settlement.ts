@@ -1,5 +1,36 @@
 import type { CurrencyBalances, Participant, UnifiedBalance, SettlementTransaction } from '../types';
 
+/**
+ * Recalculates exchange rates when the settlement currency changes.
+ * Rate semantics: exchangeRates[code] = units of `code` per 1 settlement unit.
+ * Uses the pivot rate (old rate of the new settlement) to derive all cross-rates.
+ * Returns the old rates unchanged if the pivot rate is unavailable.
+ */
+export function recalculateExchangeRates(
+  oldRates: Record<string, number>,
+  oldSettlement: string,
+  newSettlement: string
+): Record<string, number> {
+  if (oldSettlement === newSettlement || !oldSettlement || !newSettlement) return oldRates;
+
+  const pivotRate = oldRates[newSettlement];
+  if (!pivotRate || pivotRate <= 0) return oldRates;
+
+  const newRates: Record<string, number> = {};
+  const round = (n: number) => parseFloat(n.toPrecision(10));
+
+  for (const [code, rate] of Object.entries(oldRates)) {
+    if (code === newSettlement) continue;
+    if (rate > 0) {
+      newRates[code] = round(rate / pivotRate);
+    }
+  }
+
+  newRates[oldSettlement] = round(1 / pivotRate);
+
+  return newRates;
+}
+
 export function computeUnifiedBalances(
   balances: CurrencyBalances,
   participants: Participant[],

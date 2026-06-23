@@ -14,6 +14,7 @@
   import ImageViewer from '../ui/ImageViewer.svelte';
   import ReceiptThumbnail from '../ui/ReceiptThumbnail.svelte';
   import PendingReviewWizard from '../import/PendingReviewWizard.svelte';
+  import { buildExpenseFromPendingItem } from '$lib/utils/pending-import';
 
   interface Props {
     onNavigate?: (tab: TabId) => void;
@@ -94,24 +95,7 @@
 
   function handleEditPending(item: PendingImportItem) {
     pendingItemForEdit = item;
-    const payerId = item.payerName
-      ? $appData.participants.find(p => p.name.toLowerCase() === item.payerName!.toLowerCase())?.id
-      : undefined;
-
-    editingExpense = {
-      id: '',
-      date: item.date ?? '',
-      description: item.description ?? '',
-      currencyCode: item.currencyCode ?? $appData.currencies[0]?.code ?? '',
-      amount: item.amount ?? 0,
-      paidBy: payerId ?? $appData.participants[0]?.id ?? '',
-      splitType: 'equal',
-      beneficiaries: $appData.participants.map(p => ({
-        participantId: p.id,
-        customAmount: null,
-        customPercentage: null
-      }))
-    };
+    editingExpense = buildExpenseFromPendingItem(item, $appData.participants, $appData.currencies);
     showForm = true;
   }
 
@@ -330,7 +314,7 @@
   <ExpenseForm
     expense={editingExpense}
     onSave={handleSaved}
-    onClose={() => { showForm = false; editingExpense = null; }}
+    onClose={() => { showForm = false; editingExpense = null; pendingItemForEdit = null; }}
   />
 {/if}
 
