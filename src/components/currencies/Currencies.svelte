@@ -4,6 +4,7 @@
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { validateCurrencyCode, isCurrencyUsed } from '$lib/utils/validation';
+  import { recalculateExchangeRates } from '$lib/engine/settlement';
   import { PREDEFINED_CURRENCIES } from '$lib/constants/currencies';
   import { t } from '$lib/i18n';
   import type { Currency, PredefinedCurrency } from '$lib/types';
@@ -99,11 +100,16 @@
       }
       updateData(d => {
         const currencies = d.currencies.filter(c => c.code !== pc.code);
-        const exchangeRates = { ...d.exchangeRates };
+        let exchangeRates = { ...d.exchangeRates };
         delete exchangeRates[pc.code];
-        const settlementCurrency = d.settlementCurrency === pc.code
+        const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
+        const settlementCurrency = oldSettlement === pc.code
           ? (currencies[0]?.code || '')
-          : d.settlementCurrency;
+          : oldSettlement;
+        if (oldSettlement === pc.code && settlementCurrency) {
+          exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
+          delete exchangeRates[pc.code];
+        }
         return { ...d, currencies, exchangeRates, settlementCurrency };
       });
       showToast($t('currencies.removed', { code: pc.code }));
@@ -130,11 +136,16 @@
     const code = deleteConfirm.code;
     updateData(d => {
       const currencies = d.currencies.filter(c => c.code !== code);
-      const exchangeRates = { ...d.exchangeRates };
+      let exchangeRates = { ...d.exchangeRates };
       delete exchangeRates[code];
-      const settlementCurrency = d.settlementCurrency === code
+      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
+      const settlementCurrency = oldSettlement === code
         ? (currencies[0]?.code || '')
-        : d.settlementCurrency;
+        : oldSettlement;
+      if (oldSettlement === code && settlementCurrency) {
+        exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
+        delete exchangeRates[code];
+      }
       return { ...d, currencies, exchangeRates, settlementCurrency };
     });
     showToast($t('currencies.deleted'));

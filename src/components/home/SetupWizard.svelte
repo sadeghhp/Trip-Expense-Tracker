@@ -5,6 +5,7 @@
   import { showToast } from '$lib/stores/toast';
   import { t, isRtl } from '$lib/i18n';
   import { validateParticipantName, isParticipantUsed } from '$lib/utils/validation';
+  import { recalculateExchangeRates } from '$lib/engine/settlement';
   import { WIZARD_CURRENCIES } from '$lib/constants/currencies';
   import { generateId } from '$lib/utils/id';
   import type { PredefinedCurrency } from '$lib/types';
@@ -69,13 +70,20 @@
   function toggleCurrency(currency: PredefinedCurrency) {
     const exists = $appData.currencies.some(c => c.code === currency.code);
     if (exists) {
-      updateData(d => ({
-        ...d,
-        currencies: d.currencies.filter(c => c.code !== currency.code),
-        settlementCurrency: d.settlementCurrency === currency.code
-          ? (d.currencies.filter(c => c.code !== currency.code)[0]?.code ?? '')
-          : d.settlementCurrency
-      }));
+      updateData(d => {
+        const currencies = d.currencies.filter(c => c.code !== currency.code);
+        let exchangeRates = { ...d.exchangeRates };
+        delete exchangeRates[currency.code];
+        const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
+        const settlementCurrency = oldSettlement === currency.code
+          ? (currencies[0]?.code ?? '')
+          : oldSettlement;
+        if (oldSettlement === currency.code && settlementCurrency) {
+          exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
+          delete exchangeRates[currency.code];
+        }
+        return { ...d, currencies, exchangeRates, settlementCurrency };
+      });
     } else {
       updateData(d => ({
         ...d,
