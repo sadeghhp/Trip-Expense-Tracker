@@ -94,7 +94,8 @@
     "needParticipantAndCurrency": "Add at least one participant and one currency first.",
     "updated": "Expense updated",
     "added": "Expense added",
-    "deleted": "Expense deleted"
+    "deleted": "Expense deleted",
+    "transferLabel": "{from} → {to}"
   },
   "expenseForm": {
     "editTitle": "Edit Expense",
@@ -116,7 +117,10 @@
     "updateExpense": "Update Expense",
     "addExpense": "Add Expense",
     "selectAll": "Select All",
-    "clearAll": "Clear"
+    "clearAll": "Clear",
+    "from": "From",
+    "to": "To",
+    "transferPreview": "Transfer: {from} → {to}"
   },
   "participants": {
     "noParticipantsTitle": "No participants yet",
@@ -468,5 +472,29 @@
     "AMD": "Armenian Dram",
     "IQD": "Iraqi Dinar",
     "PKR": "Pakistani Rupee"
+  },
+  "pending": {
+    "banner": "{count} items pending review from CSV import",
+    "bannerSingular": "1 item pending review from CSV import",
+    "reviewAll": "Review All",
+    "dismissAll": "Dismiss All",
+    "dismiss": "Dismiss",
+    "fixAndAdd": "Fix & Add",
+    "skipForLater": "Skip for Later",
+    "reason": "Reason: {reason}",
+    "progress": "{current} of {total}",
+    "wizardTitle": "Review Pending Items",
+    "confirmDismissAll": "Are you sure you want to dismiss all pending items? This cannot be undone.",
+    "confirmDismiss": "Dismiss this item? It will be permanently removed.",
+    "summaryTitle": "Review Complete",
+    "summaryAdded": "{count} added as expenses",
+    "summaryRemaining": "{count} kept for later",
+    "summaryDismissed": "{count} dismissed",
+    "done": "Done",
+    "noItems": "No pending items",
+    "rawData": "Raw CSV Data",
+    "payer": "Payer",
+    "payee": "Payee",
+    "edit": "Edit"
   }
 }

@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import type { AppData, AppState, Trip } from '../types';
+import type { AppData, AppState, Trip, PendingImportItem } from '../types';
 import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
 import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
@@ -12,6 +12,7 @@ function createEmptyData(): AppData {
     participants: [],
     currencies: [],
     expenses: [],
+    pendingImports: [],
     exchangeRates: {},
     settlementCurrency: ''
   };
@@ -342,6 +343,28 @@ export function unarchiveTrip(tripId: string): void {
 
 export function getFullSnapshot(): AppState {
   return get(appState);
+}
+
+export function addPendingItems(items: PendingImportItem[]): void {
+  if (items.length === 0) return;
+  updateData(d => ({
+    ...d,
+    pendingImports: [...d.pendingImports, ...items]
+  }));
+}
+
+export function removePendingItem(id: string): void {
+  updateData(d => ({
+    ...d,
+    pendingImports: d.pendingImports.filter(item => item.id !== id)
+  }));
+}
+
+export function clearAllPendingItems(): void {
+  updateData(d => ({
+    ...d,
+    pendingImports: []
+  }));
 }
 
 export async function replaceAllData(state: AppState): Promise<void> {

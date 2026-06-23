@@ -101,9 +101,15 @@ describe('extractUniqueNames', () => {
   });
 
   it('skips non-importable entry types', () => {
-    const rows = [{ Payer: 'Alice', Payee: 'Shop', Type: 'transfer' }];
+    const rows = [{ Payer: 'Alice', Payee: 'Shop', Type: 'currency_exchange' }];
     const result = extractUniqueNames(rows, baseMapping);
     expect(result.ambiguous).toHaveLength(0);
+  });
+
+  it('includes payees from newly supported entry types', () => {
+    const rows = [{ Payer: 'Alice', Payee: 'Shop', Type: 'debt_statement', Amount: '50', Currency: 'USD' }];
+    const result = extractUniqueNames(rows, baseMapping);
+    expect(result.ambiguous.some(a => a.name === 'Shop')).toBe(true);
   });
 
   it('counts ambiguous payee occurrences', () => {
@@ -142,8 +148,13 @@ describe('extractUniqueCurrencies', () => {
   });
 
   it('skips non-importable entry types', () => {
-    const rows = [{ Currency: 'USD', Type: 'transfer' }];
+    const rows = [{ Currency: 'USD', Type: 'currency_exchange' }];
     expect(extractUniqueCurrencies(rows, baseMapping)).toEqual([]);
+  });
+
+  it('includes currencies from newly supported entry types', () => {
+    const rows = [{ Currency: 'CNY', Type: 'debt_statement' }];
+    expect(extractUniqueCurrencies(rows, baseMapping)).toEqual(['CNY']);
   });
 });
 
@@ -190,10 +201,46 @@ describe('transformCsvToExpenses', () => {
   });
 
   it('skips non-importable entry type', () => {
-    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'transfer' }];
+    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'currency_exchange' }];
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
     expect(result.expenses).toHaveLength(0);
-    expect(result.skippedRows[0].reason).toContain('Non-expense');
+    expect(result.skippedRows[0].reason).toContain('Non-importable');
+  });
+
+  it('imports unknown entry types normally', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'some_custom_type' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+  });
+
+  it('imports debt_statement with swapped payer/payee', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Debt', Amount: '100', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'debt_statement' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].paidBy).toBe('p-2');
+    expect(result.expenses[0].beneficiaries[0].participantId).toBe('p-1');
+  });
+
+  it('imports withdrawal with direct payer/payee mapping', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Cash', Amount: '50', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'withdrawal' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].paidBy).toBe('p-1');
+    expect(result.expenses[0].beneficiaries[0].participantId).toBe('p-2');
+  });
+
+  it('skips internal transfer where payer equals payee', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Internal', Amount: '50', Currency: 'USD', Payer: 'Alice', Payee: 'Alice', Type: 'cash_transfer' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(0);
+    expect(result.skippedRows[0].reason).toBe('Internal transfer (same payer and payee)');
+  });
+
+  it('imports loan_disbursement to all when payee is all', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Loan', Amount: '500', Currency: 'USD', Payer: 'Alice', Payee: 'همه', Type: 'loan_disbursement' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].beneficiaries).toHaveLength(2);
   });
 
   it('skips duplicate entries', () => {
@@ -308,5 +355,38 @@ describe('transformCsvToExpenses', () => {
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
     expect(result.expenses).toHaveLength(0);
     expect(result.skippedRows[0].reason).toBe('Could not determine beneficiaries');
+  });
+
+  it('generates pendingItems for each skipped row', () => {
+    const rows = [
+      { Date: '2024-06-15', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Charlie', Payee: 'Bob', Type: 'expense' },
+      { Date: 'bad', Description: 'Y', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }
+    ];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.pendingItems).toHaveLength(2);
+    expect(result.pendingItems[0].reason).toContain('Unknown payer');
+    expect(result.pendingItems[0].rawData.Payer).toBe('Charlie');
+    expect(result.pendingItems[0].payerName).toBe('Charlie');
+    expect(result.pendingItems[1].reason).toBe('Invalid date');
+  });
+
+  it('pendingItems include pre-parsed fields when available', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Dinner', Amount: '50', Currency: 'USD', Payer: 'Alice', Payee: 'Unknown', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.pendingItems).toHaveLength(1);
+    const item = result.pendingItems[0];
+    expect(item.date).toBe('2024-06-15');
+    expect(item.description).toBe('Dinner');
+    expect(item.amount).toBe(50);
+    expect(item.currencyCode).toBe('USD');
+    expect(item.payerName).toBe('Alice');
+    expect(item.payeeName).toBe('Unknown');
+  });
+
+  it('returns empty pendingItems when all rows import successfully', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Lunch', Amount: '50', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.pendingItems).toHaveLength(0);
   });
 });

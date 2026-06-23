@@ -204,6 +204,7 @@ describe('data store', () => {
       participants: [],
       currencies: [],
       expenses: [],
+      pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
     });

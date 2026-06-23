@@ -37,10 +37,25 @@ export interface Expense {
   aiMetadata?: AIMetadata;
 }
 
+export interface PendingImportItem {
+  id: string;
+  rawData: Record<string, string>;
+  reason: string;
+  createdAt: string;
+  date?: string;
+  description?: string;
+  amount?: number;
+  currencyCode?: string;
+  payerName?: string;
+  payeeName?: string;
+  entryType?: string;
+}
+
 export interface AppData {
   participants: Participant[];
   currencies: Currency[];
   expenses: Expense[];
+  pendingImports: PendingImportItem[];
   exchangeRates: Record<string, number>;
   settlementCurrency: string;
 }

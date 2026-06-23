@@ -1,4 +1,4 @@
-import type { Expense, Participant, Currency, Beneficiary } from '../types';
+import type { Expense, Participant, Currency, Beneficiary, PendingImportItem } from '../types';
 import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { generateId } from './id';
@@ -9,6 +9,7 @@ export interface ImportResult {
   newCurrencies: { code: string; symbol: string }[];
   skippedRows: { row: number; reason: string }[];
   flaggedRows: { row: number; flag: string; notes: string }[];
+  pendingItems: PendingImportItem[];
 }
 
 export interface AmbiguousPayee {
@@ -31,16 +32,11 @@ export interface ParticipantMapping {
   isDescription: boolean;
 }
 
-const IMPORTABLE_ENTRY_TYPES = [
-  'expense',
-  'expense_personal',
-  'expense_group',
-  'expense_from_tankhah',
-  'expense_alipay',
-  'payment_from_tankhah'
-];
+const SWAPPED_ENTRY_TYPES = new Set(['debt_statement']);
 
-const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'همه', 'موجودی اولیه سفر', 'هر نفر']);
+const SKIP_ENTRY_TYPES = new Set(['currency_exchange', 'fund_opening']);
+
+const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'همه', 'all', 'موجودی اولیه سفر', 'هر نفر']);
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥',
@@ -128,7 +124,7 @@ export function extractUniqueNames(
 
   for (const row of rows) {
     const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
-    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
+    if (mapping.entryType && SKIP_ENTRY_TYPES.has(entryType)) continue;
     if (entryType === 'expense_personal') continue;
 
     const payee = mapping.payee ? row[mapping.payee].trim() : '';
@@ -169,7 +165,7 @@ export function extractUniqueCurrencies(
 
   for (const row of rows) {
     const entryType = mapping.entryType ? row[mapping.entryType] : '';
-    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
+    if (mapping.entryType && SKIP_ENTRY_TYPES.has(entryType)) continue;
 
     const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
     if (currency && currency !== 'UNKNOWN') {
@@ -197,7 +193,8 @@ export function transformCsvToExpenses(
     newParticipants: [],
     newCurrencies: [...newCurrencies],
     skippedRows: [],
-    flaggedRows: []
+    flaggedRows: [],
+    pendingItems: []
   };
 
   const allParticipants = [...existingParticipants];
@@ -228,59 +225,100 @@ export function transformCsvToExpenses(
     ...newCurrencies.map(c => c.code)
   ]);
 
+  const INTERNAL_SKIP_TYPES = new Set([
+    'cash_transfer', 'withdrawal', 'advance_received',
+    'loan_disbursement', 'allowance_grant', 'debt_statement'
+  ]);
+
+  function skipRow(row: CsvRow, rowNum: number, reason: string, partial: Partial<PendingImportItem> = {}) {
+    result.skippedRows.push({ row: rowNum, reason });
+    result.pendingItems.push({
+      id: generateId(),
+      rawData: { ...row },
+      reason,
+      createdAt: new Date().toISOString(),
+      ...partial
+    });
+  }
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2;
 
     const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
-    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) {
-      result.skippedRows.push({ row: rowNum, reason: `Non-expense entry type: ${entryType}` });
+    if (mapping.entryType && SKIP_ENTRY_TYPES.has(entryType)) {
+      skipRow(row, rowNum, `Non-importable entry type: ${entryType}`, {
+        entryType,
+        description: mapping.description ? row[mapping.description].trim() : undefined,
+        payerName: mapping.payer ? row[mapping.payer].trim() : undefined,
+        payeeName: mapping.payee ? row[mapping.payee].trim() : undefined
+      });
       continue;
     }
+    const isSwapped = mapping.entryType ? SWAPPED_ENTRY_TYPES.has(entryType) : false;
 
     const description = mapping.description ? row[mapping.description].trim() : '';
     if (description.includes('تکرار ثبت')) {
-      result.skippedRows.push({ row: rowNum, reason: 'Duplicate entry (تکرار ثبت)' });
+      skipRow(row, rowNum, 'Duplicate entry (تکرار ثبت)', { description, entryType: entryType || undefined });
       continue;
     }
 
     const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
     if (currency === 'UNKNOWN' || !currency) {
-      result.skippedRows.push({ row: rowNum, reason: `Unknown or missing currency` });
+      skipRow(row, rowNum, 'Unknown or missing currency', { description, entryType: entryType || undefined });
       continue;
     }
     if (!allCurrencyCodes.has(currency)) {
-      result.skippedRows.push({ row: rowNum, reason: `Currency ${currency} not configured` });
+      skipRow(row, rowNum, `Currency ${currency} not configured`, {
+        description, currencyCode: currency, entryType: entryType || undefined
+      });
       continue;
     }
 
     const rawDate = mapping.date ? row[mapping.date] : '';
     const date = parseFlexibleDate(rawDate);
     if (!date) {
-      result.skippedRows.push({ row: rowNum, reason: 'Invalid date' });
+      skipRow(row, rowNum, 'Invalid date', {
+        description, currencyCode: currency, entryType: entryType || undefined
+      });
       continue;
     }
 
     const rawAmount = mapping.amount ? row[mapping.amount] : '0';
     const amount = Math.round(Math.abs(parseNumber(rawAmount)) * 100) / 100;
     if (amount <= 0) {
-      result.skippedRows.push({ row: rowNum, reason: 'Invalid amount' });
+      skipRow(row, rowNum, 'Invalid amount', {
+        description, currencyCode: currency, date, entryType: entryType || undefined
+      });
       continue;
     }
 
-    const payerName = mapping.payer ? row[mapping.payer].trim() : '';
+    let payerName = mapping.payer ? row[mapping.payer].trim() : '';
+    let payeeName = mapping.payee ? row[mapping.payee].trim() : '';
+
+    if (isSwapped) {
+      [payerName, payeeName] = [payeeName, payerName];
+    }
+
+    if (payerName && payeeName && payerName.toLowerCase() === payeeName.toLowerCase()
+        && INTERNAL_SKIP_TYPES.has(entryType)) {
+      skipRow(row, rowNum, 'Internal transfer (same payer and payee)', {
+        description, currencyCode: currency, date, amount, payerName, payeeName, entryType
+      });
+      continue;
+    }
+
     const payerId = resolveParticipantId(payerName, participantLookup);
     if (!payerId) {
       const reason = payerName
         ? `Unknown payer: ${payerName}`
         : 'No payer column mapped or payer is empty';
-      result.skippedRows.push({ row: rowNum, reason });
+      skipRow(row, rowNum, reason, {
+        description, currencyCode: currency, date, amount, payerName, payeeName, entryType: entryType || undefined
+      });
       continue;
     }
 
-    const payeeName = mapping.payee ? row[mapping.payee].trim() : '';
-
-    // Check if payee was marked as a description
     const payeeIsDescription = payeeName
       ? descriptionNames.has(payeeName.toLowerCase())
       : false;
@@ -300,7 +338,9 @@ export function transformCsvToExpenses(
     }
 
     if (beneficiaries.length === 0) {
-      result.skippedRows.push({ row: rowNum, reason: 'Could not determine beneficiaries' });
+      skipRow(row, rowNum, 'Could not determine beneficiaries', {
+        description, currencyCode: currency, date, amount, payerName, payeeName, entryType: entryType || undefined
+      });
       continue;
     }
 
@@ -346,12 +386,23 @@ function resolveBeneficiaries(
   allParticipants: Participant[],
   lookup: Map<string, string>
 ): Beneficiary[] {
-  if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
+  const payeeLower = payeeName.toLowerCase();
+  if (payeeLower === 'گروه' || payeeLower === 'همه' || payeeLower === 'all' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
     return allParticipants.map(p => makeBeneficiary(p.id));
   }
 
   if (payeeName === 'هزینه شخصی' || entryType === 'expense_personal') {
     return [makeBeneficiary(payerId)];
+  }
+
+  const TRANSFER_TYPES = ['withdrawal', 'cash_transfer', 'advance_received', 'loan_disbursement', 'allowance_grant'];
+  if (TRANSFER_TYPES.includes(entryType)) {
+    if (payeeName === 'all' || payeeName === 'همه') {
+      return allParticipants.map(p => makeBeneficiary(p.id));
+    }
+    const payeeId = resolveParticipantId(payeeName, lookup);
+    if (payeeId) return [makeBeneficiary(payeeId)];
+    return [];
   }
 
   if (!payeeName) {

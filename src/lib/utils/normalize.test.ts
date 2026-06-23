@@ -9,6 +9,7 @@ describe('normalizeData', () => {
       participants: [],
       currencies: [],
       expenses: [],
+      pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
     });

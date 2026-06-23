@@ -94,7 +94,8 @@
     "needParticipantAndCurrency": "ابتدا حداقل یک شرکت‌کننده و یک ارز اضافه کنید.",
     "updated": "هزینه بروزرسانی شد",
     "added": "هزینه اضافه شد",
-    "deleted": "هزینه حذف شد"
+    "deleted": "هزینه حذف شد",
+    "transferLabel": "{from} → {to}"
   },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",
@@ -116,7 +117,10 @@
     "updateExpense": "بروزرسانی هزینه",
     "addExpense": "افزودن هزینه",
     "selectAll": "انتخاب همه",
-    "clearAll": "پاک کردن"
+    "clearAll": "پاک کردن",
+    "from": "از",
+    "to": "به",
+    "transferPreview": "انتقال: {from} → {to}"
   },
   "participants": {
     "noParticipantsTitle": "هنوز شرکت‌کننده‌ای اضافه نشده",
@@ -468,5 +472,29 @@
     "AMD": "درام ارمنستان",
     "IQD": "دینار عراق",
     "PKR": "روپیه پاکستان"
+  },
+  "pending": {
+    "banner": "{count} مورد در انتظار بررسی از وارد کردن CSV",
+    "bannerSingular": "۱ مورد در انتظار بررسی از وارد کردن CSV",
+    "reviewAll": "بررسی همه",
+    "dismissAll": "رد کردن همه",
+    "dismiss": "رد کردن",
+    "fixAndAdd": "اصلاح و افزودن",
+    "skipForLater": "بعداً بررسی",
+    "reason": "دلیل: {reason}",
+    "progress": "{current} از {total}",
+    "wizardTitle": "بررسی موارد معلق",
+    "confirmDismissAll": "آیا مطمئن هستید که می‌خواهید همه موارد معلق را رد کنید؟ این عمل قابل بازگشت نیست.",
+    "confirmDismiss": "این مورد رد شود؟ به طور دائم حذف خواهد شد.",
+    "summaryTitle": "بررسی کامل شد",
+    "summaryAdded": "{count} به عنوان هزینه اضافه شد",
+    "summaryRemaining": "{count} برای بعد نگه داشته شد",
+    "summaryDismissed": "{count} رد شد",
+    "done": "تمام",
+    "noItems": "موردی در انتظار نیست",
+    "rawData": "داده خام CSV",
+    "payer": "پرداخت‌کننده",
+    "payee": "دریافت‌کننده",
+    "edit": "ویرایش"
   }
 }

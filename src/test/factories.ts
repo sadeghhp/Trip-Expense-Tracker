@@ -65,6 +65,7 @@ export function makeAppData(overrides: Partial<AppData> = {}): AppData {
     participants: [p1, p2],
     currencies: [currency],
     expenses: [],
+    pendingImports: [],
     exchangeRates: {},
     settlementCurrency: 'USD',
     ...overrides

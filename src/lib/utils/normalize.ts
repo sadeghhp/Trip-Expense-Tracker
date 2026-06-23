@@ -1,4 +1,4 @@
-import type { AppData, AppState, Expense } from '../types';
+import type { AppData, AppState, Expense, PendingImportItem } from '../types';
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -62,10 +62,18 @@ export function normalizeData(raw: any): AppData {
     settlementCurrency = '';
   }
 
+  const pendingImports: PendingImportItem[] = (Array.isArray(raw?.pendingImports) ? raw.pendingImports : [])
+    .filter((item: any) =>
+      typeof item?.id === 'string' &&
+      typeof item?.reason === 'string' &&
+      typeof item?.rawData === 'object'
+    );
+
   return {
     participants: validParticipants,
     currencies: validCurrencies,
     expenses,
+    pendingImports,
     exchangeRates: cleanedRates,
     settlementCurrency
   };

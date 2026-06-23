@@ -15,16 +15,17 @@
     type ExtractedNames,
     type ImportResult
   } from '$lib/utils/csv-transformer';
-  import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
+  import { appData, updateData, importAsNewTrip, addPendingItems } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import type { Participant, Currency } from '$lib/types';
 
   interface Props {
     open: boolean;
     onClose: () => void;
+    onPendingReview?: () => void;
   }
 
-  let { open, onClose }: Props = $props();
+  let { open, onClose, onPendingReview }: Props = $props();
 
   let step = $state<1 | 2 | 3 | 4>(1);
   let csvResult = $state<CsvParseResult | null>(null);
@@ -223,6 +224,7 @@
         participants: [...$appData.participants, ...newParticipants],
         currencies: [...$appData.currencies, ...newCurrencies],
         expenses: importResult.expenses,
+        pendingImports: [],
         exchangeRates: {},
         settlementCurrency: ''
       };
@@ -230,7 +232,16 @@
       showToast($t('csvImport.createdNewTrip', { name: newTripName, count: importResult.expenses.length }));
     }
 
+    const hasPending = importResult.pendingItems.length > 0;
+    if (hasPending) {
+      addPendingItems(importResult.pendingItems);
+    }
+
     handleClose();
+
+    if (hasPending && onPendingReview) {
+      onPendingReview();
+    }
   }
 
   function updateParticipantMapping(index: number, participantId: string | null) {

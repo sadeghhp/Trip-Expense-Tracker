@@ -58,6 +58,20 @@
   let beneficiaryCount = $derived(selectedBeneficiaries.size);
   let parsedAmount = $derived(parseFloat(amount) || 0);
 
+  let isTransfer = $derived(
+    selectedBeneficiaries.size === 1 && !selectedBeneficiaries.has(paidBy)
+  );
+
+  function transferToName(): string {
+    if (!isTransfer) return '';
+    const pid = [...selectedBeneficiaries][0];
+    return $appData.participants.find(p => p.id === pid)?.name ?? '';
+  }
+
+  function transferFromName(): string {
+    return $appData.participants.find(p => p.id === paidBy)?.name ?? '';
+  }
+
   let equalPerPerson = $derived.by(() => {
     if (beneficiaryCount === 0 || parsedAmount <= 0) return '';
     const { share, exact } = getEqualSharePreview(parsedAmount, paidBy, [...selectedBeneficiaries]);
@@ -110,7 +124,7 @@
     }));
 
     const expenseData: Expense = {
-      id: expense?.id ?? generateId(),
+      id: expense?.id || generateId(),
       date,
       description: description.trim(),
       currencyCode,
@@ -129,7 +143,8 @@
       return;
     }
 
-    if (expense) {
+    const isEdit = expense && expense.id && $appData.expenses.some(e => e.id === expense!.id);
+    if (isEdit) {
       updateData(d => ({
         ...d,
         expenses: d.expenses.map(e => e.id === expense!.id ? expenseData : e)
@@ -157,7 +172,7 @@
   >
     <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)] shrink-0">
       <h2 class="text-lg font-semibold text-[var(--text-primary)]">
-        {expense ? $t('expenseForm.editTitle') : $t('expenseForm.addTitle')}
+        {expense && expense.id ? $t('expenseForm.editTitle') : $t('expenseForm.addTitle')}
       </h2>
       <button onclick={onClose} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors">
         <X size={18} />
@@ -214,7 +229,7 @@
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label for="expense-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
+          <label for="expense-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{isTransfer ? $t('expenseForm.from') : $t('expenseForm.paidBy')}</label>
           <select id="expense-paid-by" bind:value={paidBy}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.participants as p}
@@ -225,6 +240,7 @@
       </div>
 
       <!-- Split type -->
+      {#if !isTransfer}
       <div role="group" aria-labelledby="split-type-label">
         <span id="split-type-label" class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</span>
         <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
@@ -242,12 +258,13 @@
           {/each}
         </div>
       </div>
+      {/if}
 
       <!-- Beneficiaries -->
       <div role="group" aria-labelledby="beneficiaries-label">
         <div class="flex items-center justify-between mb-2">
           <span id="beneficiaries-label" class="text-xs font-medium text-[var(--text-secondary)]">
-            {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
+            {isTransfer ? $t('expenseForm.to') : $t('expenseForm.beneficiaries', { count: beneficiaryCount })}
           </span>
           <div class="flex items-center gap-2">
             {#if !allSelected}
@@ -323,7 +340,11 @@
       </div>
 
       <!-- Live preview -->
-      {#if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
+      {#if isTransfer && parsedAmount > 0}
+        <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
+          {$t('expenseForm.transferPreview', { from: transferFromName(), to: transferToName() })}
+        </div>
+      {:else if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
         <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
           {$t('expenseForm.equalPreview', { amount: equalPerPerson, count: beneficiaryCount, label: beneficiaryCount === 1 ? $t('common.person') : $t('common.people') })}
         </div>
