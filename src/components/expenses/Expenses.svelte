@@ -40,6 +40,14 @@
     [...new Set(sortedExpenses.map(e => e.currencyCode))].sort()
   );
 
+  $effect(() => {
+    if (currencyFilter && !usedCurrencies.includes(currencyFilter)) currencyFilter = '';
+  });
+
+  $effect(() => {
+    if (personFilter && !$appData.participants.some(p => p.id === personFilter)) personFilter = '';
+  });
+
   let filteredExpenses = $derived(
     sortedExpenses.filter(e => {
       if (currencyFilter && e.currencyCode !== currencyFilter) return false;

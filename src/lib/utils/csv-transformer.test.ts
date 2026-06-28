@@ -8,6 +8,7 @@ import {
   mergeJournalEntries
 } from './csv-transformer';
 import type { ColumnMapping } from './csv-mapper';
+import type { CsvRow } from './csv-parser';
 import { makeParticipant, makeCurrency } from '../../test/factories';
 
 vi.mock('./id', () => ({
@@ -132,7 +133,7 @@ describe('extractUniqueNames', () => {
   });
 
   it('skips non-importable entry types for payers', () => {
-    const rows = [
+    const rows: CsvRow[] = [
       { Payer: 'Fund', Payee: 'Alice', Type: 'advance_received' },
       { Payer: 'Alice', Payee: 'Bob', Type: 'expense', Amount: '100', Currency: 'USD' }
     ];

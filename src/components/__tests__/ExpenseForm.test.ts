@@ -26,7 +26,9 @@ vi.mock('$lib/stores/toast', () => ({
 }));
 
 vi.mock('$lib/i18n', () => ({
-  t: readable((key: string) => key)
+  t: readable((key: string) => key),
+  locale: readable('en'),
+  setLocale: vi.fn()
 }));
 
 vi.mock('$lib/utils/id', () => ({
