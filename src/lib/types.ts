@@ -74,6 +74,7 @@ export interface AppSettings {
   calendar: CalendarType;
   theme: ThemeType;
   locale: LocaleType;
+  showDecimals: boolean;
 }
 
 export interface BalanceEntry {

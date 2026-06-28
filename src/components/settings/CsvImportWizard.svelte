@@ -221,15 +221,30 @@
     const journal = importResult.journalEntries;
 
     if (importMode === 'merge') {
+      const existingFingerprints = new Set(
+        $appData.expenses.map(e => `${e.date}|${e.paidBy}|${e.amount}|${e.currencyCode}|${e.description}`)
+      );
+      const deduped = importResult.expenses.filter(e => {
+        const fp = `${e.date}|${e.paidBy}|${e.amount}|${e.currencyCode}|${e.description}`;
+        if (existingFingerprints.has(fp)) return false;
+        existingFingerprints.add(fp);
+        return true;
+      });
       updateData(d => ({
         ...d,
         participants: [...d.participants, ...newParticipants],
         currencies: [...d.currencies, ...newCurrencies],
-        expenses: [...d.expenses, ...importResult!.expenses],
+        expenses: [...d.expenses, ...deduped],
         journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal)
       }));
-      if (importResult.expenses.length > 0) {
-        showToast($t('csvImport.importedToTrip', { count: importResult.expenses.length }));
+      const skippedDupes = importResult.expenses.length - deduped.length;
+      if (deduped.length > 0) {
+        const msg = skippedDupes > 0
+          ? $t('csvImport.importedToTripDeduped', { count: deduped.length, skipped: skippedDupes })
+          : $t('csvImport.importedToTrip', { count: deduped.length });
+        showToast(msg);
+      } else if (skippedDupes > 0) {
+        showToast($t('csvImport.allDuplicates', { count: skippedDupes }));
       } else {
         showToast($t('csvImport.importedJournalOnly', { count: journal.length }));
       }

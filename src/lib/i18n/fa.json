@@ -77,6 +77,7 @@
     "addCurrency": "افزودن ارز",
     "addFirstExpense": "ثبت اولین هزینه",
     "setExchangeRates": "نرخ تبدیل ارز را تنظیم کنید",
+    "settlementIncomplete": "بدون نرخ تبدیل: {currencies}",
     "day": "۱ روز",
     "days": "{count} روز",
     "scanReceipt": "اسکن",
@@ -96,12 +97,17 @@
     "added": "هزینه اضافه شد",
     "deleted": "هزینه حذف شد",
     "tabExpenses": "هزینه‌ها",
-    "tabJournal": "دفتر کل"
+    "tabJournal": "دفتر کل",
+    "allCurrencies": "همه",
+    "allPeople": "همه افراد",
+    "showingFiltered": "نمایش {count} از {total}"
   },
   "journal": {
     "noEntriesTitle": "ثبت دفتر کل وجود ندارد",
     "noEntriesDesc": "یک فایل CSV وارد کنید تا دفتر مالی کامل در کنار هزینه‌ها ذخیره شود.",
     "allTypes": "همه انواع ثبت",
+    "allCurrencies": "همه ارزها",
+    "allPeople": "همه پرداخت‌کنندگان",
     "viewExpense": "مشاهده هزینه",
     "entryCount": "نمایش {count} از {total} ثبت"
   },
@@ -346,6 +352,8 @@
     "selectCsvFile": "لطفاً یک فایل CSV انتخاب کنید",
     "parseFailed": "فایل CSV قابل تجزیه نیست",
     "importedToTrip": "{count} هزینه به سفر فعلی وارد شد",
+    "importedToTripDeduped": "{count} هزینه وارد شد ({skipped} تکراری رد شد)",
+    "allDuplicates": "همه {count} هزینه قبلاً وجود دارد (تکراری رد شد)",
     "createdNewTrip": "سفر جدید \"{name}\" با {count} هزینه ایجاد شد",
     "dropCsv": "فایل CSV را اینجا رها کنید",
     "orClickBrowse": "یا برای انتخاب کلیک کنید",

@@ -121,6 +121,14 @@
 
   let settlements = $derived(computeSettlementTransactions(unifiedBalances));
 
+  let excludedCurrencyCodes = $derived.by(() => {
+    if (!effectiveSettlementCurrency) return [];
+    return $appData.currencies
+      .filter(c => c.code !== effectiveSettlementCurrency)
+      .filter(c => !$appData.exchangeRates[c.code] || $appData.exchangeRates[c.code] <= 0)
+      .map(c => c.code);
+  });
+
   let creditors = $derived(unifiedBalances.filter(b => b.balance > 0.005));
   let debtors = $derived(unifiedBalances.filter(b => b.balance < -0.005));
   let settledCount = $derived(unifiedBalances.filter(b => Math.abs(b.balance) <= 0.005).length);
@@ -481,6 +489,13 @@
           {$t('home.details')}
         </button>
       </div>
+
+      {#if excludedCurrencyCodes.length > 0}
+        <p class="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-2">
+          <AlertTriangle size={11} />
+          {$t('home.settlementIncomplete', { currencies: excludedCurrencyCodes.join(', ') })}
+        </p>
+      {/if}
 
       <div class="flex items-center gap-4 mb-3">
         <div class="flex-1">

@@ -3,6 +3,7 @@ import type { AppData, AppState, Trip } from '../types';
 import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
 import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
+import { showToast } from './toast';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -58,11 +59,25 @@ function loadFromStorage(): AppState {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let quotaWarningShown = false;
+
+function persistToLocalStorage(state: AppState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e: unknown) {
+    if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      if (!quotaWarningShown) {
+        quotaWarningShown = true;
+        showToast('Storage full — data may not be saved. Export your data as backup.', 'error');
+      }
+    }
+  }
+}
 
 function saveToStorage(state: AppState): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    persistToLocalStorage(state);
     saveTimer = null;
   }, 300);
 }
@@ -70,7 +85,7 @@ function saveToStorage(state: AppState): void {
 function saveToStorageImmediate(state: AppState): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistToLocalStorage(state);
 }
 
 const initial = loadFromStorage();
