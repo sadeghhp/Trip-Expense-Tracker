@@ -1,0 +1,11 @@
+journal_id,entry_id,source_file,entry_type,date_text,description,payer,payee,currency,amount,flag,notes,توضیح
+J001,E01,trip.csv,expense,6/1/2026 9:30,Airport taxi,Alice,گروه,USD,45,,,
+J002,E02,trip.csv,expense,6/1/2026 13:00,Lunch at cafe,Bob,گروه,USD,68,,,
+J003,E03,trip.csv,expense,6/1/2026 18:45,Museum tickets,Carol,گروه,USD,80,,,
+J004,E04,trip.csv,expense,6/2/2026 8:15,Breakfast groceries,Dave,گروه,USD,42,,,
+J005,E05,trip.csv,expense,6/2/2026 12:30,Train to downtown,Alice,گروه,USD,96,,,
+J006,E06,trip.csv,expense,6/2/2026 19:00,Dinner,Bob,گروه,USD,156,,,
+J007,E07,trip.csv,expense,6/3/2026 10:00,Hotel night 1,Carol,گروه,USD,220,,,
+J008,E08,trip.csv,expense,6/3/2026 15:20,Coffee and snacks,Dave,گروه,USD,28,,,
+J009,E09,trip.csv,expense,6/3/2026 17:00,Souvenir for Bob,Alice,Bob,USD,35,,,
+J010,E10,trip.csv,expense,6/4/2026 11:00,Airport parking,Bob,گروه,USD,52,,,
