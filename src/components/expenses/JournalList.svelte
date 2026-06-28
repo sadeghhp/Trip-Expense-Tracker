@@ -1,6 +1,7 @@
 <script lang="ts">
   import { BookOpen } from '@lucide/svelte';
   import { appData } from '$lib/stores/data';
+  import { formatAmount } from '$lib/utils/format';
   import { t } from '$lib/i18n';
   import type { JournalEntry } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
@@ -13,6 +14,8 @@
 
   let filter = $state<'all' | 'imported' | 'skipped'>('all');
   let typeFilter = $state('');
+  let currencyFilter = $state('');
+  let payerFilter = $state('');
 
   let entries = $derived($appData.journalEntries ?? []);
 
@@ -20,11 +23,21 @@
     [...new Set(entries.map(e => e.entryType).filter(Boolean))].sort()
   );
 
+  let entryCurrencies = $derived(
+    [...new Set(entries.map(e => e.currency).filter(Boolean))].sort()
+  );
+
+  let entryPayers = $derived(
+    [...new Set(entries.map(e => e.payer).filter(Boolean))].sort()
+  );
+
   let filtered = $derived(
     entries.filter(e => {
       if (filter === 'imported' && e.status === 'skipped') return false;
       if (filter === 'skipped' && e.status !== 'skipped') return false;
       if (typeFilter && e.entryType !== typeFilter) return false;
+      if (currencyFilter && e.currency !== currencyFilter) return false;
+      if (payerFilter && e.payer !== payerFilter) return false;
       return true;
     })
   );
@@ -65,16 +78,42 @@
       {/each}
     </div>
 
-    {#if entryTypes.length > 1}
-      <select
-        bind:value={typeFilter}
-        class="w-full px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-      >
-        <option value="">{$t('journal.allTypes')}</option>
-        {#each entryTypes as type}
-          <option value={type}>{type}</option>
-        {/each}
-      </select>
+    {#if entryTypes.length > 1 || entryCurrencies.length > 1 || entryPayers.length > 1}
+      <div class="flex flex-wrap gap-2">
+        {#if entryTypes.length > 1}
+          <select
+            bind:value={typeFilter}
+            class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          >
+            <option value="">{$t('journal.allTypes')}</option>
+            {#each entryTypes as type}
+              <option value={type}>{type}</option>
+            {/each}
+          </select>
+        {/if}
+        {#if entryCurrencies.length > 1}
+          <select
+            bind:value={currencyFilter}
+            class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          >
+            <option value="">{$t('journal.allCurrencies')}</option>
+            {#each entryCurrencies as cur}
+              <option value={cur}>{cur}</option>
+            {/each}
+          </select>
+        {/if}
+        {#if entryPayers.length > 1}
+          <select
+            bind:value={payerFilter}
+            class="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          >
+            <option value="">{$t('journal.allPeople')}</option>
+            {#each entryPayers as payer}
+              <option value={payer}>{payer}</option>
+            {/each}
+          </select>
+        {/if}
+      </div>
     {/if}
 
     <div class="overflow-x-auto rounded-xl border border-[var(--card-border)]">
@@ -103,7 +142,7 @@
               <td class="px-2 py-2 text-[var(--text-primary)] whitespace-nowrap">{entry.payer}</td>
               <td class="px-2 py-2 text-[var(--text-primary)] whitespace-nowrap max-w-[80px] truncate" title={entry.payee}>{entry.payee}</td>
               <td class="px-2 py-2 text-end font-mono text-[var(--text-primary)] whitespace-nowrap">
-                {entry.amount > 0 ? `${entry.amount.toLocaleString()} ${entry.currency}` : ''}
+                {entry.amount > 0 ? `${formatAmount(entry.amount)} ${entry.currency}` : ''}
               </td>
               <td class="px-2 py-2 text-[var(--text-secondary)] max-w-[140px]">
                 <div class="truncate" title={entry.description || entry.localNotes}>

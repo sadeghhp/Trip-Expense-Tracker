@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Sun, Moon, Calendar, Download, Upload, Trash2, FileSpreadsheet, FileUp, DatabaseBackup, Database, Info, Sparkles, Eye, EyeOff, RefreshCw } from '@lucide/svelte';
-  import { settings, setCalendar, toggleTheme, setAppLocale } from '$lib/stores/settings';
+  import { settings, setCalendar, toggleTheme, setAppLocale, setShowDecimals } from '$lib/stores/settings';
   import { aiSettings, updateAISettings, testConnection } from '$lib/stores/aiSettings';
   import { showToast } from '$lib/stores/toast';
   import { replaceData, clearAllData, getSnapshot, activeTrip, activeTripId, importAsNewTrip, getFullSnapshot, replaceAllData, trips } from '$lib/stores/data';
@@ -355,6 +355,27 @@
           {$t('settings.jalali')}
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Display -->
+  <div class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-[var(--card-border)]">
+      <h3 class="text-sm font-semibold uppercase tracking-wide text-[var(--text-primary)]">{$t('settings.display')}</h3>
+    </div>
+    <div class="p-4">
+      <button
+        onclick={() => setShowDecimals(!$settings.showDecimals)}
+        class="flex items-center justify-between w-full p-3 rounded-xl hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
+      >
+        <div>
+          <span class="text-sm font-medium text-[var(--text-primary)]">{$t('settings.showDecimals')}</span>
+          <span class="block text-[11px] text-[var(--text-secondary)] mt-0.5">{$t('settings.showDecimalsHint')}</span>
+        </div>
+        <div class="w-12 h-7 rounded-full p-0.5 transition-colors {$settings.showDecimals ? 'bg-gradient-to-r from-primary-500 to-primary-700' : 'bg-[#cbd5e1]'}">
+          <div class="w-6 h-6 rounded-full bg-white shadow-sm transition-transform {$settings.showDecimals ? ($isRtl ? '-translate-x-5' : 'translate-x-5') : 'translate-x-0'}"></div>
+        </div>
+      </button>
     </div>
   </div>
 

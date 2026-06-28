@@ -18,6 +18,7 @@
     type ImportResult
   } from '$lib/utils/csv-transformer';
   import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
+  import { formatAmount } from '$lib/utils/format';
   import { showToast } from '$lib/stores/toast';
   import type { Participant, Currency } from '$lib/types';
   import { BookOpen } from '@lucide/svelte';
@@ -726,7 +727,7 @@
                         <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap">{entry.date}</td>
                         <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap">{entry.payer}</td>
                         <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap max-w-[100px] truncate" title={entry.payee}>{entry.payee}</td>
-                        <td class="px-2 py-1 text-end font-mono text-[var(--text-primary)] whitespace-nowrap">{entry.amount > 0 ? `${entry.amount.toLocaleString()} ${entry.currency}` : ''}</td>
+                        <td class="px-2 py-1 text-end font-mono text-[var(--text-primary)] whitespace-nowrap">{entry.amount > 0 ? `${formatAmount(entry.amount)} ${entry.currency}` : ''}</td>
                         <td class="px-2 py-1 text-[var(--text-secondary)] max-w-[150px] truncate" title={entry.description}>{entry.description || entry.localNotes}</td>
                         <td class="px-2 py-1 text-[var(--text-secondary)] max-w-[120px] truncate" title={entry.skipReason}>{entry.skipReason}</td>
                       </tr>

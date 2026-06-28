@@ -8,6 +8,7 @@
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import TripForm from './TripForm.svelte';
   import SettingsTab from '../settings/Settings.svelte';
+  import { formatAmount } from '$lib/utils/format';
   import { t } from '$lib/i18n';
 
   type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'updated';
@@ -36,7 +37,7 @@
     return Object.entries(totals)
       .map(([code, amount]) => {
         const symbol = currencyMap.get(code) ?? code;
-        return symbol + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return symbol + formatAmount(amount);
       })
       .join(' + ');
   }

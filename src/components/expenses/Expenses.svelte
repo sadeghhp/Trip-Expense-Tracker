@@ -29,9 +29,27 @@
 
   let hasJournal = $derived(($appData.journalEntries?.length ?? 0) > 0);
 
+  let currencyFilter = $state('');
+  let personFilter = $state('');
+
   let sortedExpenses = $derived(
     [...$appData.expenses].sort((a, b) => b.date.localeCompare(a.date))
   );
+
+  let usedCurrencies = $derived(
+    [...new Set(sortedExpenses.map(e => e.currencyCode))].sort()
+  );
+
+  let filteredExpenses = $derived(
+    sortedExpenses.filter(e => {
+      if (currencyFilter && e.currencyCode !== currencyFilter) return false;
+      if (personFilter && e.paidBy !== personFilter) return false;
+      return true;
+    })
+  );
+
+  let isFiltered = $derived(currencyFilter !== '' || personFilter !== '');
+  let showFilters = $derived(usedCurrencies.length > 1 || $appData.participants.length > 1);
 
   function openAdd() {
     if ($appData.participants.length === 0 || $appData.currencies.length === 0) {
@@ -94,7 +112,7 @@
   {#if hasJournal}
     <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
       <button
-        onclick={() => { viewMode = 'expenses'; }}
+        onclick={() => { viewMode = 'expenses'; currencyFilter = ''; personFilter = ''; }}
         class="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-all
           {viewMode === 'expenses' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
       >
@@ -150,13 +168,50 @@
       </button>
     </EmptyState>
   {:else}
+    {#if showFilters}
+      <div class="flex flex-wrap items-center gap-2">
+        {#if usedCurrencies.length > 1}
+          <div class="flex flex-wrap gap-1">
+            <button
+              onclick={() => { currencyFilter = ''; }}
+              class="px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                {currencyFilter === '' ? 'bg-primary-600 text-white' : 'bg-[#e2e8f0] dark:bg-[#334155] text-[var(--text-secondary)]'}"
+            >
+              {$t('expenses.allCurrencies')}
+            </button>
+            {#each usedCurrencies as code}
+              {@const count = sortedExpenses.filter(e => e.currencyCode === code).length}
+              <button
+                onclick={() => { currencyFilter = currencyFilter === code ? '' : code; }}
+                class="px-2.5 py-1 rounded-full text-xs font-medium transition-all
+                  {currencyFilter === code ? 'bg-primary-600 text-white' : 'bg-[#e2e8f0] dark:bg-[#334155] text-[var(--text-secondary)]'}"
+              >
+                {code} ({count})
+              </button>
+            {/each}
+          </div>
+        {/if}
+        {#if $appData.participants.length > 1}
+          <select
+            bind:value={personFilter}
+            class="px-2.5 py-1 rounded-full border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          >
+            <option value="">{$t('expenses.allPeople')}</option>
+            {#each $appData.participants as p}
+              <option value={p.id}>{p.name}</option>
+            {/each}
+          </select>
+        {/if}
+      </div>
+    {/if}
+
     <div class="space-y-3">
-      {#each sortedExpenses as expense, i (expense.id)}
+      {#each filteredExpenses as expense, i (expense.id)}
         <div
           class="relative p-4 ps-9 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
         >
           <span class="absolute start-0 top-0 bottom-0 w-7 flex items-center justify-center text-[10px] font-semibold text-primary-400/70 dark:text-primary-500/50 select-none">
-            {sortedExpenses.length - i}
+            {filteredExpenses.length - i}
           </span>
           <div class="flex items-start justify-between">
             <div class="flex items-start gap-3 flex-1 min-w-0">
@@ -215,6 +270,12 @@
         </div>
       {/each}
     </div>
+
+    {#if isFiltered}
+      <p class="text-[10px] text-[var(--text-secondary)] text-center">
+        {$t('expenses.showingFiltered', { count: filteredExpenses.length, total: sortedExpenses.length })}
+      </p>
+    {/if}
   {/if}
   {/if}
 
