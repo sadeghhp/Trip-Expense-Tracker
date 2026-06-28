@@ -116,6 +116,7 @@ describe('computeBalances', () => {
     expect(balances.USD['p-1'].paid).toBe(100);
     expect(balances.USD['p-1'].owed).toBe(100);
     expect(balances.USD['p-1'].net).toBe(0);
+    expect(balances.USD['p-1'].treatPaid).toBe(100);
     expect(balances.USD['p-2']).toBeUndefined();
   });
 
@@ -130,6 +131,7 @@ describe('computeBalances', () => {
     expect(balances.USD['tankhah'].paid).toBe(50);
     expect(balances.USD['tankhah'].owed).toBe(50);
     expect(balances.USD['tankhah'].net).toBe(0);
+    expect(balances.USD['tankhah'].treatPaid).toBe(50);
     expect(balances.USD['p-1']).toBeUndefined();
     expect(balances.USD['p-2']).toBeUndefined();
   });
@@ -150,9 +152,11 @@ describe('computeBalances', () => {
     expect(balances.USD['p-1'].paid).toBe(100);
     expect(balances.USD['p-1'].owed).toBe(130);
     expect(balances.USD['p-1'].net).toBe(-30);
+    expect(balances.USD['p-1'].treatPaid).toBe(100);
     expect(balances.USD['p-2'].paid).toBe(60);
     expect(balances.USD['p-2'].owed).toBe(30);
     expect(balances.USD['p-2'].net).toBe(30);
+    expect(balances.USD['p-2'].treatPaid).toBeUndefined();
   });
 });
 

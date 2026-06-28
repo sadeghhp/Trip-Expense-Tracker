@@ -192,7 +192,8 @@
     "creditor": "طلبکار",
     "debtor": "بدهکار",
     "settled": "تسویه",
-    "fundManager": "مدیر صندوق"
+    "fundManager": "مدیر صندوق",
+    "treatIncluded": "شامل {amount} مهمانی"
   },
   "settlement": {
     "noCurrenciesTitle": "ارزی وجود ندارد",

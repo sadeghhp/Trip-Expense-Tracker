@@ -20,6 +20,7 @@ export function computeBalances(expenses: Expense[]): CurrencyBalances {
 
     if (expense.isTreat) {
       currBal[paidBy].owed += amount;
+      currBal[paidBy].treatPaid = (currBal[paidBy].treatPaid ?? 0) + amount;
       continue;
     }
 

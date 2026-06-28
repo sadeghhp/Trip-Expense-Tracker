@@ -105,6 +105,16 @@
                       </div>
                       <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-end">{symbol}{formatAmount(entry.owed)}</span>
                     </div>
+                    {#if entry.treatPaid}
+                      <div class="text-[10px] text-accent-600 dark:text-accent-400 ps-12">
+                        {$t('balances.treatIncluded', { amount: symbol + formatAmount(entry.treatPaid) })}
+                      </div>
+                    {/if}
+                    {#if entry.treatPaid}
+                      <div class="text-[10px] text-accent-600 dark:text-accent-400 ps-12">
+                        {$t('balances.treatIncluded', { amount: symbol + formatAmount(entry.treatPaid) })}
+                      </div>
+                    {/if}
                   </div>
 
                   <div class="flex justify-end">

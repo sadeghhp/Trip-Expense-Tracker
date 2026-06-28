@@ -82,6 +82,7 @@ export interface BalanceEntry {
   paid: number;
   owed: number;
   net: number;
+  treatPaid?: number;
 }
 
 export type CurrencyBalances = Record<string, Record<string, BalanceEntry>>;

@@ -192,7 +192,8 @@
     "creditor": "creditor",
     "debtor": "debtor",
     "settled": "settled",
-    "fundManager": "fund manager"
+    "fundManager": "fund manager",
+    "treatIncluded": "includes {amount} in treats"
   },
   "settlement": {
     "noCurrenciesTitle": "No currencies",
