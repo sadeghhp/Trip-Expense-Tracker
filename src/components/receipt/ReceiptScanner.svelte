@@ -43,7 +43,9 @@
   let amount = $state('');
   let currencyCode = $state($appData.currencies[0]?.code ?? '');
   let paidBy = $state($appData.participants[0]?.id ?? '');
-  let selectedBeneficiaries: Set<string> = $state(new Set($appData.participants.map(p => p.id)));
+  let selectedBeneficiaries: Set<string> = $state(new Set(
+    $appData.participants.filter(p => p.id !== $appData.tankhahParticipantId).map(p => p.id)
+  ));
   let formError = $state('');
   let currencyMismatch = $state(false);
   let detectedCurrency = $state('');
@@ -172,7 +174,10 @@
     }
 
     paidBy = $appData.participants[0]?.id ?? '';
-    selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
+    const tankhahId = $appData.tankhahParticipantId;
+    selectedBeneficiaries = new Set(
+      $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
+    );
   }
 
   const COMMON_SYMBOLS: Record<string, string> = {
@@ -192,8 +197,17 @@
     currencyMismatch = false;
   }
 
-  let allSelected = $derived(selectedBeneficiaries.size === $appData.participants.length);
+  let nonTankhahParticipants = $derived(
+    $appData.participants.filter(p => p.id !== $appData.tankhahParticipantId)
+  );
+  let allSelected = $derived(
+    nonTankhahParticipants.every(p => selectedBeneficiaries.has(p.id))
+    && nonTankhahParticipants.length > 0
+  );
   let noneSelected = $derived(selectedBeneficiaries.size === 0);
+  let tankhahIncluded = $derived(
+    !!$appData.tankhahParticipantId && selectedBeneficiaries.has($appData.tankhahParticipantId)
+  );
 
   function toggleBeneficiary(pid: string) {
     const next = new Set(selectedBeneficiaries);
@@ -203,7 +217,10 @@
   }
 
   function selectAllBeneficiaries() {
-    selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
+    const tankhahId = $appData.tankhahParticipantId;
+    selectedBeneficiaries = new Set(
+      $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
+    );
   }
 
   function clearAllBeneficiaries() {
@@ -574,22 +591,51 @@
               <div class="space-y-2 max-h-36 overflow-y-auto">
                 {#each $appData.participants as p (p.id)}
                   {@const selected = selectedBeneficiaries.has(p.id)}
-                  <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
-                    <button
-                      type="button"
-                      onclick={() => toggleBeneficiary(p.id)}
-                      class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
-                        {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
-                    >
-                      {#if selected}
-                        <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      {/if}
-                    </button>
-                    <span class="text-sm text-[var(--text-primary)]">{p.name}</span>
-                  </div>
+                  {@const pIsTankhah = p.id === $appData.tankhahParticipantId}
+                  {#if !pIsTankhah}
+                    <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
+                      <button
+                        type="button"
+                        onclick={() => toggleBeneficiary(p.id)}
+                        class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                          {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
+                      >
+                        {#if selected}
+                          <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        {/if}
+                      </button>
+                      <span class="text-sm text-[var(--text-primary)]">{p.name}</span>
+                    </div>
+                  {/if}
                 {/each}
+
+                {#if $appData.tankhahParticipantId}
+                  {@const tankhahP = $appData.participants.find(p => p.id === $appData.tankhahParticipantId)}
+                  {#if tankhahP}
+                    <div class="flex items-center gap-3 p-2 rounded-xl border border-dashed {tankhahIncluded ? 'bg-accent-50 dark:bg-accent-900/20 border-accent-300 dark:border-accent-700' : 'border-[var(--card-border)]'}">
+                      <button
+                        type="button"
+                        onclick={() => toggleBeneficiary(tankhahP.id)}
+                        class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                          {tankhahIncluded ? 'border-accent-600 bg-accent-600' : 'border-[var(--card-border)]'}"
+                      >
+                        {#if tankhahIncluded}
+                          <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        {/if}
+                      </button>
+                      <span class="text-sm text-accent-700 dark:text-accent-300 flex-1 flex items-center gap-1.5">
+                        {tankhahP.name}
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400">
+                          {$t('participants.tankhahBadge')}
+                        </span>
+                      </span>
+                    </div>
+                  {/if}
+                {/if}
               </div>
             </div>
 

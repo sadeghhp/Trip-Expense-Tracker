@@ -1,10 +1,11 @@
-import type { Expense, Participant, Currency, Beneficiary } from '../types';
+import type { Expense, Participant, Currency, Beneficiary, JournalEntry } from '../types';
 import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { generateId } from './id';
 
 export interface ImportResult {
   expenses: Expense[];
+  journalEntries: JournalEntry[];
   newParticipants: { name: string; id: string }[];
   newCurrencies: { code: string; symbol: string }[];
   skippedRows: { row: number; reason: string }[];
@@ -50,7 +51,14 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   GEL: '₾', AMD: '֏', IQD: 'ع.د', PKR: '₨'
 };
 
-export function parseFlexibleDate(raw: string): string | null {
+export type DateFormat = 'auto' | 'mdy' | 'dmy';
+
+function buildDate(year: number, month: number, day: number): string | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function parseFlexibleDate(raw: string, format: DateFormat = 'auto'): string | null {
   const cleaned = raw.trim();
   if (!cleaned) return null;
 
@@ -66,21 +74,21 @@ export function parseFlexibleDate(raw: string): string | null {
   if (slashParts.length === 3) {
     const [a, b, c] = slashParts.map(Number);
     if (c > 100) {
-      if (a > 12) {
-        return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
-      }
-      return `${c}-${String(a).padStart(2, '0')}-${String(b).padStart(2, '0')}`;
+      if (format === 'dmy') return buildDate(c, b, a);
+      if (format === 'mdy') return buildDate(c, a, b);
+      if (a > 12) return buildDate(c, b, a);
+      return buildDate(c, a, b);
     }
     if (a > 100) {
-      return `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
+      return buildDate(a, b, c);
     }
   }
 
   const dashParts = withoutTime.split('-');
   if (dashParts.length === 3) {
     const [a, b, c] = dashParts.map(Number);
-    if (a > 100) return `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
-    if (c > 100) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+    if (a > 100) return buildDate(a, b, c);
+    if (c > 100) return buildDate(c, b, a);
   }
 
   const d = new Date(cleaned);
@@ -92,7 +100,26 @@ export function parseFlexibleDate(raw: string): string | null {
 }
 
 function parseNumber(raw: string): number {
-  const cleaned = raw.replace(/[^\d.\-,]/g, '').replace(/,(?=\d{3})/g, '');
+  let cleaned = raw.replace(/[^\d.\-,]/g, '');
+  if (!cleaned) return 0;
+
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+
+  if (lastComma > -1 && lastDot > -1) {
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (lastComma > -1) {
+    if (/,\d{3}$/.test(cleaned)) {
+      cleaned = cleaned.replace(/,/g, '');
+    } else {
+      cleaned = cleaned.replace(',', '.');
+    }
+  }
+
   return parseFloat(cleaned) || 0;
 }
 
@@ -111,8 +138,10 @@ export function extractUniqueNames(
 ): ExtractedNames {
   const payerNames = new Set<string>();
 
-  // First pass: payers are always real people/entities
   for (const row of rows) {
+    const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
+
     const payer = mapping.payer ? row[mapping.payer].trim() : '';
     if (payer) {
       if (payer.includes('|')) {
@@ -168,7 +197,7 @@ export function extractUniqueCurrencies(
   const codes = new Set<string>();
 
   for (const row of rows) {
-    const entryType = mapping.entryType ? row[mapping.entryType] : '';
+    const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
     if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
 
     const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
@@ -190,10 +219,13 @@ export function transformCsvToExpenses(
   participantMappings: ParticipantMapping[],
   existingParticipants: Participant[],
   existingCurrencies: Currency[],
-  newCurrencies: { code: string; symbol: string }[]
+  newCurrencies: { code: string; symbol: string }[],
+  dateFormat: DateFormat = 'auto',
+  tankhahParticipantId?: string
 ): ImportResult {
   const result: ImportResult = {
     expenses: [],
+    journalEntries: [],
     newParticipants: [],
     newCurrencies: [...newCurrencies],
     skippedRows: [],
@@ -228,59 +260,124 @@ export function transformCsvToExpenses(
     ...newCurrencies.map(c => c.code)
   ]);
 
+  const seenIds = new Set<string>();
+
+  const sampleRow = rows[0];
+  const sampleHeaders = sampleRow ? Object.keys(sampleRow) : [];
+  const entryIdCol = sampleHeaders.find(h => h.toLowerCase().includes('entry_id')) ?? null;
+  const sourceFileCol = sampleHeaders.find(h => h.toLowerCase().includes('source_file')) ?? null;
+  const localNotesCol = sampleHeaders.find(h =>
+    h === 'توضیح' || h === 'local_notes' || h.toLowerCase().replace(/[\s_-]+/g, '') === 'localnotes'
+  ) ?? null;
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2;
 
     const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
-    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) {
-      result.skippedRows.push({ row: rowNum, reason: `Non-expense entry type: ${entryType}` });
-      continue;
-    }
-
     const description = mapping.description ? row[mapping.description].trim() : '';
-    if (description.includes('تکرار ثبت')) {
-      result.skippedRows.push({ row: rowNum, reason: 'Duplicate entry (تکرار ثبت)' });
+    const payerName = mapping.payer ? row[mapping.payer].trim() : '';
+    const payeeName = mapping.payee ? row[mapping.payee].trim() : '';
+    const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
+    const rawAmount = mapping.amount ? row[mapping.amount] : '0';
+    const amount = Math.round(Math.abs(parseNumber(rawAmount)) * 100) / 100;
+    const rawDate = mapping.date ? row[mapping.date] : '';
+    const date = parseFlexibleDate(rawDate, dateFormat);
+    const notes = mapping.notes ? row[mapping.notes].trim() : '';
+    const flag = mapping.flag ? row[mapping.flag].trim() : '';
+    const journalId = mapping.id ? row[mapping.id].trim() : `row-${rowNum}`;
+
+    const journalEntry: JournalEntry = {
+      journalId,
+      entryId: entryIdCol ? row[entryIdCol].trim() : '',
+      sourceFile: sourceFileCol ? row[sourceFileCol].trim() : '',
+      entryType: entryType || 'expense',
+      date: date || rawDate.trim(),
+      description,
+      payer: payerName,
+      payee: payeeName,
+      currency: currency || (mapping.currency ? row[mapping.currency].trim() : ''),
+      amount,
+      flag,
+      notes,
+      localNotes: localNotesCol ? (row[localNotesCol]?.trim() ?? '') : '',
+      linkedExpenseId: null,
+      status: 'skipped',
+      skipReason: ''
+    };
+
+    // --- Validation for expense conversion ---
+
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) {
+      const reason = `Non-expense entry type: ${entryType}`;
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
+    if (mapping.id) {
+      const rowId = row[mapping.id].trim();
+      if (rowId && seenIds.has(rowId)) {
+        const reason = `Duplicate ID: ${rowId}`;
+        result.skippedRows.push({ row: rowNum, reason });
+        journalEntry.skipReason = reason;
+        result.journalEntries.push(journalEntry);
+        continue;
+      }
+      if (rowId) seenIds.add(rowId);
+    }
+
+    if (description.includes('تکرار ثبت')) {
+      const reason = 'Duplicate entry (تکرار ثبت)';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
     if (currency === 'UNKNOWN' || !currency) {
-      result.skippedRows.push({ row: rowNum, reason: `Unknown or missing currency` });
+      const reason = 'Unknown or missing currency';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
     if (!allCurrencyCodes.has(currency)) {
-      result.skippedRows.push({ row: rowNum, reason: `Currency ${currency} not configured` });
+      const reason = `Currency ${currency} not configured`;
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const rawDate = mapping.date ? row[mapping.date] : '';
-    const date = parseFlexibleDate(rawDate);
     if (!date) {
-      result.skippedRows.push({ row: rowNum, reason: 'Invalid date' });
+      const reason = 'Invalid date';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const rawAmount = mapping.amount ? row[mapping.amount] : '0';
-    const amount = Math.round(Math.abs(parseNumber(rawAmount)) * 100) / 100;
     if (amount <= 0) {
-      result.skippedRows.push({ row: rowNum, reason: 'Invalid amount' });
+      const reason = 'Invalid amount';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const payerName = mapping.payer ? row[mapping.payer].trim() : '';
     const payerId = resolveParticipantId(payerName, participantLookup);
     if (!payerId) {
       const reason = payerName
         ? `Unknown payer: ${payerName}`
         : 'No payer column mapped or payer is empty';
       result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const payeeName = mapping.payee ? row[mapping.payee].trim() : '';
-
-    // Check if payee was marked as a description
     const payeeIsDescription = payeeName
       ? descriptionNames.has(payeeName.toLowerCase())
       : false;
@@ -289,30 +386,40 @@ export function transformCsvToExpenses(
     let enrichedDescription = description;
 
     if (payeeIsDescription) {
-      beneficiaries = allParticipants.map(p => makeBeneficiary(p.id));
+      const groupParticipants = tankhahParticipantId
+        ? allParticipants.filter(p => p.id !== tankhahParticipantId)
+        : allParticipants;
+      beneficiaries = groupParticipants.map(p => makeBeneficiary(p.id));
       if (payeeName && !description.includes(payeeName)) {
         enrichedDescription = description ? `${description} - ${payeeName}` : payeeName;
       }
     } else {
       beneficiaries = resolveBeneficiaries(
-        payeeName, entryType, payerId, allParticipants, participantLookup
+        payeeName, entryType, payerId, allParticipants, participantLookup, tankhahParticipantId
       );
     }
 
     if (beneficiaries.length === 0) {
-      result.skippedRows.push({ row: rowNum, reason: 'Could not determine beneficiaries' });
+      const reason = 'Could not determine beneficiaries';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
-
-    const notes = mapping.notes ? row[mapping.notes].trim() : '';
-    const flag = mapping.flag ? row[mapping.flag].trim() : '';
 
     if (flag) {
       result.flaggedRows.push({ row: rowNum, flag, notes });
     }
 
+    if (notes && enrichedDescription !== notes) {
+      enrichedDescription = enrichedDescription
+        ? `${enrichedDescription} - ${notes}`
+        : notes;
+    }
+
+    const expenseId = generateId();
     result.expenses.push({
-      id: generateId(),
+      id: expenseId,
       date,
       description: enrichedDescription || `Row ${rowNum}`,
       currencyCode: currency,
@@ -321,9 +428,22 @@ export function transformCsvToExpenses(
       splitType: 'equal',
       beneficiaries
     });
+
+    journalEntry.linkedExpenseId = expenseId;
+    journalEntry.status = flag ? 'flagged' : 'imported';
+    result.journalEntries.push(journalEntry);
   }
 
   return result;
+}
+
+export function mergeJournalEntries(
+  existing: JournalEntry[],
+  incoming: JournalEntry[]
+): JournalEntry[] {
+  const incomingIds = new Set(incoming.map(j => j.journalId));
+  const kept = existing.filter(j => !incomingIds.has(j.journalId));
+  return [...kept, ...incoming];
 }
 
 function makeBeneficiary(pid: string): Beneficiary {
@@ -344,18 +464,27 @@ function resolveBeneficiaries(
   entryType: string,
   payerId: string,
   allParticipants: Participant[],
-  lookup: Map<string, string>
+  lookup: Map<string, string>,
+  tankhahParticipantId?: string
 ): Beneficiary[] {
+  const groupParticipants = tankhahParticipantId
+    ? allParticipants.filter(p => p.id !== tankhahParticipantId)
+    : allParticipants;
+
   if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
-    return allParticipants.map(p => makeBeneficiary(p.id));
+    return groupParticipants.map(p => makeBeneficiary(p.id));
   }
 
-  if (payeeName === 'هزینه شخصی' || entryType === 'expense_personal') {
+  if (payeeName === 'هزینه شخصی') {
+    return [makeBeneficiary(payerId)];
+  }
+
+  if (entryType === 'expense_personal' && !payeeName) {
     return [makeBeneficiary(payerId)];
   }
 
   if (!payeeName) {
-    return allParticipants.map(p => makeBeneficiary(p.id));
+    return groupParticipants.map(p => makeBeneficiary(p.id));
   }
 
   if (payeeName.includes('|')) {

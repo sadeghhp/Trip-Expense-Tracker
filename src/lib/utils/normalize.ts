@@ -1,4 +1,41 @@
-import type { AppData, AppState, Expense } from '../types';
+import type { AppData, AppState, Expense, JournalEntry } from '../types';
+
+function normalizeJournalEntries(raw: any, expenseIds: Set<string>): JournalEntry[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+
+  const entries: JournalEntry[] = [];
+  for (const j of raw) {
+    if (typeof j?.journalId !== 'string' || !j.journalId) continue;
+    const status = j.status;
+    if (status !== 'imported' && status !== 'skipped' && status !== 'flagged') continue;
+
+    const amount = Number(j.amount);
+    const linkedId = typeof j.linkedExpenseId === 'string' && expenseIds.has(j.linkedExpenseId)
+      ? j.linkedExpenseId
+      : null;
+
+    entries.push({
+      journalId: j.journalId,
+      entryId: typeof j.entryId === 'string' ? j.entryId : '',
+      sourceFile: typeof j.sourceFile === 'string' ? j.sourceFile : '',
+      entryType: typeof j.entryType === 'string' ? j.entryType : '',
+      date: typeof j.date === 'string' ? j.date : '',
+      description: typeof j.description === 'string' ? j.description : '',
+      payer: typeof j.payer === 'string' ? j.payer : '',
+      payee: typeof j.payee === 'string' ? j.payee : '',
+      currency: typeof j.currency === 'string' ? j.currency : '',
+      amount: Number.isFinite(amount) ? amount : 0,
+      flag: typeof j.flag === 'string' ? j.flag : '',
+      notes: typeof j.notes === 'string' ? j.notes : '',
+      localNotes: typeof j.localNotes === 'string' ? j.localNotes : '',
+      linkedExpenseId: linkedId,
+      status,
+      skipReason: typeof j.skipReason === 'string' ? j.skipReason : ''
+    });
+  }
+
+  return entries.length > 0 ? entries : undefined;
+}
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -62,12 +99,21 @@ export function normalizeData(raw: any): AppData {
     settlementCurrency = '';
   }
 
+  const journalEntries = normalizeJournalEntries(raw?.journalEntries, new Set(expenses.map((e: any) => e.id)));
+
+  const tankhahParticipantId =
+    typeof raw?.tankhahParticipantId === 'string' && participantIds.has(raw.tankhahParticipantId)
+      ? raw.tankhahParticipantId
+      : undefined;
+
   return {
     participants: validParticipants,
     currencies: validCurrencies,
     expenses,
     exchangeRates: cleanedRates,
-    settlementCurrency
+    settlementCurrency,
+    ...(tankhahParticipantId ? { tankhahParticipantId } : {}),
+    ...(journalEntries ? { journalEntries } : {})
   };
 }
 

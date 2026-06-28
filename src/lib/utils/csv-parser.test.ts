@@ -6,7 +6,7 @@ describe('detectDelimiter', () => {
     ['a,b,c', ','],
     ['a;b;c', ';'],
     ['a\tb\tc', '\t'],
-    ['a|b|c', '|'],
+    ['a|b|c', ','],
     ['no delimiters', ',']
   ])('detectDelimiter(%j) returns %j', (line, expected) => {
     expect(detectDelimiter(line)).toBe(expected);

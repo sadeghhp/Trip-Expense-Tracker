@@ -10,6 +10,8 @@
     extractUniqueCurrencies,
     getSymbolForCurrency,
     transformCsvToExpenses,
+    mergeJournalEntries,
+    type DateFormat,
     type ParticipantMapping,
     type AmbiguousPayee,
     type ExtractedNames,
@@ -18,6 +20,7 @@
   import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import type { Participant, Currency } from '$lib/types';
+  import { BookOpen } from '@lucide/svelte';
 
   interface Props {
     open: boolean;
@@ -39,6 +42,7 @@
   let importMode = $state<'merge' | 'new'>('merge');
   let newTripName = $state('');
   let dragOver = $state(false);
+  let dateFormat = $state<DateFormat>('auto');
 
   const mappingFields: { key: keyof ColumnMapping; labelKey: string; required: boolean }[] = [
     { key: 'date', labelKey: 'csvImport.fields.date', required: true },
@@ -76,6 +80,8 @@
     importMode = 'merge';
     newTripName = defaultTripName();
     dragOver = false;
+    dateFormat = 'auto';
+    journalFilter = 'all';
   }
 
   $effect(() => {
@@ -192,7 +198,9 @@
       allMappings,
       $appData.participants,
       $appData.currencies,
-      newCurrencies
+      newCurrencies,
+      dateFormat,
+      $appData.tankhahParticipantId
     );
 
     step = 4;
@@ -210,24 +218,53 @@
       .filter(c => !$appData.currencies.some(ec => ec.code === c.code))
       .map(c => ({ code: c.code, symbol: c.symbol }));
 
+    const journal = importResult.journalEntries;
+
     if (importMode === 'merge') {
       updateData(d => ({
         ...d,
         participants: [...d.participants, ...newParticipants],
         currencies: [...d.currencies, ...newCurrencies],
-        expenses: [...d.expenses, ...importResult!.expenses]
+        expenses: [...d.expenses, ...importResult!.expenses],
+        journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal)
       }));
-      showToast($t('csvImport.importedToTrip', { count: importResult.expenses.length }));
+      if (importResult.expenses.length > 0) {
+        showToast($t('csvImport.importedToTrip', { count: importResult.expenses.length }));
+      } else {
+        showToast($t('csvImport.importedJournalOnly', { count: journal.length }));
+      }
     } else {
+      const referencedIds = new Set<string>();
+      const referencedCurrencies = new Set<string>();
+      for (const exp of importResult!.expenses) {
+        referencedIds.add(exp.paidBy);
+        referencedCurrencies.add(exp.currencyCode);
+        for (const b of exp.beneficiaries) referencedIds.add(b.participantId);
+      }
+      const relevantExisting = $appData.participants.filter(p => referencedIds.has(p.id));
+      const relevantNew = newParticipants.filter(p => referencedIds.has(p.id));
+      const allParticipants = [...relevantExisting, ...relevantNew];
+      const allParticipantIds = new Set(allParticipants.map(p => p.id));
+      const relevantExistingCurrencies = $appData.currencies.filter(c => referencedCurrencies.has(c.code));
+      const relevantNewCurrencies = newCurrencies.filter(c => referencedCurrencies.has(c.code));
+
       const data = {
-        participants: [...$appData.participants, ...newParticipants],
-        currencies: [...$appData.currencies, ...newCurrencies],
+        participants: allParticipants,
+        currencies: [...relevantExistingCurrencies, ...relevantNewCurrencies],
         expenses: importResult.expenses,
         exchangeRates: {},
-        settlementCurrency: ''
+        settlementCurrency: '',
+        journalEntries: journal,
+        ...($appData.tankhahParticipantId && allParticipantIds.has($appData.tankhahParticipantId)
+          ? { tankhahParticipantId: $appData.tankhahParticipantId }
+          : {})
       };
       importAsNewTrip(newTripName, data);
-      showToast($t('csvImport.createdNewTrip', { name: newTripName, count: importResult.expenses.length }));
+      if (importResult.expenses.length > 0) {
+        showToast($t('csvImport.createdNewTrip', { name: newTripName, count: importResult.expenses.length }));
+      } else {
+        showToast($t('csvImport.createdNewTripJournal', { name: newTripName, count: journal.length }));
+      }
     }
 
     handleClose();
@@ -242,9 +279,18 @@
     };
   }
 
+  let journalFilter = $state<'all' | 'imported' | 'skipped'>('all');
+
   let previewRows = $derived(csvResult?.rows.slice(0, 5) ?? []);
   let mappingInfo = $derived(getMappingCompleteness(mapping));
   let allAmbiguousResolved = $derived(ambiguousPayees.length === 0 || ambiguousPayees.every(ap => ap.resolved));
+  let filteredJournal = $derived(
+    importResult?.journalEntries.filter(e =>
+      journalFilter === 'all' ? true :
+      journalFilter === 'imported' ? e.status === 'imported' || e.status === 'flagged' :
+      e.status === 'skipped'
+    ) ?? []
+  );
 </script>
 
 <Modal open={open} title={$t('csvImport.title')} onClose={handleClose}>
@@ -381,6 +427,24 @@
             </div>
           {/each}
         </div>
+
+        {#if mapping.date}
+          <div class="flex items-center gap-2">
+            <label for="date-format" class="w-28 text-xs font-medium text-[var(--text-primary)] shrink-0">
+              {$t('csvImport.dateFormat')}
+            </label>
+            <select
+              id="date-format"
+              value={dateFormat}
+              onchange={(e) => { dateFormat = (e.target as HTMLSelectElement).value as DateFormat; }}
+              class="flex-1 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+            >
+              <option value="auto">{$t('csvImport.dateFormatAuto')}</option>
+              <option value="mdy">{$t('csvImport.dateFormatMDY')}</option>
+              <option value="dmy">{$t('csvImport.dateFormatDMY')}</option>
+            </select>
+          </div>
+        {/if}
 
         <div class="flex gap-2">
           <button
@@ -594,6 +658,71 @@
           </details>
         {/if}
 
+        <!-- Full Journal -->
+        {#if importResult.journalEntries.length > 0}
+          <details class="text-xs">
+            <summary class="cursor-pointer font-medium text-[var(--text-primary)] flex items-center gap-1">
+              <BookOpen size={12} /> {$t('csvImport.fullJournal', { count: importResult.journalEntries.length })}
+            </summary>
+            <div class="mt-2 space-y-2">
+              <div class="flex gap-1">
+                {#each ['all', 'imported', 'skipped'] as filter}
+                  <button
+                    onclick={() => { journalFilter = filter as 'all' | 'imported' | 'skipped'; }}
+                    class="px-2 py-0.5 rounded-full text-xs font-medium transition-all
+                      {journalFilter === filter ? 'bg-primary-600 text-white' : 'bg-[#e2e8f0] dark:bg-[#334155] text-[var(--text-secondary)] hover:bg-[#cbd5e1] dark:hover:bg-[#475569]'}"
+                  >
+                    {$t(`csvImport.journalFilter.${filter}`)}
+                    ({filter === 'all' ? importResult.journalEntries.length
+                      : filter === 'imported' ? importResult.journalEntries.filter(e => e.status === 'imported' || e.status === 'flagged').length
+                      : importResult.journalEntries.filter(e => e.status === 'skipped').length})
+                  </button>
+                {/each}
+              </div>
+              <div class="overflow-x-auto rounded-lg border border-[var(--card-border)] max-h-[200px] overflow-y-auto">
+                <table class="w-full text-xs">
+                  <thead class="sticky top-0">
+                    <tr class="bg-[#f1f5f9] dark:bg-[#1e293b]">
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.status')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.id')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.type')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.date')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.payer')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.payee')}</th>
+                      <th class="px-2 py-1 text-end font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.amount')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.description')}</th>
+                      <th class="px-2 py-1 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.reason')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each filteredJournal as entry, i}
+                      <tr class="border-t border-[var(--card-border)]
+                        {entry.status === 'imported' ? 'bg-green-50/50 dark:bg-green-900/5'
+                        : entry.status === 'flagged' ? 'bg-amber-50/50 dark:bg-amber-900/5'
+                        : 'bg-[#f8fafc] dark:bg-[#1e293b]/50'}">
+                        <td class="px-2 py-1 whitespace-nowrap">
+                          <span class="inline-block w-1.5 h-1.5 rounded-full
+                            {entry.status === 'imported' ? 'bg-green-500'
+                            : entry.status === 'flagged' ? 'bg-amber-500'
+                            : 'bg-gray-400'}"></span>
+                        </td>
+                        <td class="px-2 py-1 font-mono text-[var(--text-secondary)] whitespace-nowrap">{entry.journalId}</td>
+                        <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap">{entry.entryType}</td>
+                        <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap">{entry.date}</td>
+                        <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap">{entry.payer}</td>
+                        <td class="px-2 py-1 text-[var(--text-primary)] whitespace-nowrap max-w-[100px] truncate" title={entry.payee}>{entry.payee}</td>
+                        <td class="px-2 py-1 text-end font-mono text-[var(--text-primary)] whitespace-nowrap">{entry.amount > 0 ? `${entry.amount.toLocaleString()} ${entry.currency}` : ''}</td>
+                        <td class="px-2 py-1 text-[var(--text-secondary)] max-w-[150px] truncate" title={entry.description}>{entry.description || entry.localNotes}</td>
+                        <td class="px-2 py-1 text-[var(--text-secondary)] max-w-[120px] truncate" title={entry.skipReason}>{entry.skipReason}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        {/if}
+
         <!-- Import mode -->
         <div class="space-y-2">
           <h4 class="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{$t('csvImport.importTo')}</h4>
@@ -632,10 +761,15 @@
           </button>
           <button
             onclick={executeImport}
-            disabled={importResult.expenses.length === 0}
+            disabled={importResult.journalEntries.length === 0}
             class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white text-sm font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Check size={16} /> {$t('csvImport.importExpenses', { count: importResult.expenses.length })}
+            <Check size={16} />
+            {#if importResult.expenses.length > 0}
+              {$t('csvImport.importExpenses', { count: importResult.expenses.length })}
+            {:else}
+              {$t('csvImport.importJournalOnly', { count: importResult.journalEntries.length })}
+            {/if}
           </button>
         </div>
       </div>

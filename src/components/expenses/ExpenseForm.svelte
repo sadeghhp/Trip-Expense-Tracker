@@ -41,8 +41,11 @@
       amount = e?.amount?.toString() ?? '';
       paidBy = e?.paidBy ?? $appData.participants[0]?.id ?? '';
       splitType = e?.splitType ?? 'equal';
+      const tankhahId = $appData.tankhahParticipantId;
       selectedBeneficiaries = new Set(
-        e ? e.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id)
+        e
+          ? e.beneficiaries.map(b => b.participantId).filter(id => id !== tankhahId)
+          : $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
       );
       customAmounts = Object.fromEntries(
         e ? e.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : []
@@ -80,8 +83,17 @@
     return sum;
   });
 
-  let allSelected = $derived(selectedBeneficiaries.size === $appData.participants.length);
+  let nonTankhahParticipants = $derived(
+    $appData.participants.filter(p => p.id !== $appData.tankhahParticipantId)
+  );
+  let allSelected = $derived(
+    nonTankhahParticipants.every(p => selectedBeneficiaries.has(p.id))
+    && nonTankhahParticipants.length > 0
+  );
   let noneSelected = $derived(selectedBeneficiaries.size === 0);
+  let tankhahIncluded = $derived(
+    !!$appData.tankhahParticipantId && selectedBeneficiaries.has($appData.tankhahParticipantId)
+  );
 
   function toggleBeneficiary(pid: string) {
     const next = new Set(selectedBeneficiaries);
@@ -94,7 +106,10 @@
   }
 
   function selectAllBeneficiaries() {
-    selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
+    const tankhahId = $appData.tankhahParticipantId;
+    selectedBeneficiaries = new Set(
+      $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
+    );
   }
 
   function clearAllBeneficiaries() {
@@ -276,49 +291,105 @@
         <div class="space-y-2 max-h-48 overflow-y-auto">
           {#each $appData.participants as p (p.id)}
             {@const selected = selectedBeneficiaries.has(p.id)}
-            <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
-              <button
-                type="button"
-                onclick={() => toggleBeneficiary(p.id)}
-                class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
-                  {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
-              >
-                {#if selected}
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                {/if}
-              </button>
-              <span class="text-sm text-[var(--text-primary)] flex-1">{p.name}</span>
+            {@const pIsTankhah = p.id === $appData.tankhahParticipantId}
+            {#if !pIsTankhah}
+              <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
+                <button
+                  type="button"
+                  onclick={() => toggleBeneficiary(p.id)}
+                  class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                    {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
+                >
+                  {#if selected}
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  {/if}
+                </button>
+                <span class="text-sm text-[var(--text-primary)] flex-1">{p.name}</span>
 
-              {#if selected && splitType === 'custom'}
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={customAmounts[p.id] ?? ''}
-                  oninput={(e) => customAmounts[p.id] = (e.target as HTMLInputElement).value}
-                  class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-              {/if}
-              {#if selected && splitType === 'percentage'}
-                <div class="flex items-center gap-1">
+                {#if selected && splitType === 'custom'}
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    max="100"
-                    placeholder="0"
-                    value={customPercentages[p.id] ?? ''}
-                    oninput={(e) => customPercentages[p.id] = (e.target as HTMLInputElement).value}
-                    class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="0.00"
+                    value={customAmounts[p.id] ?? ''}
+                    oninput={(e) => customAmounts[p.id] = (e.target as HTMLInputElement).value}
+                    class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
-                  <span class="text-xs text-[var(--text-secondary)]">%</span>
-                </div>
-              {/if}
-            </div>
+                {/if}
+                {#if selected && splitType === 'percentage'}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={customPercentages[p.id] ?? ''}
+                      oninput={(e) => customPercentages[p.id] = (e.target as HTMLInputElement).value}
+                      class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <span class="text-xs text-[var(--text-secondary)]">%</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
           {/each}
+
+          {#if $appData.tankhahParticipantId}
+            {@const tankhahP = $appData.participants.find(p => p.id === $appData.tankhahParticipantId)}
+            {#if tankhahP}
+              <div class="flex items-center gap-3 p-2 rounded-xl border border-dashed {tankhahIncluded ? 'bg-accent-50 dark:bg-accent-900/20 border-accent-300 dark:border-accent-700' : 'border-[var(--card-border)]'}">
+                <button
+                  type="button"
+                  onclick={() => toggleBeneficiary(tankhahP.id)}
+                  class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                    {tankhahIncluded ? 'border-accent-600 bg-accent-600' : 'border-[var(--card-border)]'}"
+                >
+                  {#if tankhahIncluded}
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  {/if}
+                </button>
+                <span class="text-sm text-accent-700 dark:text-accent-300 flex-1 flex items-center gap-1.5">
+                  {tankhahP.name}
+                  <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400">
+                    {$t('participants.tankhahBadge')}
+                  </span>
+                </span>
+
+                {#if tankhahIncluded && splitType === 'custom'}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={customAmounts[tankhahP.id] ?? ''}
+                    oninput={(e) => customAmounts[tankhahP.id] = (e.target as HTMLInputElement).value}
+                    class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                {/if}
+                {#if tankhahIncluded && splitType === 'percentage'}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={customPercentages[tankhahP.id] ?? ''}
+                      oninput={(e) => customPercentages[tankhahP.id] = (e.target as HTMLInputElement).value}
+                      class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <span class="text-xs text-[var(--text-secondary)]">%</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
         </div>
       </div>
 

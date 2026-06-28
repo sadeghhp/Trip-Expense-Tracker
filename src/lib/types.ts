@@ -37,12 +37,33 @@ export interface Expense {
   aiMetadata?: AIMetadata;
 }
 
+export interface JournalEntry {
+  journalId: string;
+  entryId: string;
+  sourceFile: string;
+  entryType: string;
+  date: string;
+  description: string;
+  payer: string;
+  payee: string;
+  currency: string;
+  amount: number;
+  flag: string;
+  notes: string;
+  localNotes: string;
+  linkedExpenseId: string | null;
+  status: 'imported' | 'skipped' | 'flagged';
+  skipReason: string;
+}
+
 export interface AppData {
   participants: Participant[];
   currencies: Currency[];
   expenses: Expense[];
   exchangeRates: Record<string, number>;
   settlementCurrency: string;
+  tankhahParticipantId?: string;
+  journalEntries?: JournalEntry[];
 }
 
 export type CalendarType = 'gregorian' | 'jalali';

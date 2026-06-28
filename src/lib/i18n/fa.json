@@ -94,7 +94,16 @@
     "needParticipantAndCurrency": "ابتدا حداقل یک شرکت‌کننده و یک ارز اضافه کنید.",
     "updated": "هزینه بروزرسانی شد",
     "added": "هزینه اضافه شد",
-    "deleted": "هزینه حذف شد"
+    "deleted": "هزینه حذف شد",
+    "tabExpenses": "هزینه‌ها",
+    "tabJournal": "دفتر کل"
+  },
+  "journal": {
+    "noEntriesTitle": "ثبت دفتر کل وجود ندارد",
+    "noEntriesDesc": "یک فایل CSV وارد کنید تا دفتر مالی کامل در کنار هزینه‌ها ذخیره شود.",
+    "allTypes": "همه انواع ثبت",
+    "viewExpense": "مشاهده هزینه",
+    "entryCount": "نمایش {count} از {total} ثبت"
   },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",
@@ -133,7 +142,14 @@
     "updated": "شرکت‌کننده بروزرسانی شد",
     "added": "شرکت‌کننده اضافه شد",
     "cannotDelete": "امکان حذف وجود ندارد: شرکت‌کننده در هزینه‌ها استفاده شده است",
-    "deleted": "شرکت‌کننده حذف شد"
+    "deleted": "شرکت‌کننده حذف شد",
+    "tankhah": "تنخواه‌گردان",
+    "tankhahBadge": "مدیر صندوق",
+    "setAsTankhah": "تنظیم به عنوان تنخواه‌گردان",
+    "removeTankhah": "حذف نقش تنخواه‌گردان",
+    "tankhahSet": "{name} اکنون تنخواه‌گردان است",
+    "tankhahRemoved": "نقش تنخواه‌گردان حذف شد",
+    "cannotDeleteTankhah": "ابتدا نقش تنخواه‌گردان را حذف کنید"
   },
   "currencies": {
     "quickAdd": "افزودن سریع",
@@ -166,7 +182,8 @@
     "net": "خالص:",
     "creditor": "طلبکار",
     "debtor": "بدهکار",
-    "settled": "تسویه"
+    "settled": "تسویه",
+    "fundManager": "مدیر صندوق"
   },
   "settlement": {
     "noCurrenciesTitle": "ارزی وجود ندارد",
@@ -372,6 +389,30 @@
     "newTrip": "سفر جدید",
     "tripNamePlaceholder": "نام سفر",
     "importExpenses": "وارد کردن {count} هزینه",
+    "importJournalOnly": "وارد کردن {count} ثبت دفتر کل",
+    "importedJournalOnly": "{count} ثبت دفتر کل وارد شد",
+    "createdNewTripJournal": "سفر \"{name}\" با {count} ثبت دفتر کل ایجاد شد",
+    "dateFormat": "قالب تاریخ",
+    "dateFormatAuto": "تشخیص خودکار",
+    "dateFormatMDY": "ماه/روز/سال",
+    "dateFormatDMY": "روز/ماه/سال",
+    "fullJournal": "دفتر کل ({count} ثبت)",
+    "journalFilter": {
+      "all": "همه",
+      "imported": "وارد شده",
+      "skipped": "رد شده"
+    },
+    "journalCol": {
+      "status": "",
+      "id": "شناسه",
+      "type": "نوع",
+      "date": "تاریخ",
+      "payer": "پرداخت‌کننده",
+      "payee": "ذینفع",
+      "amount": "مبلغ",
+      "description": "توضیحات",
+      "reason": "دلیل"
+    },
     "fields": {
       "date": "تاریخ",
       "description": "توضیحات",

@@ -94,7 +94,16 @@
     "needParticipantAndCurrency": "Add at least one participant and one currency first.",
     "updated": "Expense updated",
     "added": "Expense added",
-    "deleted": "Expense deleted"
+    "deleted": "Expense deleted",
+    "tabExpenses": "Expenses",
+    "tabJournal": "Journal"
+  },
+  "journal": {
+    "noEntriesTitle": "No journal entries",
+    "noEntriesDesc": "Import a CSV file to store the full financial journal alongside expenses.",
+    "allTypes": "All entry types",
+    "viewExpense": "View expense",
+    "entryCount": "Showing {count} of {total} entries"
   },
   "expenseForm": {
     "editTitle": "Edit Expense",
@@ -133,7 +142,14 @@
     "updated": "Participant updated",
     "added": "Participant added",
     "cannotDelete": "Cannot delete: participant is used in expenses",
-    "deleted": "Participant deleted"
+    "deleted": "Participant deleted",
+    "tankhah": "Tankhah",
+    "tankhahBadge": "Fund Manager",
+    "setAsTankhah": "Set as Tankhah",
+    "removeTankhah": "Remove Tankhah Role",
+    "tankhahSet": "{name} is now the Tankhah",
+    "tankhahRemoved": "Tankhah role removed",
+    "cannotDeleteTankhah": "Remove the Tankhah role first before deleting"
   },
   "currencies": {
     "quickAdd": "Quick Add",
@@ -166,7 +182,8 @@
     "net": "Net:",
     "creditor": "creditor",
     "debtor": "debtor",
-    "settled": "settled"
+    "settled": "settled",
+    "fundManager": "fund manager"
   },
   "settlement": {
     "noCurrenciesTitle": "No currencies",
@@ -372,6 +389,30 @@
     "newTrip": "New Trip",
     "tripNamePlaceholder": "Trip name",
     "importExpenses": "Import {count} Expenses",
+    "importJournalOnly": "Import {count} Journal Entries",
+    "importedJournalOnly": "Imported {count} journal entries",
+    "createdNewTripJournal": "Created trip \"{name}\" with {count} journal entries",
+    "dateFormat": "Date format",
+    "dateFormatAuto": "Auto-detect",
+    "dateFormatMDY": "MM/DD/YYYY",
+    "dateFormatDMY": "DD/MM/YYYY",
+    "fullJournal": "Full Journal ({count} entries)",
+    "journalFilter": {
+      "all": "All",
+      "imported": "Imported",
+      "skipped": "Skipped"
+    },
+    "journalCol": {
+      "status": "",
+      "id": "ID",
+      "type": "Type",
+      "date": "Date",
+      "payer": "Payer",
+      "payee": "Payee",
+      "amount": "Amount",
+      "description": "Description",
+      "reason": "Reason"
+    },
     "fields": {
       "date": "Date",
       "description": "Description",

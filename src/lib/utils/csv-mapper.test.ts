@@ -111,6 +111,26 @@ describe('detectColumnMapping', () => {
     const mapping = detectColumnMapping(['Date', 'Description', 'Amount', 'Recipient']);
     expect(mapping.payee).toBe('Recipient');
   });
+
+  it('maps توضیح as description when no English description column exists', () => {
+    const mapping = detectColumnMapping(['تاریخ', 'توضیح', 'مبلغ']);
+    expect(mapping.description).toBe('توضیح');
+  });
+
+  it('maps journal CSV headers correctly', () => {
+    const headers = ['journal_id', 'entry_id', 'source_file', 'entry_type', 'date_text', 'description', 'payer', 'payee', 'currency', 'amount', 'flag', 'notes', 'توضیح'];
+    const mapping = detectColumnMapping(headers);
+    expect(mapping.id).toBe('journal_id');
+    expect(mapping.entryType).toBe('entry_type');
+    expect(mapping.date).toBe('date_text');
+    expect(mapping.description).toBe('description');
+    expect(mapping.payer).toBe('payer');
+    expect(mapping.payee).toBe('payee');
+    expect(mapping.currency).toBe('currency');
+    expect(mapping.amount).toBe('amount');
+    expect(mapping.flag).toBe('flag');
+    expect(mapping.notes).toBe('notes');
+  });
 });
 
 describe('getMappingCompleteness', () => {

@@ -19,6 +19,7 @@
   let currencies = $derived($appData.currencies);
   let nonSettlementCurrencies = $derived(currencies.filter(c => c.code !== settlementCurrency));
   let onlySingleCurrency = $derived(currencies.length <= 1);
+  let tankhahId = $derived($appData.tankhahParticipantId);
 
   let lastCalcVersion: number = $state(-1);
 
@@ -222,8 +223,17 @@
           <div class="space-y-2">
             {#each unifiedBalances as ub (ub.id)}
               {@const status = getStatus(ub.balance)}
-              <div class="flex items-center justify-between p-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl">
-                <span class="text-sm font-medium text-[var(--text-primary)]">{ub.name}</span>
+              {@const ubIsTankhah = ub.id === tankhahId}
+              <div class="flex items-center justify-between p-3 bg-[var(--card-bg)] border rounded-xl
+                {ubIsTankhah ? 'border-accent-200 dark:border-accent-800' : 'border-[var(--card-border)]'}">
+                <span class="text-sm font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                  {ub.name}
+                  {#if ubIsTankhah}
+                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400">
+                      {$t('balances.fundManager')}
+                    </span>
+                  {/if}
+                </span>
                 <span class="text-sm font-bold {getStatusColor(ub.balance)}">
                   {ub.balance < 0 ? '-' : '+'}{getSymbol(settlementCurrency)}{formatAmount(Math.abs(ub.balance))}
                 </span>
@@ -243,9 +253,17 @@
           {:else}
             <div class="space-y-2">
               {#each transactions as tx, i (i)}
-                <div class="flex items-center gap-3 p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl hover:shadow-md transition-all duration-200">
+                {@const toIsTankhah = tankhahId === tx.to}
+                {@const fromIsTankhah = tankhahId === tx.from}
+                <div class="flex items-center gap-3 p-4 bg-[var(--card-bg)] border rounded-2xl hover:shadow-md transition-all duration-200
+                  {toIsTankhah || fromIsTankhah
+                    ? 'border-accent-200 dark:border-accent-800'
+                    : 'border-[var(--card-border)]'}">
                   <div class="flex-1 text-end">
                     <span class="text-sm font-medium text-danger-500">{tx.fromName}</span>
+                    {#if fromIsTankhah}
+                      <span class="block text-[10px] text-accent-600 dark:text-accent-400">{$t('participants.tankhahBadge')}</span>
+                    {/if}
                   </div>
                   <div class="flex flex-col items-center gap-0.5">
                     {#if $isRtl}<ArrowLeft size={16} class="text-primary-500" />{:else}<ArrowRight size={16} class="text-primary-500" />{/if}
@@ -255,6 +273,9 @@
                   </div>
                   <div class="flex-1">
                     <span class="text-sm font-medium text-success-600 dark:text-success-500">{tx.toName}</span>
+                    {#if toIsTankhah}
+                      <span class="block text-[10px] text-accent-600 dark:text-accent-400">{$t('participants.tankhahBadge')}</span>
+                    {/if}
                   </div>
                 </div>
               {/each}

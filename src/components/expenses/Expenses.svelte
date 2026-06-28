@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, Pencil, Trash2, Receipt, AlertTriangle } from '@lucide/svelte';
+  import { Plus, Pencil, Trash2, Receipt, AlertTriangle, BookOpen } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { settings } from '$lib/stores/settings';
@@ -9,6 +9,7 @@
   import { t } from '$lib/i18n';
   import type { Expense, TabId } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
+  import JournalList from './JournalList.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
   import ImageViewer from '../ui/ImageViewer.svelte';
@@ -24,6 +25,9 @@
   let editingExpense: Expense | null = $state(null);
   let deleteConfirm: Expense | null = $state(null);
   let viewingImageId: string | null = $state(null);
+  let viewMode = $state<'expenses' | 'journal'>('expenses');
+
+  let hasJournal = $derived(($appData.journalEntries?.length ?? 0) > 0);
 
   let sortedExpenses = $derived(
     [...$appData.expenses].sort((a, b) => b.date.localeCompare(a.date))
@@ -76,9 +80,41 @@
   function nameFor(id: string): string {
     return getParticipantName(id, $appData.participants);
   }
+
+  function viewLinkedExpense(expenseId: string) {
+    const expense = $appData.expenses.find(e => e.id === expenseId);
+    if (expense) {
+      viewMode = 'expenses';
+      openEdit(expense);
+    }
+  }
 </script>
 
 <div class="p-4 md:p-6 space-y-4">
+  {#if hasJournal}
+    <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
+      <button
+        onclick={() => { viewMode = 'expenses'; }}
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-all
+          {viewMode === 'expenses' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
+      >
+        <Receipt size={14} />
+        {$t('expenses.tabExpenses')} ({sortedExpenses.length})
+      </button>
+      <button
+        onclick={() => { viewMode = 'journal'; }}
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-all
+          {viewMode === 'journal' ? 'bg-primary-600 text-white' : 'text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
+      >
+        <BookOpen size={14} />
+        {$t('expenses.tabJournal')} ({$appData.journalEntries?.length ?? 0})
+      </button>
+    </div>
+  {/if}
+
+  {#if viewMode === 'journal'}
+    <JournalList onViewExpense={viewLinkedExpense} />
+  {:else}
   {#if $appData.participants.length === 0 || $appData.currencies.length === 0}
     <div class="p-4 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
       <div class="flex items-start gap-3">
@@ -180,7 +216,9 @@
       {/each}
     </div>
   {/if}
+  {/if}
 
+  {#if viewMode === 'expenses'}
   <button
     onclick={openAdd}
     class="fixed mobile-fab end-4 md:bottom-6 md:end-6 w-14 h-14 rounded-2xl flex items-center justify-center transition-all
@@ -190,6 +228,7 @@
   >
     <Plus size={24} />
   </button>
+  {/if}
 </div>
 
 {#if showForm}

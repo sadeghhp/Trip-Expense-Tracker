@@ -10,7 +10,7 @@ export interface CsvParseResult {
 }
 
 export function detectDelimiter(firstLine: string): string {
-  const candidates = [',', ';', '\t', '|'];
+  const candidates = [',', ';', '\t'];
   let best = ',';
   let bestCount = 0;
 
