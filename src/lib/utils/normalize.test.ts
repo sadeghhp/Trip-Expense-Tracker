@@ -148,6 +148,44 @@ describe('normalizeData', () => {
     expect(result.expenses[0].splitType).toBe('equal');
   });
 
+  it('preserves isTreat when true', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Drinks',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        isTreat: true,
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }]
+    });
+    expect(result.expenses[0].isTreat).toBe(true);
+  });
+
+  it('strips invalid isTreat values', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Test',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        isTreat: 'yes',
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }]
+    });
+    expect(result.expenses[0].isTreat).toBeUndefined();
+  });
+
   it('cleans invalid exchange rates', () => {
     const result = normalizeData({
       participants: [],

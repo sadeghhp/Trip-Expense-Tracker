@@ -104,6 +104,56 @@ describe('computeBalances', () => {
     const net = balances.USD['p-1'].net;
     expect(net).toBe(Math.round(net * 100) / 100);
   });
+
+  it('treat expense: payer net is zero, beneficiaries have no owed', () => {
+    const expense = makeExpense({
+      amount: 100,
+      paidBy: 'p-1',
+      isTreat: true,
+      beneficiaries: [makeBeneficiary('p-1'), makeBeneficiary('p-2')]
+    });
+    const balances = computeBalances([expense]);
+    expect(balances.USD['p-1'].paid).toBe(100);
+    expect(balances.USD['p-1'].owed).toBe(100);
+    expect(balances.USD['p-1'].net).toBe(0);
+    expect(balances.USD['p-2']).toBeUndefined();
+  });
+
+  it('treat expense with tankhah payer: payer net is zero', () => {
+    const expense = makeExpense({
+      amount: 50,
+      paidBy: 'tankhah',
+      isTreat: true,
+      beneficiaries: [makeBeneficiary('p-1'), makeBeneficiary('p-2')]
+    });
+    const balances = computeBalances([expense]);
+    expect(balances.USD['tankhah'].paid).toBe(50);
+    expect(balances.USD['tankhah'].owed).toBe(50);
+    expect(balances.USD['tankhah'].net).toBe(0);
+    expect(balances.USD['p-1']).toBeUndefined();
+    expect(balances.USD['p-2']).toBeUndefined();
+  });
+
+  it('mixes treat and normal expenses correctly', () => {
+    const treat = makeExpense({
+      amount: 100,
+      paidBy: 'p-1',
+      isTreat: true,
+      beneficiaries: [makeBeneficiary('p-1'), makeBeneficiary('p-2')]
+    });
+    const normal = makeExpense({
+      amount: 60,
+      paidBy: 'p-2',
+      beneficiaries: [makeBeneficiary('p-1'), makeBeneficiary('p-2')]
+    });
+    const balances = computeBalances([treat, normal]);
+    expect(balances.USD['p-1'].paid).toBe(100);
+    expect(balances.USD['p-1'].owed).toBe(130);
+    expect(balances.USD['p-1'].net).toBe(-30);
+    expect(balances.USD['p-2'].paid).toBe(60);
+    expect(balances.USD['p-2'].owed).toBe(30);
+    expect(balances.USD['p-2'].net).toBe(30);
+  });
 });
 
 describe('getStatus', () => {

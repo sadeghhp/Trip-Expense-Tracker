@@ -264,7 +264,13 @@
             </div>
           </div>
           <div class="mt-2 flex items-center gap-1 flex-wrap">
-            <span class="text-[10px] tracking-wide uppercase text-[var(--text-secondary)]">{$t('expenses.split', { type: $t(`expenseForm.${expense.splitType}`) })}</span>
+            {#if expense.isTreat}
+              <span class="px-1.5 py-0.5 rounded bg-accent-100 dark:bg-accent-900/40 text-[10px] font-semibold text-accent-700 dark:text-accent-300">
+                {$t('expenses.treatBadge')}
+              </span>
+            {:else}
+              <span class="text-[10px] tracking-wide uppercase text-[var(--text-secondary)]">{$t('expenses.split', { type: $t(`expenseForm.${expense.splitType}`) })}</span>
+            {/if}
             {#each expense.beneficiaries.slice(0, 4) as b}
               {@const name = nameFor(b.participantId)}
               <span class="px-1.5 py-0.5 rounded bg-primary-50 dark:bg-primary-900/30 text-[10px] font-medium text-primary-700 dark:text-primary-300">

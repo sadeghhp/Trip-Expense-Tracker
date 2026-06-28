@@ -35,6 +35,7 @@ export interface Expense {
   source?: 'manual' | 'receipt_ai';
   receiptImageId?: string;
   aiMetadata?: AIMetadata;
+  isTreat?: boolean;
 }
 
 export interface JournalEntry {

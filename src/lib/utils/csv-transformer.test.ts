@@ -461,6 +461,14 @@ describe('transformCsvToExpenses', () => {
     expect(result.expenses[0].beneficiaries.map(b => b.participantId).sort()).toEqual(['p-1', 'p-2']);
   });
 
+  it('sets isTreat for expense_treat entry type', () => {
+    const rows = [{ Date: '2024-06-15', Description: 'Drinks', Amount: '80', Currency: 'USD', Payer: 'Alice', Payee: 'گروه', Type: 'expense_treat' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].isTreat).toBe(true);
+    expect(result.expenses[0].beneficiaries).toHaveLength(2);
+  });
+
   it('excludes tankhah from description-payee group beneficiaries', () => {
     const threeParticipants = [
       makeParticipant({ id: 'p-1', name: 'Alice' }),

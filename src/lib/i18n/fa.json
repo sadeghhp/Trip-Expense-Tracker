@@ -100,7 +100,8 @@
     "tabJournal": "دفتر کل",
     "allCurrencies": "همه",
     "allPeople": "همه افراد",
-    "showingFiltered": "نمایش {count} از {total}"
+    "showingFiltered": "نمایش {count} از {total}",
+    "treatBadge": "مهمانی"
   },
   "journal": {
     "noEntriesTitle": "ثبت دفتر کل وجود ندارد",
@@ -131,7 +132,9 @@
     "updateExpense": "بروزرسانی هزینه",
     "addExpense": "افزودن هزینه",
     "selectAll": "انتخاب همه",
-    "clearAll": "پاک کردن"
+    "clearAll": "پاک کردن",
+    "treat": "مهمانی",
+    "treatHint": "کسی پس نمی‌دهد — پرداخت‌کننده همه هزینه را می‌پردازد"
   },
   "participants": {
     "noParticipantsTitle": "هنوز شرکت‌کننده‌ای اضافه نشده",

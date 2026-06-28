@@ -100,7 +100,8 @@
     "tabJournal": "Journal",
     "allCurrencies": "All",
     "allPeople": "All people",
-    "showingFiltered": "Showing {count} of {total}"
+    "showingFiltered": "Showing {count} of {total}",
+    "treatBadge": "Treat"
   },
   "journal": {
     "noEntriesTitle": "No journal entries",
@@ -131,7 +132,9 @@
     "updateExpense": "Update Expense",
     "addExpense": "Add Expense",
     "selectAll": "Select All",
-    "clearAll": "Clear"
+    "clearAll": "Clear",
+    "treat": "Treat",
+    "treatHint": "No one pays back — the payer covers everything"
   },
   "participants": {
     "noParticipantsTitle": "No participants yet",

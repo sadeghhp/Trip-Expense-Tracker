@@ -74,7 +74,15 @@ export function normalizeData(raw: any): AppData {
       }));
     const splitType = ['equal', 'custom', 'percentage'].includes(e.splitType) ? e.splitType : 'equal';
     const amount = Number(e.amount);
-    return { ...e, amount: Number.isFinite(amount) && amount > 0 ? amount : 0, beneficiaries: filteredBeneficiaries, splitType };
+    const isTreat = e.isTreat === true ? true : undefined;
+    const { isTreat: _omitTreat, ...expenseRest } = e;
+    return {
+      ...expenseRest,
+      amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+      beneficiaries: filteredBeneficiaries,
+      splitType,
+      ...(isTreat ? { isTreat } : {})
+    };
   });
 
   // Second filter: referential integrity + valid amount

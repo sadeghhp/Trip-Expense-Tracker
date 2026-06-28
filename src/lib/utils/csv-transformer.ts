@@ -37,6 +37,7 @@ const IMPORTABLE_ENTRY_TYPES = [
   'expense_personal',
   'expense_group',
   'expense_from_tankhah',
+  'expense_treat',
   'expense_alipay',
   'payment_from_tankhah'
 ];
@@ -418,6 +419,7 @@ export function transformCsvToExpenses(
     }
 
     const expenseId = generateId();
+    const isTreatEntry = entryType === 'expense_treat';
     result.expenses.push({
       id: expenseId,
       date,
@@ -426,7 +428,8 @@ export function transformCsvToExpenses(
       amount,
       paidBy: payerId,
       splitType: 'equal',
-      beneficiaries
+      beneficiaries,
+      ...(isTreatEntry ? { isTreat: true } : {})
     });
 
     journalEntry.linkedExpenseId = expenseId;
@@ -471,7 +474,7 @@ function resolveBeneficiaries(
     ? allParticipants.filter(p => p.id !== tankhahParticipantId)
     : allParticipants;
 
-  if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
+  if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah' || entryType === 'expense_treat') {
     return groupParticipants.map(p => makeBeneficiary(p.id));
   }
 
