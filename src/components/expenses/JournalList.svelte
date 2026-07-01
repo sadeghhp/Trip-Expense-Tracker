@@ -1,10 +1,18 @@
 <script lang="ts">
-  import { BookOpen } from '@lucide/svelte';
-  import { appData } from '$lib/stores/data';
+  import { BookOpen, Pencil, Check, ExternalLink } from '@lucide/svelte';
+  import {
+    appData,
+    findJournalByJournalId,
+    ensureActionableJournal,
+    applyJournalEntry
+  } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import { formatAmount } from '$lib/utils/format';
   import { t } from '$lib/i18n';
-  import type { CsvJournalEntry } from '$lib/types';
+  import type { CsvJournalEntry, JournalEntry } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
+  import JournalForm from '../journals/JournalForm.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
 
   interface Props {
     onViewExpense?: (expenseId: string) => void;
@@ -16,6 +24,8 @@
   let typeFilter = $state('');
   let currencyFilter = $state('');
   let payerFilter = $state('');
+  let editingEntry: JournalEntry | null = $state(null);
+  let outOfSyncConfirm: JournalEntry | null = $state(null);
 
   let entries = $derived($appData.journalEntries ?? []);
 
@@ -52,6 +62,51 @@
     if (status === 'imported') return 'bg-green-50/50 dark:bg-green-900/5';
     if (status === 'flagged') return 'bg-amber-50/50 dark:bg-amber-900/5';
     return 'bg-[#f8fafc] dark:bg-[#1e293b]/50';
+  }
+
+  function resolveActionable(audit: CsvJournalEntry): JournalEntry {
+    return findJournalByJournalId(audit.journalId) ?? ensureActionableJournal(audit);
+  }
+
+  function actionableStatus(audit: CsvJournalEntry): JournalEntry['status'] | null {
+    return findJournalByJournalId(audit.journalId)?.status ?? null;
+  }
+
+  function canApply(audit: CsvJournalEntry): boolean {
+    if (audit.status === 'skipped') return true;
+    const status = actionableStatus(audit);
+    return status === 'pending' || status === 'error' || status === 'out_of_sync';
+  }
+
+  function handleEdit(audit: CsvJournalEntry) {
+    editingEntry = resolveActionable(audit);
+  }
+
+  function handleApply(audit: CsvJournalEntry) {
+    const entry = resolveActionable(audit);
+    if (entry.status === 'out_of_sync') {
+      outOfSyncConfirm = entry;
+      return;
+    }
+    doApply(entry.id);
+  }
+
+  function doApply(id: string, force = false) {
+    const result = applyJournalEntry(id, { force });
+    if (result.success) {
+      showToast($t('journals.applied'));
+    } else if (result.error === 'out_of_sync') {
+      const entry = $appData.journals.find(j => j.id === id);
+      outOfSyncConfirm = entry ?? null;
+    } else {
+      showToast(result.error ?? $t('journals.applyFailed'), 'error');
+    }
+  }
+
+  function confirmOutOfSyncApply() {
+    if (!outOfSyncConfirm) return;
+    doApply(outOfSyncConfirm.id, true);
+    outOfSyncConfirm = null;
   }
 </script>
 
@@ -121,6 +176,7 @@
         <thead>
           <tr class="bg-[#f1f5f9] dark:bg-[#1e293b]">
             <th class="px-2 py-2 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap w-4"></th>
+            <th class="px-2 py-2 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('journal.actions')}</th>
             <th class="px-2 py-2 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.id')}</th>
             <th class="px-2 py-2 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.type')}</th>
             <th class="px-2 py-2 text-start font-medium text-[var(--text-secondary)] whitespace-nowrap">{$t('csvImport.journalCol.date')}</th>
@@ -135,6 +191,40 @@
             <tr class="border-t border-[var(--card-border)] {rowBg(entry.status)}">
               <td class="px-2 py-2">
                 <span class="inline-block w-1.5 h-1.5 rounded-full {statusColor(entry.status)}"></span>
+              </td>
+              <td class="px-2 py-2 whitespace-nowrap">
+                <div class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onclick={() => handleEdit(entry)}
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-primary-600 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                    title={$t('common.edit')}
+                  >
+                    <Pencil size={13} />
+                    <span class="hidden sm:inline">{$t('common.edit')}</span>
+                  </button>
+                  {#if canApply(entry)}
+                    <button
+                      type="button"
+                      onclick={() => handleApply(entry)}
+                      class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-success-600 hover:bg-success-500/10 transition-colors"
+                      title={$t('journals.apply')}
+                    >
+                      <Check size={13} />
+                      <span class="hidden sm:inline">{$t('journals.apply')}</span>
+                    </button>
+                  {/if}
+                  {#if entry.linkedExpenseId && onViewExpense}
+                    <button
+                      type="button"
+                      onclick={() => onViewExpense(entry.linkedExpenseId!)}
+                      class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors"
+                      title={$t('journal.viewExpense')}
+                    >
+                      <ExternalLink size={13} />
+                    </button>
+                  {/if}
+                </div>
               </td>
               <td class="px-2 py-2 font-mono text-[var(--text-secondary)] whitespace-nowrap">{entry.journalId}</td>
               <td class="px-2 py-2 text-[var(--text-primary)] whitespace-nowrap">{entry.entryType}</td>
@@ -153,15 +243,6 @@
                     {entry.skipReason}
                   </div>
                 {/if}
-                {#if entry.linkedExpenseId && onViewExpense}
-                  <button
-                    type="button"
-                    onclick={() => onViewExpense(entry.linkedExpenseId!)}
-                    class="text-[10px] text-primary-600 dark:text-primary-400 hover:underline mt-0.5"
-                  >
-                    {$t('journal.viewExpense')}
-                  </button>
-                {/if}
               </td>
             </tr>
           {/each}
@@ -174,3 +255,21 @@
     </p>
   </div>
 {/if}
+
+{#if editingEntry}
+  <JournalForm
+    entry={editingEntry}
+    onSave={() => { editingEntry = null; showToast($t('journals.saved')); }}
+    onClose={() => editingEntry = null}
+  />
+{/if}
+
+<ConfirmDialog
+  open={outOfSyncConfirm !== null}
+  title={$t('journals.outOfSyncTitle')}
+  message={$t('journals.outOfSyncMessage')}
+  confirmLabel={$t('journals.apply')}
+  destructive={false}
+  onConfirm={confirmOutOfSyncApply}
+  onCancel={() => outOfSyncConfirm = null}
+/>

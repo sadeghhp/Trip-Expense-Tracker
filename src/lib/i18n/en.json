@@ -110,6 +110,7 @@
     "allCurrencies": "All currencies",
     "allPeople": "All payers",
     "viewExpense": "View expense",
+    "actions": "Actions",
     "entryCount": "Showing {count} of {total} entries"
   },
   "journals": {
@@ -151,6 +152,22 @@
       "out_of_sync": "Out of sync",
       "applied": "Applied"
     }
+  },
+  "pending": {
+    "wizardTitle": "Review skipped imports",
+    "summaryTitle": "Review complete",
+    "summaryAdded": "Added {count} expenses",
+    "summaryRemaining": "{count} items still pending",
+    "summaryDismissed": "Dismissed {count} items",
+    "done": "Done",
+    "noItems": "No pending items to review",
+    "progress": "Item {current} of {total}",
+    "payer": "Payer",
+    "payee": "Payee",
+    "rawData": "Raw CSV data",
+    "fixAndAdd": "Fix and add expense",
+    "skipForLater": "Skip for now",
+    "dismiss": "Dismiss"
   },
   "expenseForm": {
     "editTitle": "Edit Expense",

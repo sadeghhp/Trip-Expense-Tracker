@@ -12,47 +12,9 @@ import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { validateExpense } from './validation';
 import { generateId } from './id';
+import { parseFlexibleDate } from './csv-transformer';
 
-export function parseFlexibleDate(raw: string): string | null {
-  const cleaned = raw.trim();
-  if (!cleaned) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
-
-  const withoutTime = cleaned.split(/\s+/)[0];
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) {
-    return cleaned.slice(0, 10);
-  }
-
-  const slashParts = withoutTime.split('/');
-  if (slashParts.length === 3) {
-    const [a, b, c] = slashParts.map(Number);
-    if (c > 100) {
-      if (a > 12) {
-        return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
-      }
-      return `${c}-${String(a).padStart(2, '0')}-${String(b).padStart(2, '0')}`;
-    }
-    if (a > 100) {
-      return `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
-    }
-  }
-
-  const dashParts = withoutTime.split('-');
-  if (dashParts.length === 3) {
-    const [a, b, c] = dashParts.map(Number);
-    if (a > 100) return `${a}-${String(b).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
-    if (c > 100) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
-  }
-
-  const d = new Date(cleaned);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
-  }
-
-  return null;
-}
+export { parseFlexibleDate };
 
 export const SWAPPED_ENTRY_TYPES = new Set(['debt_statement']);
 export const SKIP_ENTRY_TYPES = new Set(['currency_exchange', 'fund_opening']);
@@ -66,6 +28,7 @@ export interface TransformContext {
   currencies: Currency[];
   participantLookup: Map<string, string>;
   descriptionNames: Set<string>;
+  tankhahParticipantId?: string;
   existingExpenseId?: string;
   existingExpense?: Expense;
   journalEntryId: string;
@@ -107,21 +70,31 @@ export function resolveBeneficiaries(
   entryType: string,
   payerId: string,
   allParticipants: Participant[],
-  lookup: Map<string, string>
+  lookup: Map<string, string>,
+  tankhahParticipantId?: string
 ): Beneficiary[] {
+  const groupParticipants = tankhahParticipantId
+    ? allParticipants.filter(p => p.id !== tankhahParticipantId)
+    : allParticipants;
+
   const payeeLower = payeeName.toLowerCase();
-  if (payeeLower === 'گروه' || payeeLower === 'همه' || payeeLower === 'all' || entryType === 'expense_group' || entryType === 'expense_from_tankhah') {
-    return allParticipants.map(p => makeBeneficiary(p.id));
+  if (payeeLower === 'گروه' || payeeLower === 'همه' || payeeLower === 'all'
+      || entryType === 'expense_group' || entryType === 'expense_from_tankhah' || entryType === 'expense_treat') {
+    return groupParticipants.map(p => makeBeneficiary(p.id));
   }
 
   if (payeeName === 'هزینه شخصی' || entryType === 'expense_personal') {
     return [makeBeneficiary(payerId)];
   }
 
+  if (entryType === 'expense_personal' && !payeeName) {
+    return [makeBeneficiary(payerId)];
+  }
+
   const TRANSFER_TYPES = ['withdrawal', 'cash_transfer', 'advance_received', 'loan_disbursement', 'allowance_grant'];
   if (TRANSFER_TYPES.includes(entryType)) {
     if (payeeName === 'all' || payeeName === 'همه') {
-      return allParticipants.map(p => makeBeneficiary(p.id));
+      return groupParticipants.map(p => makeBeneficiary(p.id));
     }
     const payeeId = resolveParticipantId(payeeName, lookup);
     if (payeeId) return [makeBeneficiary(payeeId)];
@@ -129,7 +102,7 @@ export function resolveBeneficiaries(
   }
 
   if (!payeeName) {
-    return allParticipants.map(p => makeBeneficiary(p.id));
+    return groupParticipants.map(p => makeBeneficiary(p.id));
   }
 
   if (payeeName.includes('|')) {
@@ -273,7 +246,7 @@ export function transformJournalEntry(
     return { expense: null, error: fieldError };
   }
 
-  const { participants, participantLookup, descriptionNames } = context;
+  const { participants, participantLookup, descriptionNames, tankhahParticipantId } = context;
   const payerId = resolveParticipantId(entry.payerName, participantLookup);
   if (!payerId) {
     const reason = entry.payerName
@@ -289,8 +262,12 @@ export function transformJournalEntry(
   let beneficiaries: Beneficiary[];
   let enrichedDescription = entry.description;
 
+  const groupParticipants = tankhahParticipantId
+    ? participants.filter(p => p.id !== tankhahParticipantId)
+    : participants;
+
   if (payeeIsDescription) {
-    beneficiaries = participants.map(p => makeBeneficiary(p.id));
+    beneficiaries = groupParticipants.map(p => makeBeneficiary(p.id));
     if (entry.payeeName && !entry.description.includes(entry.payeeName)) {
       enrichedDescription = entry.description
         ? `${entry.description} - ${entry.payeeName}`
@@ -302,7 +279,8 @@ export function transformJournalEntry(
       entry.entryType,
       payerId,
       participants,
-      participantLookup
+      participantLookup,
+      tankhahParticipantId
     );
   }
 
@@ -312,6 +290,7 @@ export function transformJournalEntry(
 
   const expenseId = context.existingExpenseId ?? generateId();
   const existing = context.existingExpense;
+  const isTreatEntry = entry.entryType === 'expense_treat';
 
   const expense: Expense = {
     id: expenseId,
@@ -324,6 +303,7 @@ export function transformJournalEntry(
     beneficiaries,
     source: 'journal',
     journalEntryId: context.journalEntryId,
+    ...(isTreatEntry ? { isTreat: true } : {}),
     ...(existing?.source !== 'journal' && existing?.receiptImageId !== undefined && { receiptImageId: existing.receiptImageId }),
     ...(existing?.source !== 'journal' && existing?.aiMetadata !== undefined && { aiMetadata: existing.aiMetadata })
   };
@@ -348,11 +328,16 @@ export function buildTransformContext(
     currencies: data.currencies,
     participantLookup,
     descriptionNames,
+    tankhahParticipantId: data.tankhahParticipantId,
     existingExpenseId,
     existingExpense,
     journalEntryId,
     rowNum
   };
+}
+
+export function descriptionNamesFromData(data: AppData): Set<string> {
+  return new Set((data.descriptionPayeeNames ?? []).map(n => n.toLowerCase()));
 }
 
 export function applyJournalEntryLogic(
@@ -476,6 +461,7 @@ export function csvAuditToActionableJournal(
 
 export function buildActionableJournalsFromImport(
   auditEntries: CsvJournalEntry[],
+  rawDataByJournalId: Map<string, Record<string, string>>,
   existingJournals: JournalEntry[] = [],
   importBatchId?: string
 ): JournalEntry[] {
@@ -487,9 +473,11 @@ export function buildActionableJournalsFromImport(
 
   return auditEntries.map(audit => {
     const existing = audit.journalId ? byJournalId.get(audit.journalId) : undefined;
+    const rawData = rawDataByJournalId.get(audit.journalId)
+      ?? (existing?.rawData && Object.keys(existing.rawData).length > 0 ? existing.rawData : {});
     return csvAuditToActionableJournal(
       audit,
-      existing?.rawData ?? {},
+      rawData,
       audit.linkedExpenseId,
       importBatchId,
       existing?.id

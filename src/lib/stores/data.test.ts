@@ -34,7 +34,12 @@ import {
   deleteJournalEntry,
   upsertJournalEntries,
   applyAllPendingJournals,
-  updateJournalEntry
+  updateJournalEntry,
+  addPendingItems,
+  removePendingItem,
+  unlinkJournalsOnExpenseDelete,
+  ensureActionableJournal,
+  auditStatusFromActionable
 } from './data';
 
 describe('data store', () => {
@@ -371,6 +376,167 @@ describe('data store', () => {
     expect(get(appData).journals[0].amount).toBe(60);
   });
 
+  it('updateJournalEntry syncs matching journalEntries audit row', () => {
+    updateData(d => ({
+      ...d,
+      participants: [
+        { id: 'p-1', name: 'Alice' },
+        { id: 'p-2', name: 'Bob' }
+      ],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      journals: [{
+        id: 'j-1',
+        journalId: 'J001',
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Lunch',
+        amount: 50,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'pending',
+        expenseId: null,
+        skipReason: 'Unknown payer: X',
+        updatedAt: new Date().toISOString()
+      }],
+      journalEntries: [{
+        journalId: 'J001',
+        entryId: '',
+        sourceFile: '',
+        entryType: 'expense',
+        date: '2024-06-15',
+        description: 'Lunch',
+        payer: 'Alice',
+        payee: 'Bob',
+        currency: 'USD',
+        amount: 50,
+        flag: '',
+        notes: '',
+        localNotes: '',
+        linkedExpenseId: null,
+        status: 'skipped',
+        skipReason: 'Unknown payer: X'
+      }]
+    }));
+
+    updateJournalEntry('j-1', {
+      payerName: 'Alice',
+      payeeName: 'Bob',
+      amount: 55,
+      description: 'Lunch updated'
+    });
+
+    const audit = get(appData).journalEntries![0];
+    expect(audit.amount).toBe(55);
+    expect(audit.description).toBe('Lunch updated');
+    expect(audit.status).toBe('skipped');
+  });
+
+  it('applyJournalEntry syncs audit row to imported with linked expense', () => {
+    updateData(d => ({
+      ...d,
+      participants: [
+        { id: 'p-1', name: 'Alice' },
+        { id: 'p-2', name: 'Bob' }
+      ],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      journals: [{
+        id: 'j-1',
+        journalId: 'J001',
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Lunch',
+        amount: 50,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'pending',
+        expenseId: null,
+        updatedAt: new Date().toISOString()
+      }],
+      journalEntries: [{
+        journalId: 'J001',
+        entryId: '',
+        sourceFile: '',
+        entryType: 'expense',
+        date: '2024-06-15',
+        description: 'Lunch',
+        payer: 'Alice',
+        payee: 'Bob',
+        currency: 'USD',
+        amount: 50,
+        flag: '',
+        notes: '',
+        localNotes: '',
+        linkedExpenseId: null,
+        status: 'skipped',
+        skipReason: 'Unknown payer: X'
+      }]
+    }));
+
+    const result = applyJournalEntry('j-1');
+    expect(result.success).toBe(true);
+
+    const audit = get(appData).journalEntries![0];
+    expect(audit.status).toBe('imported');
+    expect(audit.linkedExpenseId).toBeTruthy();
+    expect(audit.skipReason).toBe('');
+  });
+
+  it('ensureActionableJournal creates journal from audit entry when missing', () => {
+    updateData(d => ({
+      ...d,
+      journals: [],
+      journalEntries: [{
+        journalId: 'J099',
+        entryId: '',
+        sourceFile: '',
+        entryType: 'expense',
+        date: '2024-06-15',
+        description: 'Snack',
+        payer: 'Alice',
+        payee: 'Bob',
+        currency: 'USD',
+        amount: 10,
+        flag: '',
+        notes: '',
+        localNotes: '',
+        linkedExpenseId: null,
+        status: 'skipped',
+        skipReason: 'Invalid amount'
+      }]
+    }));
+
+    const audit = get(appData).journalEntries![0];
+    const actionable = ensureActionableJournal(audit);
+    expect(actionable.journalId).toBe('J099');
+    expect(get(appData).journals).toHaveLength(1);
+    expect(get(appData).journals[0].status).toBe('error');
+  });
+
+  it('auditStatusFromActionable maps applied and pending statuses', () => {
+    const applied = {
+      id: 'j-1',
+      journalId: 'J1',
+      rawData: {},
+      date: '',
+      description: '',
+      amount: 1,
+      currencyCode: 'USD',
+      payerName: 'A',
+      payeeName: 'B',
+      entryType: 'expense',
+      status: 'applied' as const,
+      expenseId: 'e-1',
+      updatedAt: ''
+    };
+    expect(auditStatusFromActionable(applied)).toBe('imported');
+    expect(auditStatusFromActionable({ ...applied, flag: 'review', status: 'applied' })).toBe('flagged');
+    expect(auditStatusFromActionable({ ...applied, status: 'pending', expenseId: null })).toBe('skipped');
+  });
+
   it('applyAllPendingJournals applies pending and error entries', () => {
     updateData(d => ({
       ...d,
@@ -434,6 +600,44 @@ describe('data store', () => {
     expect(result.failed).toBe(0);
     expect(get(appData).expenses).toHaveLength(2);
     expect(get(appData).journals.find(j => j.id === 'j-3')?.status).toBe('out_of_sync');
+  });
+
+  it('addPendingItems and removePendingItem manage pending imports', () => {
+    addPendingItems([{
+      id: 'p-1',
+      rawData: { Amount: '10' },
+      reason: 'Invalid date',
+      createdAt: new Date().toISOString()
+    }]);
+    expect(get(appData).pendingImports).toHaveLength(1);
+    removePendingItem('p-1');
+    expect(get(appData).pendingImports).toHaveLength(0);
+  });
+
+  it('unlinkJournalsOnExpenseDelete marks linked journal out of sync', () => {
+    updateData(d => ({
+      ...d,
+      expenses: [makeExpense({ id: 'e-1', journalEntryId: 'j-1', source: 'journal' })],
+      journals: [{
+        id: 'j-1',
+        journalId: null,
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Test',
+        amount: 50,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'applied',
+        expenseId: 'e-1',
+        updatedAt: new Date().toISOString()
+      }]
+    }));
+    unlinkJournalsOnExpenseDelete('e-1', 'j-1');
+    const journal = get(appData).journals[0];
+    expect(journal.status).toBe('out_of_sync');
+    expect(journal.expenseId).toBeNull();
   });
 });
 

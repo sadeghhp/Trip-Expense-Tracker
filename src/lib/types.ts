@@ -103,6 +103,7 @@ export interface AppData {
   exchangeRates: Record<string, number>;
   settlementCurrency: string;
   tankhahParticipantId?: string;
+  descriptionPayeeNames?: string[];
   journalEntries?: CsvJournalEntry[];
 }
 

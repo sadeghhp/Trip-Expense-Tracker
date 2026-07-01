@@ -3,7 +3,7 @@
   import { t } from '$lib/i18n';
   import { formatAmount, getParticipantName } from '$lib/utils/format';
   import type { JournalEntry } from '$lib/types';
-  import { transformJournalEntry, buildTransformContext } from '$lib/utils/journal-apply';
+  import { transformJournalEntry, buildTransformContext, descriptionNamesFromData } from '$lib/utils/journal-apply';
 
   interface Props {
     entry: JournalEntry;
@@ -23,7 +23,7 @@
     const context = buildTransformContext(
       $appData,
       participantLookup(),
-      new Set(),
+      descriptionNamesFromData($appData),
       entry.id,
       entry.expenseId ?? undefined
     );

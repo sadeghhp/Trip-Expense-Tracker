@@ -91,7 +91,12 @@
 
   function buildPrefilledExpense() {
     if (!pendingItemForForm) return null;
-    return buildExpenseFromPendingItem(pendingItemForForm, $appData.participants, $appData.currencies);
+    return buildExpenseFromPendingItem(
+      pendingItemForForm,
+      $appData.participants,
+      $appData.currencies,
+      $appData.tankhahParticipantId
+    );
   }
 
   function handleKeydown(e: KeyboardEvent) {

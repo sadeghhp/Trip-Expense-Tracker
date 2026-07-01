@@ -1,10 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
-import type { AppData, AppState, Trip, JournalEntry, Participant } from '../types';
+import type { AppData, AppState, Trip, JournalEntry, Participant, PendingImportItem, CsvJournalEntry } from '../types';
 import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
 import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
 import { showToast } from './toast';
-import { applyJournalEntryLogic, buildTransformContext } from '../utils/journal-apply';
+import { applyJournalEntryLogic, buildTransformContext, descriptionNamesFromData, csvAuditToActionableJournal } from '../utils/journal-apply';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -394,15 +394,69 @@ function buildParticipantLookup(participants: Participant[]): Map<string, string
   return lookup;
 }
 
+export function auditStatusFromActionable(actionable: JournalEntry): CsvJournalEntry['status'] {
+  if (actionable.status === 'applied' || actionable.status === 'out_of_sync') {
+    return actionable.flag ? 'flagged' : 'imported';
+  }
+  return 'skipped';
+}
+
+export function auditPatchFromActionable(actionable: JournalEntry): Partial<CsvJournalEntry> {
+  const status = auditStatusFromActionable(actionable);
+  return {
+    date: actionable.date,
+    description: actionable.description,
+    amount: actionable.amount,
+    currency: actionable.currencyCode,
+    payer: actionable.payerName,
+    payee: actionable.payeeName,
+    entryType: actionable.entryType,
+    notes: actionable.notes ?? '',
+    flag: actionable.flag ?? '',
+    linkedExpenseId: actionable.expenseId,
+    status,
+    skipReason: status === 'skipped' ? (actionable.skipReason ?? '') : ''
+  };
+}
+
+function syncAuditJournalEntries(
+  journalEntries: CsvJournalEntry[] | undefined,
+  actionable: JournalEntry
+): CsvJournalEntry[] | undefined {
+  if (!journalEntries || !actionable.journalId) return journalEntries;
+  const patch = auditPatchFromActionable(actionable);
+  return journalEntries.map(ae =>
+    ae.journalId === actionable.journalId ? { ...ae, ...patch } : ae
+  );
+}
+
+export function findJournalByJournalId(journalId: string): JournalEntry | undefined {
+  return get(appData).journals.find(j => j.journalId === journalId);
+}
+
+export function ensureActionableJournal(audit: CsvJournalEntry): JournalEntry {
+  const data = get(appData);
+  const existing = data.journals.find(j => j.journalId === audit.journalId);
+  if (existing) return existing;
+
+  const entry = csvAuditToActionableJournal(audit, {}, audit.linkedExpenseId);
+  upsertJournalEntries([entry]);
+  return get(appData).journals.find(j => j.id === entry.id) ?? entry;
+}
+
 export function updateJournalEntry(id: string, patch: Partial<JournalEntry>): void {
-  updateData(d => ({
-    ...d,
-    journals: d.journals.map(j =>
+  updateData(d => {
+    const journals = d.journals.map(j =>
       j.id === id
         ? { ...j, ...patch, updatedAt: new Date().toISOString() }
         : j
-    )
-  }));
+    );
+    const updated = journals.find(j => j.id === id);
+    const journalEntries = updated
+      ? syncAuditJournalEntries(d.journalEntries, updated)
+      : d.journalEntries;
+    return { ...d, journals, ...(journalEntries ? { journalEntries } : {}) };
+  });
 }
 
 export function applyJournalEntry(
@@ -417,7 +471,7 @@ export function applyJournalEntry(
   const context = buildTransformContext(
     data,
     lookup,
-    new Set(),
+    descriptionNamesFromData(data),
     entry.id,
     entry.expenseId ?? undefined
   );
@@ -425,12 +479,16 @@ export function applyJournalEntry(
 
   if (!result.success) {
     if (result.journalPatch && Object.keys(result.journalPatch).length > 0) {
-      updateData(d => ({
-        ...d,
-        journals: d.journals.map(j =>
+      updateData(d => {
+        const journals = d.journals.map(j =>
           j.id === id ? { ...j, ...result.journalPatch } : j
-        )
-      }));
+        );
+        const updated = journals.find(j => j.id === id);
+        const journalEntries = updated
+          ? syncAuditJournalEntries(d.journalEntries, updated)
+          : d.journalEntries;
+        return { ...d, journals, ...(journalEntries ? { journalEntries } : {}) };
+      });
     }
     return { success: false, error: result.error };
   }
@@ -441,12 +499,19 @@ export function applyJournalEntry(
       ? d.expenses.map(e => e.id === entry.expenseId ? expense : e)
       : [...d.expenses, expense];
 
+    const journals = d.journals.map(j =>
+      j.id === id ? { ...j, ...result.journalPatch } : j
+    );
+    const updated = journals.find(j => j.id === id);
+    const journalEntries = updated
+      ? syncAuditJournalEntries(d.journalEntries, updated)
+      : d.journalEntries;
+
     return {
       ...d,
       expenses,
-      journals: d.journals.map(j =>
-        j.id === id ? { ...j, ...result.journalPatch } : j
-      )
+      journals,
+      ...(journalEntries ? { journalEntries } : {})
     };
   });
 
@@ -512,5 +577,38 @@ export function upsertJournalEntries(entries: JournalEntry[]): void {
       byId.set(entry.id, entry);
     }
     return { ...d, journals: [...byId.values()] };
+  });
+}
+
+export function addPendingItems(items: PendingImportItem[]): void {
+  if (items.length === 0) return;
+  updateData(d => ({
+    ...d,
+    pendingImports: [...d.pendingImports, ...items]
+  }));
+}
+
+export function removePendingItem(id: string): void {
+  updateData(d => ({
+    ...d,
+    pendingImports: d.pendingImports.filter(p => p.id !== id)
+  }));
+}
+
+export function unlinkJournalsOnExpenseDelete(expenseId: string, journalEntryId?: string): void {
+  updateData(d => {
+    let changed = false;
+    const journals = d.journals.map(j => {
+      const linked = (journalEntryId && j.id === journalEntryId) || j.expenseId === expenseId;
+      if (!linked) return j;
+      changed = true;
+      return {
+        ...j,
+        status: 'out_of_sync' as const,
+        expenseId: null,
+        updatedAt: new Date().toISOString()
+      };
+    });
+    return changed ? { ...d, journals } : d;
   });
 }

@@ -16,6 +16,7 @@
   import Settlement from './components/settlement/Settlement.svelte';
   import SettingsTab from './components/settings/Settings.svelte';
   import SetupWizard from './components/home/SetupWizard.svelte';
+  import PendingReviewWizard from './components/import/PendingReviewWizard.svelte';
 
   let wizardPending = $state(false);
 
@@ -33,6 +34,7 @@
 
   let activeTab: TabId = $state('home');
   let journalsExpanded = $state(false);
+  let pendingReviewOpen = $state(false);
   let suppressHashUpdate = false;
   let hashChangeVersion = 0;
   let hashNavPending = false;
@@ -148,8 +150,16 @@
   }
 
   function handlePendingJournalReview() {
-    journalsExpanded = true;
-    activeTab = 'expenses';
+    if ($appData.pendingImports.length > 0) {
+      pendingReviewOpen = true;
+    }
+    const needsJournalAttention = $appData.journals.some(
+      j => j.status === 'pending' || j.status === 'error'
+    );
+    if (needsJournalAttention) {
+      journalsExpanded = true;
+      activeTab = 'expenses';
+    }
   }
 
   function handleBack() {
@@ -207,3 +217,8 @@
 {/if}
 
 <Toast />
+
+<PendingReviewWizard
+  open={pendingReviewOpen}
+  onClose={() => { pendingReviewOpen = false; }}
+/>

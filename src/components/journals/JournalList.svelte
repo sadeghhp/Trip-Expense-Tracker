@@ -22,14 +22,18 @@
 
   type FilterStatus = 'all' | JournalStatus;
 
-  let expanded = $state(initialExpanded);
+  let expanded = $state(false);
   let filter: FilterStatus = $state('all');
   let editingEntry: JournalEntry | null = $state(null);
   let outOfSyncConfirm: JournalEntry | null = $state(null);
   let deleteConfirm: JournalEntry | null = $state(null);
 
+  $effect(() => {
+    if (initialExpanded) expanded = true;
+  });
+
   let actionableCount = $derived(
-    $appData.journals.filter(j => j.status === 'pending' || j.status === 'error' || j.status === 'out_of_sync').length
+    $appData.journals.filter(j => j.status === 'pending' || j.status === 'error').length
   );
 
   let filteredJournals = $derived.by(() => {

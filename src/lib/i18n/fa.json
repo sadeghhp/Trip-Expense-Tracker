@@ -110,6 +110,7 @@
     "allCurrencies": "همه ارزها",
     "allPeople": "همه پرداخت‌کنندگان",
     "viewExpense": "مشاهده هزینه",
+    "actions": "عملیات",
     "entryCount": "نمایش {count} از {total} ثبت"
   },
   "journals": {
@@ -151,6 +152,22 @@
       "out_of_sync": "ناهمگام",
       "applied": "اعمال شده"
     }
+  },
+  "pending": {
+    "wizardTitle": "بررسی ردیف‌های ردشده",
+    "summaryTitle": "بررسی تمام شد",
+    "summaryAdded": "{count} هزینه اضافه شد",
+    "summaryRemaining": "{count} مورد هنوز در انتظار است",
+    "summaryDismissed": "{count} مورد نادیده گرفته شد",
+    "done": "تمام",
+    "noItems": "موردی برای بررسی وجود ندارد",
+    "progress": "مورد {current} از {total}",
+    "payer": "پرداخت‌کننده",
+    "payee": "ذینفع",
+    "rawData": "داده خام CSV",
+    "fixAndAdd": "اصلاح و افزودن هزینه",
+    "skipForLater": "بعداً",
+    "dismiss": "نادیده گرفتن"
   },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",

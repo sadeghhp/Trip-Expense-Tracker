@@ -5,7 +5,8 @@ import {
   buildTransformContext,
   resolveBeneficiaries,
   buildJournalEntryFromCsvRow,
-  csvAuditToActionableJournal
+  csvAuditToActionableJournal,
+  descriptionNamesFromData
 } from './journal-apply';
 import type { CsvJournalEntry } from '../types';
 import { makeParticipant, makeCurrency, makeAppData } from '../../test/factories';
@@ -137,6 +138,54 @@ describe('resolveBeneficiaries', () => {
   it('group expense splits to all participants', () => {
     const bens = resolveBeneficiaries('all', 'expense_group', 'p-alice', [alice, bob], lookup);
     expect(bens).toHaveLength(2);
+  });
+
+  it('expense_treat excludes tankhah from beneficiaries', () => {
+    const tankhah = makeParticipant({ id: 'p-tank', name: 'Tankhah' });
+    const bens = resolveBeneficiaries('all', 'expense_treat', 'p-alice', [alice, bob, tankhah], lookup, 'p-tank');
+    expect(bens).toHaveLength(2);
+    expect(bens.map(b => b.participantId)).not.toContain('p-tank');
+  });
+});
+
+describe('transformJournalEntry treat and description payees', () => {
+  const alice = makeParticipant({ id: 'p-alice', name: 'Alice' });
+  const bob = makeParticipant({ id: 'p-bob', name: 'Bob' });
+  const usd = makeCurrency({ code: 'USD', symbol: '$' });
+
+  it('sets isTreat for expense_treat entry type', () => {
+    const data = makeAppData({ participants: [alice, bob], currencies: [usd] });
+    const entry = makeJournal({ entryType: 'expense_treat', payeeName: 'all' });
+    const ctx = buildTransformContext(
+      data,
+      new Map([['alice', 'p-alice'], ['bob', 'p-bob']]),
+      new Set(),
+      entry.id
+    );
+    const result = transformJournalEntry(entry, ctx);
+    expect(result.expense?.isTreat).toBe(true);
+  });
+
+  it('treats description payee as group split', () => {
+    const data = makeAppData({
+      participants: [alice, bob],
+      currencies: [usd],
+      descriptionPayeeNames: ['Excursion']
+    });
+    const entry = makeJournal({
+      payeeName: 'Excursion',
+      entryType: 'expense_group'
+    });
+    const ctx = buildTransformContext(
+      data,
+      new Map([['alice', 'p-alice'], ['bob', 'p-bob']]),
+      descriptionNamesFromData(data),
+      entry.id
+    );
+    const result = transformJournalEntry(entry, ctx);
+    expect(result.error).toBeNull();
+    expect(result.expense?.beneficiaries).toHaveLength(2);
+    expect(result.expense?.description).toContain('Excursion');
   });
 });
 

@@ -22,15 +22,21 @@
   import { showToast } from '$lib/stores/toast';
   import { generateId } from '$lib/utils/id';
   import { buildActionableJournalsFromImport, mergeActionableJournals } from '$lib/utils/journal-apply';
+  import {
+    buildPendingItemsFromJournalEntries,
+    buildRawDataByJournalId,
+    extractDescriptionPayeeNames
+  } from '$lib/utils/pending-import';
   import type { Participant, Currency } from '$lib/types';
   import { BookOpen } from '@lucide/svelte';
 
   interface Props {
     open: boolean;
     onClose: () => void;
+    onPendingReview?: () => void;
   }
 
-  let { open, onClose }: Props = $props();
+  let { open, onClose, onPendingReview }: Props = $props();
 
   let step = $state<1 | 2 | 3 | 4>(1);
   let csvResult = $state<CsvParseResult | null>(null);
@@ -210,7 +216,7 @@
   }
 
   function executeImport() {
-    if (!importResult) return;
+    if (!importResult || !csvResult) return;
 
     const newParticipants: Participant[] = importResult.newParticipants.map(p => ({
       id: p.id,
@@ -223,11 +229,22 @@
 
     const journal = importResult.journalEntries;
     const importBatchId = generateId();
+    const rawDataByJournalId = buildRawDataByJournalId(csvResult.rows, mapping);
     const actionableJournals = buildActionableJournalsFromImport(
       journal,
+      rawDataByJournalId,
       importMode === 'merge' ? $appData.journals : [],
       importBatchId
     );
+    const pendingItems = buildPendingItemsFromJournalEntries(csvResult.rows, journal, mapping);
+    const importedDescriptionNames = extractDescriptionPayeeNames(participantMappings);
+
+    const mergeDescriptionNames = (existing: string[] | undefined): string[] => {
+      const merged = new Set([...(existing ?? []), ...importedDescriptionNames]);
+      return [...merged];
+    };
+
+    let shouldReview = pendingItems.length > 0;
 
     if (importMode === 'merge') {
       const existingFingerprints = new Set(
@@ -245,7 +262,9 @@
         currencies: [...d.currencies, ...newCurrencies],
         expenses: [...d.expenses, ...deduped],
         journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal),
-        journals: mergeActionableJournals(d.journals, actionableJournals)
+        journals: mergeActionableJournals(d.journals, actionableJournals),
+        pendingImports: [...d.pendingImports, ...pendingItems],
+        descriptionPayeeNames: mergeDescriptionNames(d.descriptionPayeeNames)
       }));
       const skippedDupes = importResult.expenses.length - deduped.length;
       if (deduped.length > 0) {
@@ -258,6 +277,10 @@
       } else {
         showToast($t('csvImport.importedJournalOnly', { count: journal.length }));
       }
+      const needsJournalAttention = actionableJournals.some(
+        j => j.status === 'pending' || j.status === 'error'
+      );
+      if (needsJournalAttention) shouldReview = true;
     } else {
       const referencedIds = new Set<string>();
       const referencedCurrencies = new Set<string>();
@@ -278,10 +301,11 @@
         currencies: [...relevantExistingCurrencies, ...relevantNewCurrencies],
         expenses: importResult.expenses,
         journals: actionableJournals,
-        pendingImports: [],
+        pendingImports: pendingItems,
         exchangeRates: {},
         settlementCurrency: '',
         journalEntries: journal,
+        ...(importedDescriptionNames.length > 0 ? { descriptionPayeeNames: importedDescriptionNames } : {}),
         ...($appData.tankhahParticipantId && allParticipantIds.has($appData.tankhahParticipantId)
           ? { tankhahParticipantId: $appData.tankhahParticipantId }
           : {})
@@ -292,9 +316,15 @@
       } else {
         showToast($t('csvImport.createdNewTripJournal', { name: newTripName, count: journal.length }));
       }
+      if (pendingItems.length > 0 || actionableJournals.some(j => j.status === 'pending' || j.status === 'error')) {
+        shouldReview = true;
+      }
     }
 
     handleClose();
+    if (shouldReview) {
+      onPendingReview?.();
+    }
   }
 
   function updateParticipantMapping(index: number, participantId: string | null) {

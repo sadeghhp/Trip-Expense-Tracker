@@ -169,7 +169,7 @@ export function normalizeData(raw: any): AppData {
     settlementCurrency = '';
   }
 
-  const expenseIds = new Set(expenses.map((e: any) => e.id));
+  const expenseIds = new Set<string>(expenses.map((e: { id: string }) => e.id));
   const journalEntries = normalizeJournalEntries(raw?.journalEntries, expenseIds);
   const journals = normalizeJournals(raw?.journals, expenseIds);
   const pendingImports = normalizePendingImports(raw?.pendingImports);
@@ -178,6 +178,10 @@ export function normalizeData(raw: any): AppData {
     typeof raw?.tankhahParticipantId === 'string' && participantIds.has(raw.tankhahParticipantId)
       ? raw.tankhahParticipantId
       : undefined;
+
+  const descriptionPayeeNames = Array.isArray(raw?.descriptionPayeeNames)
+    ? raw.descriptionPayeeNames.filter((n: unknown): n is string => typeof n === 'string' && n.length > 0)
+    : undefined;
 
   return {
     participants: validParticipants,
@@ -188,6 +192,7 @@ export function normalizeData(raw: any): AppData {
     exchangeRates: cleanedRates,
     settlementCurrency,
     ...(tankhahParticipantId ? { tankhahParticipantId } : {}),
+    ...(descriptionPayeeNames && descriptionPayeeNames.length > 0 ? { descriptionPayeeNames } : {}),
     ...(journalEntries ? { journalEntries } : {})
   };
 }

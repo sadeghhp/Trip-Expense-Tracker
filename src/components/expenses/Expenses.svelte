@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Plus, Pencil, Trash2, Receipt, AlertTriangle, BookOpen } from '@lucide/svelte';
-  import { appData, updateData } from '$lib/stores/data';
+  import { appData, updateData, unlinkJournalsOnExpenseDelete } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { settings } from '$lib/stores/settings';
   import { formatDateDisplay } from '$lib/engine/calendar';
@@ -88,6 +88,7 @@
   function confirmDelete() {
     if (!deleteConfirm) return;
     const id = deleteConfirm.id;
+    const journalEntryId = deleteConfirm.journalEntryId;
     if (deleteConfirm.receiptImageId) {
       deleteReceiptImage(deleteConfirm.receiptImageId).catch(() => {});
     }
@@ -95,6 +96,7 @@
       ...d,
       expenses: d.expenses.filter(e => e.id !== id)
     }));
+    unlinkJournalsOnExpenseDelete(id, journalEntryId);
     showToast($t('expenses.deleted'));
     deleteConfirm = null;
   }
