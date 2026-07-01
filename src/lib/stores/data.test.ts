@@ -28,7 +28,11 @@ import {
   activeTripId,
   activeTrip,
   appData,
-  effectiveSettlementCurrency
+  effectiveSettlementCurrency,
+  applyJournalEntry,
+  markJournalOutOfSync,
+  deleteJournalEntry,
+  upsertJournalEntries
 } from './data';
 
 describe('data store', () => {
@@ -204,6 +208,7 @@ describe('data store', () => {
       participants: [],
       currencies: [],
       expenses: [],
+      journals: [],
       pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
@@ -226,6 +231,86 @@ describe('data store', () => {
     importAsNewTrip('With receipt', data);
     const expense = get(appData).expenses[0];
     expect(expense.receiptImageId).toBeUndefined();
+  });
+
+  it('applyJournalEntry creates expense from pending journal', () => {
+    updateData(d => ({
+      ...d,
+      participants: [
+        { id: 'p-1', name: 'Alice' },
+        { id: 'p-2', name: 'Bob' }
+      ],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      journals: [{
+        id: 'j-1',
+        journalId: 'J001',
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Test',
+        amount: 50,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'pending',
+        expenseId: null,
+        updatedAt: new Date().toISOString()
+      }]
+    }));
+
+    const result = applyJournalEntry('j-1');
+    expect(result.success).toBe(true);
+    const data = get(appData);
+    expect(data.expenses).toHaveLength(1);
+    expect(data.journals[0].status).toBe('applied');
+    expect(data.journals[0].expenseId).toBe(data.expenses[0].id);
+  });
+
+  it('markJournalOutOfSync updates applied journal status', () => {
+    upsertJournalEntries([{
+      id: 'j-1',
+      journalId: null,
+      rawData: {},
+      date: '2024-06-15',
+      description: 'Test',
+      amount: 50,
+      currencyCode: 'USD',
+      payerName: 'Alice',
+      payeeName: 'Bob',
+      entryType: 'expense',
+      status: 'applied',
+      expenseId: 'e-1',
+      updatedAt: new Date().toISOString()
+    }]);
+    markJournalOutOfSync('j-1');
+    expect(get(appData).journals[0].status).toBe('out_of_sync');
+  });
+
+  it('deleteJournalEntry removes journal and unlinks expense', () => {
+    updateData(d => ({
+      ...d,
+      expenses: [makeExpense({ id: 'e-1', journalEntryId: 'j-1', source: 'journal' })],
+      journals: [{
+        id: 'j-1',
+        journalId: null,
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Test',
+        amount: 50,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'applied',
+        expenseId: 'e-1',
+        updatedAt: new Date().toISOString()
+      }]
+    }));
+    deleteJournalEntry('j-1', false);
+    const data = get(appData);
+    expect(data.journals).toHaveLength(0);
+    expect(data.expenses).toHaveLength(1);
+    expect(data.expenses[0].journalEntryId).toBeUndefined();
   });
 });
 

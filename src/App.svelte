@@ -32,6 +32,7 @@
   }
 
   let activeTab: TabId = $state('home');
+  let journalsExpanded = $state(false);
   let suppressHashUpdate = false;
   let hashChangeVersion = 0;
   let hashNavPending = false;
@@ -141,6 +142,14 @@
 
   function handleTabChange(tab: TabId) {
     activeTab = tab;
+    if (tab !== 'expenses') {
+      journalsExpanded = false;
+    }
+  }
+
+  function handlePendingJournalReview() {
+    journalsExpanded = true;
+    activeTab = 'expenses';
   }
 
   function handleBack() {
@@ -181,13 +190,13 @@
               {:else if activeTab === 'currencies'}
                 <Currencies />
               {:else if activeTab === 'expenses'}
-                <Expenses onNavigate={handleTabChange} />
+                <Expenses onNavigate={handleTabChange} journalsExpanded={journalsExpanded} />
               {:else if activeTab === 'balances'}
                 <Balances />
               {:else if activeTab === 'settlement'}
                 <Settlement />
               {:else if activeTab === 'settings'}
-                <SettingsTab />
+                <SettingsTab onPendingJournalReview={handlePendingJournalReview} />
               {/if}
             </div>
           {/key}

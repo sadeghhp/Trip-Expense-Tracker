@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { X, Image as ImageIcon } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
-  import { appData, updateData } from '$lib/stores/data';
+  import { appData, updateData, markJournalOutOfSync } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
@@ -149,6 +149,9 @@
         ...d,
         expenses: d.expenses.map(e => e.id === expense!.id ? expenseData : e)
       }));
+      if (expense?.journalEntryId) {
+        markJournalOutOfSync(expense.journalEntryId);
+      }
     } else {
       updateData(d => ({
         ...d,

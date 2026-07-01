@@ -32,9 +32,32 @@ export interface Expense {
   paidBy: string;
   splitType: SplitType;
   beneficiaries: Beneficiary[];
-  source?: 'manual' | 'receipt_ai';
+  source?: 'manual' | 'receipt_ai' | 'journal';
+  journalEntryId?: string;
   receiptImageId?: string;
   aiMetadata?: AIMetadata;
+}
+
+export type JournalStatus = 'applied' | 'pending' | 'error' | 'out_of_sync';
+
+export interface JournalEntry {
+  id: string;
+  journalId: string | null;
+  rawData: Record<string, string>;
+  date: string;
+  description: string;
+  amount: number;
+  currencyCode: string;
+  payerName: string;
+  payeeName: string;
+  entryType: string;
+  notes?: string;
+  flag?: string;
+  status: JournalStatus;
+  skipReason?: string;
+  expenseId: string | null;
+  importBatchId?: string;
+  updatedAt: string;
 }
 
 export interface PendingImportItem {
@@ -55,6 +78,7 @@ export interface AppData {
   participants: Participant[];
   currencies: Currency[];
   expenses: Expense[];
+  journals: JournalEntry[];
   pendingImports: PendingImportItem[];
   exchangeRates: Record<string, number>;
   settlementCurrency: string;

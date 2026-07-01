@@ -388,5 +388,15 @@ describe('transformCsvToExpenses', () => {
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
     expect(result.expenses).toHaveLength(1);
     expect(result.pendingItems).toHaveLength(0);
+    expect(result.journals).toHaveLength(1);
+    expect(result.journals[0].status).toBe('applied');
+    expect(result.journals[0].expenseId).toBe('generated-id');
+  });
+
+  it('produces journals with error status for skipped rows', () => {
+    const rows = [{ Date: 'bad', Description: 'Y', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }];
+    const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
+    expect(result.journals).toHaveLength(1);
+    expect(result.journals[0].status).toBe('error');
   });
 });

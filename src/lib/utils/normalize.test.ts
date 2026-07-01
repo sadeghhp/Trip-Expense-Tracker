@@ -9,6 +9,7 @@ describe('normalizeData', () => {
       participants: [],
       currencies: [],
       expenses: [],
+      journals: [],
       pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
@@ -194,6 +195,26 @@ describe('normalizeData', () => {
     const result = normalizeData(data);
     expect(result.participants).toHaveLength(2);
     expect(result.expenses).toHaveLength(1);
+  });
+
+  it('migrates pendingImports to journals and clears pendingImports', () => {
+    const result = normalizeData({
+      participants: [],
+      currencies: [],
+      expenses: [],
+      pendingImports: [{
+        id: 'pending-1',
+        rawData: { Payer: 'Alice' },
+        reason: 'Unknown payer',
+        createdAt: '2024-01-01',
+        payerName: 'Alice'
+      }]
+    });
+    expect(result.pendingImports).toHaveLength(0);
+    expect(result.journals).toHaveLength(1);
+    expect(result.journals[0].id).toBe('pending-1');
+    expect(result.journals[0].status).toBe('pending');
+    expect(result.journals[0].skipReason).toBe('Unknown payer');
   });
 });
 

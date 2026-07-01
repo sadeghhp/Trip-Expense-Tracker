@@ -9,10 +9,14 @@
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import Modal from '../ui/Modal.svelte';
   import CsvImportWizard from './CsvImportWizard.svelte';
-  import PendingReviewWizard from '../import/PendingReviewWizard.svelte';
+
+  interface Props {
+    onPendingJournalReview?: () => void;
+  }
+
+  let { onPendingJournalReview }: Props = $props();
 
   let clearConfirm = $state(false);
-  let pendingReviewOpen = $state(false);
   let importOpen = $state(false);
   let importText = $state('');
   let importConfirm = $state(false);
@@ -671,12 +675,7 @@
 <CsvImportWizard
   open={csvImportOpen}
   onClose={() => { csvImportOpen = false; }}
-  onPendingReview={() => { pendingReviewOpen = true; }}
-/>
-
-<PendingReviewWizard
-  open={pendingReviewOpen}
-  onClose={() => { pendingReviewOpen = false; }}
+  onPendingReview={() => { onPendingJournalReview?.(); }}
 />
 
 <Modal open={backupImportOpen} title={$t('settings.restoreTitle')} onClose={() => { backupImportOpen = false; backupParsed = null; }}>

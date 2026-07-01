@@ -473,6 +473,47 @@
     "IQD": "Iraqi Dinar",
     "PKR": "Pakistani Rupee"
   },
+  "journals": {
+    "banner": "{count} journal entries need attention",
+    "bannerAllApplied": "{count} journal entries",
+    "apply": "Apply",
+    "applyAll": "Apply All Pending",
+    "applied": "Journal applied to expense",
+    "appliedBulk": "{count} journals applied",
+    "applyBulkFailed": "{count} journals failed to apply",
+    "applyFailed": "Failed to apply journal",
+    "saved": "Journal saved",
+    "deleted": "Journal removed",
+    "editTitle": "Edit Journal Entry",
+    "entryType": "Entry Type",
+    "payer": "Payer",
+    "payee": "Payee",
+    "notes": "Notes",
+    "previewTitle": "Will create/update expense",
+    "showRawData": "Show raw CSV data",
+    "hideRawData": "Hide raw CSV data",
+    "requiredFields": "Date, description, currency, and payer are required",
+    "viewExpense": "View linked expense",
+    "fromJournal": "Journal {id}",
+    "outOfSyncTitle": "Overwrite expense?",
+    "outOfSyncMessage": "This expense was edited manually. Applying the journal will overwrite those changes.",
+    "deleteTitle": "Remove journal entry?",
+    "deleteMessage": "The linked expense will be kept but unlinked from this journal.",
+    "noFiltered": "No journal entries match this filter",
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "error": "Error",
+      "out_of_sync": "Out of sync",
+      "applied": "Applied"
+    },
+    "status": {
+      "applied": "Applied",
+      "pending": "Pending",
+      "error": "Error",
+      "out_of_sync": "Out of sync"
+    }
+  },
   "pending": {
     "banner": "{count} items pending review from CSV import",
     "bannerSingular": "1 item pending review from CSV import",

@@ -1,4 +1,35 @@
-import type { AppData, AppState, Expense, PendingImportItem } from '../types';
+import type { AppData, AppState, Expense, JournalEntry, JournalStatus, PendingImportItem } from '../types';
+import { pendingImportToJournal } from './journal-apply';
+
+const VALID_JOURNAL_STATUSES = new Set<JournalStatus>(['applied', 'pending', 'error', 'out_of_sync']);
+
+function normalizeJournals(raw: any[]): JournalEntry[] {
+  return raw
+    .filter((j: any) =>
+      typeof j?.id === 'string' &&
+      typeof j?.rawData === 'object' &&
+      VALID_JOURNAL_STATUSES.has(j?.status)
+    )
+    .map((j: any) => ({
+      id: j.id,
+      journalId: typeof j.journalId === 'string' ? j.journalId : null,
+      rawData: j.rawData,
+      date: typeof j.date === 'string' ? j.date : '',
+      description: typeof j.description === 'string' ? j.description : '',
+      amount: typeof j.amount === 'number' && Number.isFinite(j.amount) ? j.amount : 0,
+      currencyCode: typeof j.currencyCode === 'string' ? j.currencyCode : '',
+      payerName: typeof j.payerName === 'string' ? j.payerName : '',
+      payeeName: typeof j.payeeName === 'string' ? j.payeeName : '',
+      entryType: typeof j.entryType === 'string' ? j.entryType : '',
+      notes: typeof j.notes === 'string' ? j.notes : undefined,
+      flag: typeof j.flag === 'string' ? j.flag : undefined,
+      status: j.status as JournalStatus,
+      skipReason: typeof j.skipReason === 'string' ? j.skipReason : undefined,
+      expenseId: typeof j.expenseId === 'string' ? j.expenseId : null,
+      importBatchId: typeof j.importBatchId === 'string' ? j.importBatchId : undefined,
+      updatedAt: typeof j.updatedAt === 'string' ? j.updatedAt : new Date().toISOString()
+    }));
+}
 
 export function normalizeData(raw: any): AppData {
   const participants = Array.isArray(raw?.participants) ? raw.participants : [];
@@ -69,11 +100,19 @@ export function normalizeData(raw: any): AppData {
       typeof item?.rawData === 'object'
     );
 
+  let journals = normalizeJournals(Array.isArray(raw?.journals) ? raw.journals : []);
+
+  if (pendingImports.length > 0) {
+    const migrated = pendingImports.map(item => pendingImportToJournal(item));
+    journals = [...journals, ...migrated];
+  }
+
   return {
     participants: validParticipants,
     currencies: validCurrencies,
     expenses,
-    pendingImports,
+    journals,
+    pendingImports: [],
     exchangeRates: cleanedRates,
     settlementCurrency
   };

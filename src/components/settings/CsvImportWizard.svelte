@@ -15,7 +15,7 @@
     type ExtractedNames,
     type ImportResult
   } from '$lib/utils/csv-transformer';
-  import { appData, updateData, importAsNewTrip, addPendingItems } from '$lib/stores/data';
+  import { appData, updateData, importAsNewTrip, importJournalsFromCsvResult } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import type { Participant, Currency } from '$lib/types';
 
@@ -212,18 +212,19 @@
       .map(c => ({ code: c.code, symbol: c.symbol }));
 
     if (importMode === 'merge') {
-      updateData(d => ({
-        ...d,
-        participants: [...d.participants, ...newParticipants],
-        currencies: [...d.currencies, ...newCurrencies],
-        expenses: [...d.expenses, ...importResult!.expenses]
-      }));
-      showToast($t('csvImport.importedToTrip', { count: importResult.expenses.length }));
+      const { importedExpenseCount } = importJournalsFromCsvResult(
+        importResult.journals,
+        importResult.expenses,
+        newParticipants.map(p => ({ name: p.name, id: p.id })),
+        newCurrencies.map(c => ({ code: c.code, symbol: c.symbol }))
+      );
+      showToast($t('csvImport.importedToTrip', { count: importedExpenseCount }));
     } else {
       const data = {
         participants: [...$appData.participants, ...newParticipants],
         currencies: [...$appData.currencies, ...newCurrencies],
         expenses: importResult.expenses,
+        journals: importResult.journals,
         pendingImports: [],
         exchangeRates: {},
         settlementCurrency: ''
@@ -232,14 +233,11 @@
       showToast($t('csvImport.createdNewTrip', { name: newTripName, count: importResult.expenses.length }));
     }
 
-    const hasPending = importResult.pendingItems.length > 0;
-    if (hasPending) {
-      addPendingItems(importResult.pendingItems);
-    }
+    const hasPendingJournals = importResult.journals.some(j => j.status === 'error' || j.status === 'pending');
 
     handleClose();
 
-    if (hasPending && onPendingReview) {
+    if (hasPendingJournals && onPendingReview) {
       onPendingReview();
     }
   }
