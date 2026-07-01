@@ -1,13 +1,9 @@
 import { writable, derived, get } from 'svelte/store';
-import type { AppData, AppState, Trip, PendingImportItem, JournalEntry } from '../types';
+import type { AppData, AppState, Trip } from '../types';
 import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
 import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
-import {
-  applyJournalEntryLogic,
-  buildTransformContext,
-  type ApplyResult
-} from '../utils/journal-apply';
+import { showToast } from './toast';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -17,8 +13,6 @@ function createEmptyData(): AppData {
     participants: [],
     currencies: [],
     expenses: [],
-    journals: [],
-    pendingImports: [],
     exchangeRates: {},
     settlementCurrency: ''
   };
@@ -65,11 +59,25 @@ function loadFromStorage(): AppState {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let quotaWarningShown = false;
+
+function persistToLocalStorage(state: AppState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e: unknown) {
+    if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+      if (!quotaWarningShown) {
+        quotaWarningShown = true;
+        showToast('Storage full — data may not be saved. Export your data as backup.', 'error');
+      }
+    }
+  }
+}
 
 function saveToStorage(state: AppState): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    persistToLocalStorage(state);
     saveTimer = null;
   }, 300);
 }
@@ -77,7 +85,7 @@ function saveToStorage(state: AppState): void {
 function saveToStorageImmediate(state: AppState): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistToLocalStorage(state);
 }
 
 const initial = loadFromStorage();
@@ -349,299 +357,6 @@ export function unarchiveTrip(tripId: string): void {
 
 export function getFullSnapshot(): AppState {
   return get(appState);
-}
-
-export function addPendingItems(items: PendingImportItem[]): void {
-  if (items.length === 0) return;
-  updateData(d => ({
-    ...d,
-    pendingImports: [...d.pendingImports, ...items]
-  }));
-}
-
-export function removePendingItem(id: string): void {
-  updateData(d => ({
-    ...d,
-    pendingImports: d.pendingImports.filter(item => item.id !== id)
-  }));
-}
-
-export function clearAllPendingItems(): void {
-  updateData(d => ({
-    ...d,
-    pendingImports: []
-  }));
-}
-
-export interface StoreApplyResult extends ApplyResult {
-  journalId: string;
-}
-
-export interface BulkApplyResult {
-  applied: number;
-  failed: number;
-  errors: { journalId: string; error: string }[];
-}
-
-function buildParticipantLookup(data: AppData): Map<string, string> {
-  const lookup = new Map<string, string>();
-  for (const p of data.participants) {
-    lookup.set(p.name.toLowerCase(), p.id);
-  }
-  return lookup;
-}
-
-function upsertExpenseFromApply(data: AppData, expense: import('../types').Expense): AppData {
-  const exists = data.expenses.some(e => e.id === expense.id);
-  return {
-    ...data,
-    expenses: exists
-      ? data.expenses.map(e => e.id === expense.id ? expense : e)
-      : [...data.expenses, expense]
-  };
-}
-
-export function upsertJournalEntries(entries: JournalEntry[]): void {
-  if (entries.length === 0) return;
-  updateData(d => {
-    const byId = new Map(d.journals.map(j => [j.id, j]));
-    const byJournalId = new Map(
-      d.journals.filter(j => j.journalId).map(j => [j.journalId!, j])
-    );
-
-    for (const entry of entries) {
-      const existing = entry.journalId
-        ? byJournalId.get(entry.journalId) ?? byId.get(entry.id)
-        : byId.get(entry.id);
-
-      if (existing) {
-        const merged = { ...existing, ...entry, id: existing.id, updatedAt: new Date().toISOString() };
-        byId.set(existing.id, merged);
-        if (merged.journalId) byJournalId.set(merged.journalId, merged);
-      } else {
-        byId.set(entry.id, entry);
-        if (entry.journalId) byJournalId.set(entry.journalId, entry);
-      }
-    }
-
-    return { ...d, journals: Array.from(byId.values()) };
-  });
-}
-
-export function updateJournalEntry(id: string, patch: Partial<JournalEntry>): void {
-  updateData(d => ({
-    ...d,
-    journals: d.journals.map(j =>
-      j.id === id ? { ...j, ...patch, updatedAt: new Date().toISOString() } : j
-    )
-  }));
-}
-
-export function markJournalOutOfSync(journalEntryId: string): void {
-  updateData(d => ({
-    ...d,
-    journals: d.journals.map(j =>
-      j.id === journalEntryId && j.status === 'applied'
-        ? { ...j, status: 'out_of_sync' as const, updatedAt: new Date().toISOString() }
-        : j
-    )
-  }));
-}
-
-export function applyJournalEntry(id: string, options?: { force?: boolean }): StoreApplyResult {
-  const data = get(appData);
-  const entry = data.journals.find(j => j.id === id);
-  if (!entry) {
-    return { success: false, error: 'Journal not found', journalId: id };
-  }
-
-  const context = buildTransformContext(
-    data,
-    buildParticipantLookup(data),
-    new Set(),
-    entry.id,
-    entry.expenseId ?? undefined
-  );
-
-  const result = applyJournalEntryLogic(entry, data, context, options);
-  if (!result.success) {
-    if (result.journalPatch && Object.keys(result.journalPatch).length > 0) {
-      updateJournalEntry(id, result.journalPatch);
-    }
-    return { ...result, journalId: id };
-  }
-
-  if (!result.expense) {
-    return { success: false, error: 'No expense produced', journalId: id };
-  }
-
-  updateData(d => {
-    const journal = d.journals.find(j => j.id === id);
-    if (!journal) return d;
-
-    let next = upsertExpenseFromApply(d, result.expense!);
-    next = {
-      ...next,
-      journals: next.journals.map(j =>
-        j.id === id
-          ? {
-              ...j,
-              ...result.journalPatch,
-              status: 'applied' as const,
-              expenseId: result.expense!.id,
-              skipReason: undefined,
-              updatedAt: new Date().toISOString()
-            }
-          : j
-      )
-    };
-    return next;
-  });
-
-  return { ...result, journalId: id };
-}
-
-export function applyAllPendingJournals(): BulkApplyResult {
-  const data = get(appData);
-  const pending = data.journals.filter(j =>
-    j.status === 'pending' || j.status === 'error'
-  );
-
-  const bulk: BulkApplyResult = { applied: 0, failed: 0, errors: [] };
-
-  for (const journal of pending) {
-    const result = applyJournalEntry(journal.id);
-    if (result.success) {
-      bulk.applied++;
-    } else {
-      bulk.failed++;
-      bulk.errors.push({ journalId: journal.id, error: result.error ?? 'Unknown error' });
-    }
-  }
-
-  return bulk;
-}
-
-export function deleteJournalEntry(id: string, deleteExpense: boolean): void {
-  updateData(d => {
-    const journal = d.journals.find(j => j.id === id);
-    if (!journal) return d;
-
-    let expenses = d.expenses;
-    if (deleteExpense && journal.expenseId) {
-      expenses = expenses.filter(e => e.id !== journal.expenseId);
-    } else if (journal.expenseId) {
-      expenses = expenses.map(e =>
-        e.id === journal.expenseId
-          ? { ...e, journalEntryId: undefined, source: e.source === 'journal' ? undefined : e.source }
-          : e
-      );
-    }
-
-    return {
-      ...d,
-      expenses,
-      journals: d.journals.filter(j => j.id !== id)
-    };
-  });
-}
-
-export function importJournalsFromCsvResult(
-  journals: JournalEntry[],
-  expenses: import('../types').Expense[],
-  newParticipants: { name: string; id: string }[],
-  newCurrencies: { code: string; symbol: string }[]
-): { importedExpenseCount: number } {
-  let importedExpenseCount = 0;
-
-  updateData(d => {
-    const byJournalId = new Map(
-      d.journals.filter(j => j.journalId).map(j => [j.journalId!, j])
-    );
-
-    let nextParticipants = [...d.participants];
-    for (const p of newParticipants) {
-      if (!nextParticipants.some(ep => ep.id === p.id)) {
-        nextParticipants.push({ id: p.id, name: p.name });
-      }
-    }
-
-    let nextCurrencies = [...d.currencies];
-    for (const c of newCurrencies) {
-      if (!nextCurrencies.some(ec => ec.code === c.code)) {
-        nextCurrencies.push({ code: c.code, symbol: c.symbol });
-      }
-    }
-
-    let nextJournals = [...d.journals];
-    let nextExpenses = [...d.expenses];
-
-    for (const incoming of journals) {
-      const expense = expenses.find(e => e.journalEntryId === incoming.id);
-      const existing = incoming.journalId ? byJournalId.get(incoming.journalId) : undefined;
-
-      if (existing) {
-        const updatedJournal: JournalEntry = {
-          ...existing,
-          rawData: incoming.rawData,
-          date: incoming.date,
-          description: incoming.description,
-          amount: incoming.amount,
-          currencyCode: incoming.currencyCode,
-          payerName: incoming.payerName,
-          payeeName: incoming.payeeName,
-          entryType: incoming.entryType,
-          notes: incoming.notes,
-          flag: incoming.flag,
-          importBatchId: incoming.importBatchId,
-          updatedAt: new Date().toISOString()
-        };
-
-        if (incoming.status === 'applied' && expense && existing.status !== 'out_of_sync') {
-          const expenseId = existing.expenseId ?? expense.id;
-          const mergedExpense = { ...expense, id: expenseId, journalEntryId: existing.id };
-          const idx = nextExpenses.findIndex(e => e.id === expenseId);
-          if (idx >= 0) nextExpenses[idx] = mergedExpense;
-          else nextExpenses.push(mergedExpense);
-          updatedJournal.expenseId = expenseId;
-          updatedJournal.status = 'applied';
-          updatedJournal.skipReason = undefined;
-          importedExpenseCount++;
-        } else if (incoming.status === 'error') {
-          updatedJournal.status = 'error';
-          updatedJournal.skipReason = incoming.skipReason;
-        }
-
-        nextJournals = nextJournals.map(j => j.id === existing.id ? updatedJournal : j);
-      } else {
-        const newId = generateId();
-        const newJournal: JournalEntry = {
-          ...incoming,
-          id: newId
-        };
-
-        if (incoming.status === 'applied' && expense) {
-          const newExpense = { ...expense, journalEntryId: newId };
-          newJournal.expenseId = newExpense.id;
-          nextExpenses.push(newExpense);
-          importedExpenseCount++;
-        }
-
-        nextJournals.push(newJournal);
-        if (newJournal.journalId) byJournalId.set(newJournal.journalId, newJournal);
-      }
-    }
-
-    return {
-      ...d,
-      participants: nextParticipants,
-      currencies: nextCurrencies,
-      journals: nextJournals,
-      expenses: nextExpenses
-    };
-  });
-
-  return { importedExpenseCount };
 }
 
 export async function replaceAllData(state: AppState): Promise<void> {

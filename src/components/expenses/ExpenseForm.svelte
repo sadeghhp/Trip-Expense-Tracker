@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { X, Image as ImageIcon } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
-  import { appData, updateData, markJournalOutOfSync } from '$lib/stores/data';
+  import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
@@ -13,6 +13,7 @@
   import type { Expense, Beneficiary, SplitType } from '$lib/types';
   import ImageViewer from '../ui/ImageViewer.svelte';
   import ReceiptThumbnail from '../ui/ReceiptThumbnail.svelte';
+  import TreatToggle from '../ui/TreatToggle.svelte';
 
   interface Props {
     expense: Expense | null;
@@ -28,6 +29,7 @@
   let amount = $state('');
   let paidBy = $state('');
   let splitType: SplitType = $state('equal');
+  let isTreat = $state(false);
   let selectedBeneficiaries: Set<string> = $state(new Set());
   let customAmounts: Record<string, string> = $state({});
   let customPercentages: Record<string, string> = $state({});
@@ -41,8 +43,12 @@
       amount = e?.amount?.toString() ?? '';
       paidBy = e?.paidBy ?? $appData.participants[0]?.id ?? '';
       splitType = e?.splitType ?? 'equal';
+      isTreat = e?.isTreat ?? false;
+      const tankhahId = $appData.tankhahParticipantId;
       selectedBeneficiaries = new Set(
-        e ? e.beneficiaries.map(b => b.participantId) : $appData.participants.map(p => p.id)
+        e
+          ? e.beneficiaries.map(b => b.participantId)
+          : $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
       );
       customAmounts = Object.fromEntries(
         e ? e.beneficiaries.map(b => [b.participantId, b.customAmount?.toString() ?? '']) : []
@@ -57,20 +63,6 @@
 
   let beneficiaryCount = $derived(selectedBeneficiaries.size);
   let parsedAmount = $derived(parseFloat(amount) || 0);
-
-  let isTransfer = $derived(
-    selectedBeneficiaries.size === 1 && !selectedBeneficiaries.has(paidBy)
-  );
-
-  function transferToName(): string {
-    if (!isTransfer) return '';
-    const pid = [...selectedBeneficiaries][0];
-    return $appData.participants.find(p => p.id === pid)?.name ?? '';
-  }
-
-  function transferFromName(): string {
-    return $appData.participants.find(p => p.id === paidBy)?.name ?? '';
-  }
 
   let equalPerPerson = $derived.by(() => {
     if (beneficiaryCount === 0 || parsedAmount <= 0) return '';
@@ -94,8 +86,17 @@
     return sum;
   });
 
-  let allSelected = $derived(selectedBeneficiaries.size === $appData.participants.length);
+  let nonTankhahParticipants = $derived(
+    $appData.participants.filter(p => p.id !== $appData.tankhahParticipantId)
+  );
+  let allSelected = $derived(
+    nonTankhahParticipants.every(p => selectedBeneficiaries.has(p.id))
+    && nonTankhahParticipants.length > 0
+  );
   let noneSelected = $derived(selectedBeneficiaries.size === 0);
+  let tankhahIncluded = $derived(
+    !!$appData.tankhahParticipantId && selectedBeneficiaries.has($appData.tankhahParticipantId)
+  );
 
   function toggleBeneficiary(pid: string) {
     const next = new Set(selectedBeneficiaries);
@@ -108,7 +109,10 @@
   }
 
   function selectAllBeneficiaries() {
-    selectedBeneficiaries = new Set($appData.participants.map(p => p.id));
+    const tankhahId = $appData.tankhahParticipantId;
+    selectedBeneficiaries = new Set(
+      $appData.participants.filter(p => p.id !== tankhahId).map(p => p.id)
+    );
   }
 
   function clearAllBeneficiaries() {
@@ -117,21 +121,23 @@
 
   function handleSubmit() {
     const amountNum = Math.round(parseFloat(amount) * 100) / 100;
+    const effectiveSplitType = isTreat ? 'equal' : splitType;
     const beneficiaries: Beneficiary[] = [...selectedBeneficiaries].map(pid => ({
       participantId: pid,
-      customAmount: splitType === 'custom' ? (parseFloat(customAmounts[pid] || '0') || 0) : null,
-      customPercentage: splitType === 'percentage' ? (parseFloat(customPercentages[pid] || '0') || 0) : null
+      customAmount: effectiveSplitType === 'custom' ? (parseFloat(customAmounts[pid] || '0') || 0) : null,
+      customPercentage: effectiveSplitType === 'percentage' ? (parseFloat(customPercentages[pid] || '0') || 0) : null
     }));
 
     const expenseData: Expense = {
-      id: expense?.id || generateId(),
+      id: expense?.id ?? generateId(),
       date,
       description: description.trim(),
       currencyCode,
       amount: amountNum,
       paidBy,
-      splitType,
+      splitType: effectiveSplitType,
       beneficiaries,
+      ...(isTreat ? { isTreat: true } : {}),
       ...(expense?.source !== undefined && { source: expense.source }),
       ...(expense?.receiptImageId !== undefined && { receiptImageId: expense.receiptImageId }),
       ...(expense?.aiMetadata !== undefined && { aiMetadata: expense.aiMetadata }),
@@ -143,15 +149,11 @@
       return;
     }
 
-    const isEdit = expense && expense.id && $appData.expenses.some(e => e.id === expense!.id);
-    if (isEdit) {
+    if (expense) {
       updateData(d => ({
         ...d,
         expenses: d.expenses.map(e => e.id === expense!.id ? expenseData : e)
       }));
-      if (expense?.journalEntryId) {
-        markJournalOutOfSync(expense.journalEntryId);
-      }
     } else {
       updateData(d => ({
         ...d,
@@ -175,7 +177,7 @@
   >
     <div class="flex items-center justify-between px-5 py-4 border-b border-[var(--card-border)] shrink-0">
       <h2 class="text-lg font-semibold text-[var(--text-primary)]">
-        {expense && expense.id ? $t('expenseForm.editTitle') : $t('expenseForm.addTitle')}
+        {expense ? $t('expenseForm.editTitle') : $t('expenseForm.addTitle')}
       </h2>
       <button onclick={onClose} class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] transition-colors">
         <X size={18} />
@@ -232,7 +234,7 @@
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all" />
         </div>
         <div>
-          <label for="expense-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{isTransfer ? $t('expenseForm.from') : $t('expenseForm.paidBy')}</label>
+          <label for="expense-paid-by" class="block text-xs font-medium text-[var(--text-secondary)] mb-1">{$t('expenseForm.paidBy')}</label>
           <select id="expense-paid-by" bind:value={paidBy}
             class="w-full px-3 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--app-bg)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all">
             {#each $appData.participants as p}
@@ -242,8 +244,10 @@
         </div>
       </div>
 
+      <TreatToggle checked={isTreat} onToggle={() => isTreat = !isTreat} />
+
       <!-- Split type -->
-      {#if !isTransfer}
+      {#if !isTreat}
       <div role="group" aria-labelledby="split-type-label">
         <span id="split-type-label" class="block text-xs font-medium text-[var(--text-secondary)] mb-2">{$t('expenseForm.splitType')}</span>
         <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
@@ -267,7 +271,7 @@
       <div role="group" aria-labelledby="beneficiaries-label">
         <div class="flex items-center justify-between mb-2">
           <span id="beneficiaries-label" class="text-xs font-medium text-[var(--text-secondary)]">
-            {isTransfer ? $t('expenseForm.to') : $t('expenseForm.beneficiaries', { count: beneficiaryCount })}
+            {$t('expenseForm.beneficiaries', { count: beneficiaryCount })}
           </span>
           <div class="flex items-center gap-2">
             {#if !allSelected}
@@ -296,69 +300,126 @@
         <div class="space-y-2 max-h-48 overflow-y-auto">
           {#each $appData.participants as p (p.id)}
             {@const selected = selectedBeneficiaries.has(p.id)}
-            <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
-              <button
-                type="button"
-                onclick={() => toggleBeneficiary(p.id)}
-                class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
-                  {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
-              >
-                {#if selected}
-                  <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                {/if}
-              </button>
-              <span class="text-sm text-[var(--text-primary)] flex-1">{p.name}</span>
+            {@const pIsTankhah = p.id === $appData.tankhahParticipantId}
+            {#if !pIsTankhah}
+              <div class="flex items-center gap-3 p-2 rounded-xl {selected ? 'bg-primary-50 dark:bg-primary-900/20' : ''}">
+                <button
+                  type="button"
+                  onclick={() => toggleBeneficiary(p.id)}
+                  class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                    {selected ? 'border-primary-600 bg-primary-600' : 'border-[var(--card-border)]'}"
+                >
+                  {#if selected}
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  {/if}
+                </button>
+                <span class="text-sm text-[var(--text-primary)] flex-1">{p.name}</span>
 
-              {#if selected && splitType === 'custom'}
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={customAmounts[p.id] ?? ''}
-                  oninput={(e) => customAmounts[p.id] = (e.target as HTMLInputElement).value}
-                  class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-              {/if}
-              {#if selected && splitType === 'percentage'}
-                <div class="flex items-center gap-1">
+                {#if selected && splitType === 'custom' && !isTreat}
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    max="100"
-                    placeholder="0"
-                    value={customPercentages[p.id] ?? ''}
-                    oninput={(e) => customPercentages[p.id] = (e.target as HTMLInputElement).value}
-                    class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="0.00"
+                    value={customAmounts[p.id] ?? ''}
+                    oninput={(e) => customAmounts[p.id] = (e.target as HTMLInputElement).value}
+                    class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
-                  <span class="text-xs text-[var(--text-secondary)]">%</span>
-                </div>
-              {/if}
-            </div>
+                {/if}
+                {#if selected && splitType === 'percentage' && !isTreat}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={customPercentages[p.id] ?? ''}
+                      oninput={(e) => customPercentages[p.id] = (e.target as HTMLInputElement).value}
+                      class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <span class="text-xs text-[var(--text-secondary)]">%</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
           {/each}
+
+          {#if $appData.tankhahParticipantId}
+            {@const tankhahP = $appData.participants.find(p => p.id === $appData.tankhahParticipantId)}
+            {#if tankhahP}
+              <div class="flex items-center gap-3 p-2 rounded-xl border border-dashed {tankhahIncluded ? 'bg-accent-50 dark:bg-accent-900/20 border-accent-300 dark:border-accent-700' : 'border-[var(--card-border)]'}">
+                <button
+                  type="button"
+                  onclick={() => toggleBeneficiary(tankhahP.id)}
+                  class="w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all
+                    {tankhahIncluded ? 'border-accent-600 bg-accent-600' : 'border-[var(--card-border)]'}"
+                >
+                  {#if tankhahIncluded}
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  {/if}
+                </button>
+                <span class="text-sm text-accent-700 dark:text-accent-300 flex-1 flex items-center gap-1.5">
+                  {tankhahP.name}
+                  <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400">
+                    {$t('participants.tankhahBadge')}
+                  </span>
+                </span>
+
+                {#if tankhahIncluded && splitType === 'custom'}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={customAmounts[tankhahP.id] ?? ''}
+                    oninput={(e) => customAmounts[tankhahP.id] = (e.target as HTMLInputElement).value}
+                    class="w-24 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                {/if}
+                {#if tankhahIncluded && splitType === 'percentage'}
+                  <div class="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={customPercentages[tankhahP.id] ?? ''}
+                      oninput={(e) => customPercentages[tankhahP.id] = (e.target as HTMLInputElement).value}
+                      class="w-20 px-2 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--app-bg)] text-sm text-end focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <span class="text-xs text-[var(--text-secondary)]">%</span>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          {/if}
         </div>
       </div>
 
       <!-- Live preview -->
-      {#if isTransfer && parsedAmount > 0}
-        <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
-          {$t('expenseForm.transferPreview', { from: transferFromName(), to: transferToName() })}
+      {#if isTreat && beneficiaryCount > 0 && parsedAmount > 0}
+        <div class="px-3 py-2 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-800 text-xs text-accent-700 dark:text-accent-300">
+          {$t('expenseForm.treatHint')}
         </div>
-      {:else if splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
+      {/if}
+      {#if !isTreat && splitType === 'equal' && beneficiaryCount > 0 && parsedAmount > 0}
         <div class="px-3 py-2 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 text-xs text-primary-700 dark:text-primary-300">
           {$t('expenseForm.equalPreview', { amount: equalPerPerson, count: beneficiaryCount, label: beneficiaryCount === 1 ? $t('common.person') : $t('common.people') })}
         </div>
       {/if}
-      {#if splitType === 'custom'}
+      {#if !isTreat && splitType === 'custom'}
         <div class="px-3 py-2 rounded-xl text-xs {Math.abs(customSum - parsedAmount) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
           {$t('expenseForm.customSum', { sum: formatAmount(customSum), total: formatAmount(parsedAmount) })}
           {Math.abs(customSum - parsedAmount) < 0.01 ? '✓' : '✗'}
         </div>
       {/if}
-      {#if splitType === 'percentage'}
+      {#if !isTreat && splitType === 'percentage'}
         <div class="px-3 py-2 rounded-xl text-xs {Math.abs(percentageSum - 100) < 0.01 ? 'bg-success-500/10 text-success-600' : 'bg-danger-500/10 text-danger-500'}">
           {$t('expenseForm.percentageSum', { sum: percentageSum.toFixed(2) })}
           {Math.abs(percentageSum - 100) < 0.01 ? '✓' : '✗'}

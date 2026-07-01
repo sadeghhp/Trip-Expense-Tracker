@@ -18,6 +18,12 @@ export function computeBalances(expenses: Expense[]): CurrencyBalances {
     }
     currBal[paidBy].paid += amount;
 
+    if (expense.isTreat) {
+      currBal[paidBy].owed += amount;
+      currBal[paidBy].treatPaid = (currBal[paidBy].treatPaid ?? 0) + amount;
+      continue;
+    }
+
     const shares = getBeneficiaryShares(expense);
     for (let i = 0; i < beneficiaries.length; i++) {
       const pid = beneficiaries[i].participantId;

@@ -44,7 +44,9 @@ vi.mock('$lib/stores/toast', () => ({
 
 vi.mock('$lib/i18n', () => ({
   t: readable((key: string) => key),
-  isRtl: readable(false)
+  isRtl: readable(false),
+  locale: readable('en'),
+  setLocale: vi.fn()
 }));
 
 import Settlement from '../settlement/Settlement.svelte';

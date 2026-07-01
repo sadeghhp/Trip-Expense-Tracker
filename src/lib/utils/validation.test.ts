@@ -183,6 +183,31 @@ describe('validateExpense', () => {
   it('accepts valid complete expense', () => {
     expect(validateExpense(makeExpense(), data)).toBeNull();
   });
+
+  it('skips custom sum validation for treat expenses', () => {
+    const expense = makeExpense({
+      amount: 100,
+      isTreat: true,
+      splitType: 'custom',
+      beneficiaries: [
+        makeBeneficiary('p-1', { customAmount: 60 }),
+        makeBeneficiary('p-2', { customAmount: 30 })
+      ]
+    });
+    expect(validateExpense(expense, data)).toBeNull();
+  });
+
+  it('skips percentage sum validation for treat expenses', () => {
+    const expense = makeExpense({
+      isTreat: true,
+      splitType: 'percentage',
+      beneficiaries: [
+        makeBeneficiary('p-1', { customPercentage: 40 }),
+        makeBeneficiary('p-2', { customPercentage: 40 })
+      ]
+    });
+    expect(validateExpense(expense, data)).toBeNull();
+  });
 });
 
 describe('validateSettlement', () => {

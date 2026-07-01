@@ -12,7 +12,7 @@ export interface ColumnMapping {
 }
 
 const DATE_PATTERNS = ['date', 'date_text', 'transaction date', 'posted', 'value date', 'booking date', 'تاریخ'];
-const DESC_PATTERNS = ['description', 'memo', 'narrative', 'details', 'particulars', 'شرح', 'توضیحات'];
+const DESC_PATTERNS = ['description', 'memo', 'narrative', 'details', 'particulars', 'شرح', 'توضیحات', 'توضیح'];
 const AMOUNT_PATTERNS = ['amount', 'total', 'sum', 'value', 'مبلغ'];
 const CURRENCY_PATTERNS = ['currency', 'ccy', 'cur', 'ارز'];
 const PAYER_PATTERNS = ['payer', 'paid by', 'from', 'account holder', 'پرداخت کننده'];
@@ -20,7 +20,7 @@ const PAYEE_PATTERNS = ['payee', 'paid to', 'to', 'beneficiary', 'recipient', '�
 const ENTRY_TYPE_PATTERNS = ['entry_type', 'type', 'transaction type', 'نوع'];
 const ID_PATTERNS = ['journal_id', 'id', 'transaction_id', 'reference', 'ref'];
 const FLAG_PATTERNS = ['flag', 'status', 'warning'];
-const NOTES_PATTERNS = ['notes', 'note', 'comment', 'remarks', 'یادداشت'];
+const NOTES_PATTERNS = ['notes', 'note', 'comment', 'remarks', 'یادداشت', 'توضیح'];
 
 function normalize(s: string): string {
   return s.toLowerCase().trim().replace(/[\s_-]+/g, ' ');

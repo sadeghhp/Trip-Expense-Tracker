@@ -77,6 +77,7 @@
     "addCurrency": "Add Currency",
     "addFirstExpense": "Add First Expense",
     "setExchangeRates": "Set exchange rates to unify totals",
+    "settlementIncomplete": "Excludes {currencies} (no rate set)",
     "day": "1 day",
     "days": "{count} days",
     "scanReceipt": "Scan",
@@ -95,7 +96,21 @@
     "updated": "Expense updated",
     "added": "Expense added",
     "deleted": "Expense deleted",
-    "transferLabel": "{from} → {to}"
+    "tabExpenses": "Expenses",
+    "tabJournal": "Journal",
+    "allCurrencies": "All",
+    "allPeople": "All people",
+    "showingFiltered": "Showing {count} of {total}",
+    "treatBadge": "Treat"
+  },
+  "journal": {
+    "noEntriesTitle": "No journal entries",
+    "noEntriesDesc": "Import a CSV file to store the full financial journal alongside expenses.",
+    "allTypes": "All entry types",
+    "allCurrencies": "All currencies",
+    "allPeople": "All payers",
+    "viewExpense": "View expense",
+    "entryCount": "Showing {count} of {total} entries"
   },
   "expenseForm": {
     "editTitle": "Edit Expense",
@@ -118,9 +133,8 @@
     "addExpense": "Add Expense",
     "selectAll": "Select All",
     "clearAll": "Clear",
-    "from": "From",
-    "to": "To",
-    "transferPreview": "Transfer: {from} → {to}"
+    "treat": "Treat",
+    "treatHint": "No one pays back — the payer covers everything"
   },
   "participants": {
     "noParticipantsTitle": "No participants yet",
@@ -137,7 +151,14 @@
     "updated": "Participant updated",
     "added": "Participant added",
     "cannotDelete": "Cannot delete: participant is used in expenses",
-    "deleted": "Participant deleted"
+    "deleted": "Participant deleted",
+    "tankhah": "Tankhah",
+    "tankhahBadge": "Fund Manager",
+    "setAsTankhah": "Set as Tankhah",
+    "removeTankhah": "Remove Tankhah Role",
+    "tankhahSet": "{name} is now the Tankhah",
+    "tankhahRemoved": "Tankhah role removed",
+    "cannotDeleteTankhah": "Remove the Tankhah role first before deleting"
   },
   "currencies": {
     "quickAdd": "Quick Add",
@@ -170,7 +191,9 @@
     "net": "Net:",
     "creditor": "creditor",
     "debtor": "debtor",
-    "settled": "settled"
+    "settled": "settled",
+    "fundManager": "fund manager",
+    "treatIncluded": "includes {amount} in treats"
   },
   "settlement": {
     "noCurrenciesTitle": "No currencies",
@@ -198,6 +221,9 @@
     "calendar": "Calendar",
     "gregorian": "Gregorian",
     "jalali": "Jalali",
+    "display": "Display",
+    "showDecimals": "Show Decimals",
+    "showDecimalsHint": "e.g. 100.00 vs 100",
     "data": "Data",
     "exportTripData": "Export Trip Data (JSON)",
     "importData": "Import Data (JSON)",
@@ -333,6 +359,8 @@
     "selectCsvFile": "Please select a CSV file",
     "parseFailed": "Could not parse CSV file",
     "importedToTrip": "Imported {count} expenses into current trip",
+    "importedToTripDeduped": "Imported {count} expenses ({skipped} duplicates skipped)",
+    "allDuplicates": "All {count} expenses already exist (duplicates skipped)",
     "createdNewTrip": "Created new trip \"{name}\" with {count} expenses",
     "dropCsv": "Drop CSV file here",
     "orClickBrowse": "or click to browse",
@@ -376,6 +404,30 @@
     "newTrip": "New Trip",
     "tripNamePlaceholder": "Trip name",
     "importExpenses": "Import {count} Expenses",
+    "importJournalOnly": "Import {count} Journal Entries",
+    "importedJournalOnly": "Imported {count} journal entries",
+    "createdNewTripJournal": "Created trip \"{name}\" with {count} journal entries",
+    "dateFormat": "Date format",
+    "dateFormatAuto": "Auto-detect",
+    "dateFormatMDY": "MM/DD/YYYY",
+    "dateFormatDMY": "DD/MM/YYYY",
+    "fullJournal": "Full Journal ({count} entries)",
+    "journalFilter": {
+      "all": "All",
+      "imported": "Imported",
+      "skipped": "Skipped"
+    },
+    "journalCol": {
+      "status": "",
+      "id": "ID",
+      "type": "Type",
+      "date": "Date",
+      "payer": "Payer",
+      "payee": "Payee",
+      "amount": "Amount",
+      "description": "Description",
+      "reason": "Reason"
+    },
     "fields": {
       "date": "Date",
       "description": "Description",
@@ -472,70 +524,5 @@
     "AMD": "Armenian Dram",
     "IQD": "Iraqi Dinar",
     "PKR": "Pakistani Rupee"
-  },
-  "journals": {
-    "banner": "{count} journal entries need attention",
-    "bannerAllApplied": "{count} journal entries",
-    "apply": "Apply",
-    "applyAll": "Apply All Pending",
-    "applied": "Journal applied to expense",
-    "appliedBulk": "{count} journals applied",
-    "applyBulkFailed": "{count} journals failed to apply",
-    "applyFailed": "Failed to apply journal",
-    "saved": "Journal saved",
-    "deleted": "Journal removed",
-    "editTitle": "Edit Journal Entry",
-    "entryType": "Entry Type",
-    "payer": "Payer",
-    "payee": "Payee",
-    "notes": "Notes",
-    "previewTitle": "Will create/update expense",
-    "showRawData": "Show raw CSV data",
-    "hideRawData": "Hide raw CSV data",
-    "requiredFields": "Date, description, currency, and payer are required",
-    "viewExpense": "View linked expense",
-    "fromJournal": "Journal {id}",
-    "outOfSyncTitle": "Overwrite expense?",
-    "outOfSyncMessage": "This expense was edited manually. Applying the journal will overwrite those changes.",
-    "deleteTitle": "Remove journal entry?",
-    "deleteMessage": "The linked expense will be kept but unlinked from this journal.",
-    "noFiltered": "No journal entries match this filter",
-    "filter": {
-      "all": "All",
-      "pending": "Pending",
-      "error": "Error",
-      "out_of_sync": "Out of sync",
-      "applied": "Applied"
-    },
-    "status": {
-      "applied": "Applied",
-      "pending": "Pending",
-      "error": "Error",
-      "out_of_sync": "Out of sync"
-    }
-  },
-  "pending": {
-    "banner": "{count} items pending review from CSV import",
-    "bannerSingular": "1 item pending review from CSV import",
-    "reviewAll": "Review All",
-    "dismissAll": "Dismiss All",
-    "dismiss": "Dismiss",
-    "fixAndAdd": "Fix & Add",
-    "skipForLater": "Skip for Later",
-    "reason": "Reason: {reason}",
-    "progress": "{current} of {total}",
-    "wizardTitle": "Review Pending Items",
-    "confirmDismissAll": "Are you sure you want to dismiss all pending items? This cannot be undone.",
-    "confirmDismiss": "Dismiss this item? It will be permanently removed.",
-    "summaryTitle": "Review Complete",
-    "summaryAdded": "{count} added as expenses",
-    "summaryRemaining": "{count} kept for later",
-    "summaryDismissed": "{count} dismissed",
-    "done": "Done",
-    "noItems": "No pending items",
-    "rawData": "Raw CSV Data",
-    "payer": "Payer",
-    "payee": "Payee",
-    "edit": "Edit"
   }
 }

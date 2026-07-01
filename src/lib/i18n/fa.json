@@ -77,6 +77,7 @@
     "addCurrency": "افزودن ارز",
     "addFirstExpense": "ثبت اولین هزینه",
     "setExchangeRates": "نرخ تبدیل ارز را تنظیم کنید",
+    "settlementIncomplete": "بدون نرخ تبدیل: {currencies}",
     "day": "۱ روز",
     "days": "{count} روز",
     "scanReceipt": "اسکن",
@@ -95,7 +96,21 @@
     "updated": "هزینه بروزرسانی شد",
     "added": "هزینه اضافه شد",
     "deleted": "هزینه حذف شد",
-    "transferLabel": "{from} → {to}"
+    "tabExpenses": "هزینه‌ها",
+    "tabJournal": "دفتر کل",
+    "allCurrencies": "همه",
+    "allPeople": "همه افراد",
+    "showingFiltered": "نمایش {count} از {total}",
+    "treatBadge": "مهمانی"
+  },
+  "journal": {
+    "noEntriesTitle": "ثبت دفتر کل وجود ندارد",
+    "noEntriesDesc": "یک فایل CSV وارد کنید تا دفتر مالی کامل در کنار هزینه‌ها ذخیره شود.",
+    "allTypes": "همه انواع ثبت",
+    "allCurrencies": "همه ارزها",
+    "allPeople": "همه پرداخت‌کنندگان",
+    "viewExpense": "مشاهده هزینه",
+    "entryCount": "نمایش {count} از {total} ثبت"
   },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",
@@ -118,9 +133,8 @@
     "addExpense": "افزودن هزینه",
     "selectAll": "انتخاب همه",
     "clearAll": "پاک کردن",
-    "from": "از",
-    "to": "به",
-    "transferPreview": "انتقال: {from} → {to}"
+    "treat": "مهمانی",
+    "treatHint": "کسی پس نمی‌دهد — پرداخت‌کننده همه هزینه را می‌پردازد"
   },
   "participants": {
     "noParticipantsTitle": "هنوز شرکت‌کننده‌ای اضافه نشده",
@@ -137,7 +151,14 @@
     "updated": "شرکت‌کننده بروزرسانی شد",
     "added": "شرکت‌کننده اضافه شد",
     "cannotDelete": "امکان حذف وجود ندارد: شرکت‌کننده در هزینه‌ها استفاده شده است",
-    "deleted": "شرکت‌کننده حذف شد"
+    "deleted": "شرکت‌کننده حذف شد",
+    "tankhah": "تنخواه‌گردان",
+    "tankhahBadge": "مدیر صندوق",
+    "setAsTankhah": "تنظیم به عنوان تنخواه‌گردان",
+    "removeTankhah": "حذف نقش تنخواه‌گردان",
+    "tankhahSet": "{name} اکنون تنخواه‌گردان است",
+    "tankhahRemoved": "نقش تنخواه‌گردان حذف شد",
+    "cannotDeleteTankhah": "ابتدا نقش تنخواه‌گردان را حذف کنید"
   },
   "currencies": {
     "quickAdd": "افزودن سریع",
@@ -170,7 +191,9 @@
     "net": "خالص:",
     "creditor": "طلبکار",
     "debtor": "بدهکار",
-    "settled": "تسویه"
+    "settled": "تسویه",
+    "fundManager": "مدیر صندوق",
+    "treatIncluded": "شامل {amount} مهمانی"
   },
   "settlement": {
     "noCurrenciesTitle": "ارزی وجود ندارد",
@@ -198,6 +221,9 @@
     "calendar": "تقویم",
     "gregorian": "میلادی",
     "jalali": "شمسی",
+    "display": "نمایش",
+    "showDecimals": "نمایش اعشار",
+    "showDecimalsHint": "مثلاً ۱۰۰.۰۰ در مقابل ۱۰۰",
     "data": "داده‌ها",
     "exportTripData": "خروجی اطلاعات سفر (JSON)",
     "importData": "وارد کردن داده (JSON)",
@@ -333,6 +359,8 @@
     "selectCsvFile": "لطفاً یک فایل CSV انتخاب کنید",
     "parseFailed": "فایل CSV قابل تجزیه نیست",
     "importedToTrip": "{count} هزینه به سفر فعلی وارد شد",
+    "importedToTripDeduped": "{count} هزینه وارد شد ({skipped} تکراری رد شد)",
+    "allDuplicates": "همه {count} هزینه قبلاً وجود دارد (تکراری رد شد)",
     "createdNewTrip": "سفر جدید \"{name}\" با {count} هزینه ایجاد شد",
     "dropCsv": "فایل CSV را اینجا رها کنید",
     "orClickBrowse": "یا برای انتخاب کلیک کنید",
@@ -376,6 +404,30 @@
     "newTrip": "سفر جدید",
     "tripNamePlaceholder": "نام سفر",
     "importExpenses": "وارد کردن {count} هزینه",
+    "importJournalOnly": "وارد کردن {count} ثبت دفتر کل",
+    "importedJournalOnly": "{count} ثبت دفتر کل وارد شد",
+    "createdNewTripJournal": "سفر \"{name}\" با {count} ثبت دفتر کل ایجاد شد",
+    "dateFormat": "قالب تاریخ",
+    "dateFormatAuto": "تشخیص خودکار",
+    "dateFormatMDY": "ماه/روز/سال",
+    "dateFormatDMY": "روز/ماه/سال",
+    "fullJournal": "دفتر کل ({count} ثبت)",
+    "journalFilter": {
+      "all": "همه",
+      "imported": "وارد شده",
+      "skipped": "رد شده"
+    },
+    "journalCol": {
+      "status": "",
+      "id": "شناسه",
+      "type": "نوع",
+      "date": "تاریخ",
+      "payer": "پرداخت‌کننده",
+      "payee": "ذینفع",
+      "amount": "مبلغ",
+      "description": "توضیحات",
+      "reason": "دلیل"
+    },
     "fields": {
       "date": "تاریخ",
       "description": "توضیحات",
@@ -472,70 +524,5 @@
     "AMD": "درام ارمنستان",
     "IQD": "دینار عراق",
     "PKR": "روپیه پاکستان"
-  },
-  "journals": {
-    "banner": "{count} رکورد دفتر روزنامه نیاز به توجه دارد",
-    "bannerAllApplied": "{count} رکورد دفتر روزنامه",
-    "apply": "اعمال",
-    "applyAll": "اعمال همه معلق‌ها",
-    "applied": "دفتر روزنامه روی هزینه اعمال شد",
-    "appliedBulk": "{count} دفتر روزنامه اعمال شد",
-    "applyBulkFailed": "{count} دفتر روزنامه اعمال نشد",
-    "applyFailed": "اعمال دفتر روزنامه ناموفق بود",
-    "saved": "دفتر روزنامه ذخیره شد",
-    "deleted": "رکورد دفتر روزنامه حذف شد",
-    "editTitle": "ویرایش رکورد دفتر روزنامه",
-    "entryType": "نوع ثبت",
-    "payer": "پرداخت‌کننده",
-    "payee": "دریافت‌کننده",
-    "notes": "یادداشت",
-    "previewTitle": "هزینه ایجاد/به‌روزرسانی می‌شود",
-    "showRawData": "نمایش داده خام CSV",
-    "hideRawData": "پنهان کردن داده خام",
-    "requiredFields": "تاریخ، شرح، ارز و پرداخت‌کننده الزامی است",
-    "viewExpense": "مشاهده هزینه مرتبط",
-    "fromJournal": "دفتر {id}",
-    "outOfSyncTitle": "هزینه بازنویسی شود؟",
-    "outOfSyncMessage": "این هزینه به صورت دستی ویرایش شده است. اعمال دفتر روزنامه تغییرات را بازنویسی می‌کند.",
-    "deleteTitle": "رکورد دفتر روزنامه حذف شود؟",
-    "deleteMessage": "هزینه مرتبط حفظ می‌شود اما از این دفتر جدا می‌شود.",
-    "noFiltered": "رکوردی با این فیلتر یافت نشد",
-    "filter": {
-      "all": "همه",
-      "pending": "معلق",
-      "error": "خطا",
-      "out_of_sync": "ناهماهنگ",
-      "applied": "اعمال‌شده"
-    },
-    "status": {
-      "applied": "اعمال‌شده",
-      "pending": "معلق",
-      "error": "خطا",
-      "out_of_sync": "ناهماهنگ"
-    }
-  },
-  "pending": {
-    "banner": "{count} مورد در انتظار بررسی از وارد کردن CSV",
-    "bannerSingular": "۱ مورد در انتظار بررسی از وارد کردن CSV",
-    "reviewAll": "بررسی همه",
-    "dismissAll": "رد کردن همه",
-    "dismiss": "رد کردن",
-    "fixAndAdd": "اصلاح و افزودن",
-    "skipForLater": "بعداً بررسی",
-    "reason": "دلیل: {reason}",
-    "progress": "{current} از {total}",
-    "wizardTitle": "بررسی موارد معلق",
-    "confirmDismissAll": "آیا مطمئن هستید که می‌خواهید همه موارد معلق را رد کنید؟ این عمل قابل بازگشت نیست.",
-    "confirmDismiss": "این مورد رد شود؟ به طور دائم حذف خواهد شد.",
-    "summaryTitle": "بررسی کامل شد",
-    "summaryAdded": "{count} به عنوان هزینه اضافه شد",
-    "summaryRemaining": "{count} برای بعد نگه داشته شد",
-    "summaryDismissed": "{count} رد شد",
-    "done": "تمام",
-    "noItems": "موردی در انتظار نیست",
-    "rawData": "داده خام CSV",
-    "payer": "پرداخت‌کننده",
-    "payee": "دریافت‌کننده",
-    "edit": "ویرایش"
   }
 }

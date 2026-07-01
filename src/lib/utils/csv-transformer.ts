@@ -1,23 +1,15 @@
-import type { Expense, Participant, Currency, JournalEntry, PendingImportItem } from '../types';
+import type { Expense, Participant, Currency, Beneficiary, JournalEntry } from '../types';
 import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { generateId } from './id';
-import {
-  buildJournalEntryFromCsvRow,
-  applyJournalEntryLogic,
-  buildTransformContext,
-  SKIP_ENTRY_TYPES,
-  parseFlexibleDate
-} from './journal-apply';
 
 export interface ImportResult {
   expenses: Expense[];
-  journals: JournalEntry[];
+  journalEntries: JournalEntry[];
   newParticipants: { name: string; id: string }[];
   newCurrencies: { code: string; symbol: string }[];
   skippedRows: { row: number; reason: string }[];
   flaggedRows: { row: number; flag: string; notes: string }[];
-  pendingItems: PendingImportItem[];
 }
 
 export interface AmbiguousPayee {
@@ -40,7 +32,17 @@ export interface ParticipantMapping {
   isDescription: boolean;
 }
 
-const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'همه', 'all', 'موجودی اولیه سفر', 'هر نفر']);
+const IMPORTABLE_ENTRY_TYPES = [
+  'expense',
+  'expense_personal',
+  'expense_group',
+  'expense_from_tankhah',
+  'expense_treat',
+  'expense_alipay',
+  'payment_from_tankhah'
+];
+
+const SKIP_PAYEE_VALUES = new Set(['هزینه شخصی', 'گروه', 'همه', 'موجودی اولیه سفر', 'هر نفر']);
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥',
@@ -50,8 +52,77 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   GEL: '₾', AMD: '֏', IQD: 'ع.د', PKR: '₨'
 };
 
-export { parseFlexibleDate };
-export { SKIP_ENTRY_TYPES, SWAPPED_ENTRY_TYPES, resolveBeneficiaries, resolveParticipantId } from './journal-apply';
+export type DateFormat = 'auto' | 'mdy' | 'dmy';
+
+function buildDate(year: number, month: number, day: number): string | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+export function parseFlexibleDate(raw: string, format: DateFormat = 'auto'): string | null {
+  const cleaned = raw.trim();
+  if (!cleaned) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+
+  const withoutTime = cleaned.split(/\s+/)[0];
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) {
+    return cleaned.slice(0, 10);
+  }
+
+  const slashParts = withoutTime.split('/');
+  if (slashParts.length === 3) {
+    const [a, b, c] = slashParts.map(Number);
+    if (c > 100) {
+      if (format === 'dmy') return buildDate(c, b, a);
+      if (format === 'mdy') return buildDate(c, a, b);
+      if (a > 12) return buildDate(c, b, a);
+      return buildDate(c, a, b);
+    }
+    if (a > 100) {
+      return buildDate(a, b, c);
+    }
+  }
+
+  const dashParts = withoutTime.split('-');
+  if (dashParts.length === 3) {
+    const [a, b, c] = dashParts.map(Number);
+    if (a > 100) return buildDate(a, b, c);
+    if (c > 100) return buildDate(c, b, a);
+  }
+
+  const d = new Date(cleaned);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split('T')[0];
+  }
+
+  return null;
+}
+
+function parseNumber(raw: string): number {
+  let cleaned = raw.replace(/[^\d.\-,]/g, '');
+  if (!cleaned) return 0;
+
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+
+  if (lastComma > -1 && lastDot > -1) {
+    if (lastComma > lastDot) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (lastComma > -1) {
+    if (/,\d{3}$/.test(cleaned)) {
+      cleaned = cleaned.replace(/,/g, '');
+    } else {
+      cleaned = cleaned.replace(',', '.');
+    }
+  }
+
+  return parseFloat(cleaned) || 0;
+}
 
 function matchesKnownPayer(name: string, payers: Set<string>): boolean {
   if (!name) return false;
@@ -69,6 +140,9 @@ export function extractUniqueNames(
   const payerNames = new Set<string>();
 
   for (const row of rows) {
+    const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
+
     const payer = mapping.payer ? row[mapping.payer].trim() : '';
     if (payer) {
       if (payer.includes('|')) {
@@ -79,11 +153,12 @@ export function extractUniqueNames(
     }
   }
 
+  // Second pass: collect payee names that don't match any payer
   const ambiguousMap = new Map<string, AmbiguousPayee>();
 
   for (const row of rows) {
     const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
-    if (mapping.entryType && SKIP_ENTRY_TYPES.has(entryType)) continue;
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
     if (entryType === 'expense_personal') continue;
 
     const payee = mapping.payee ? row[mapping.payee].trim() : '';
@@ -123,8 +198,8 @@ export function extractUniqueCurrencies(
   const codes = new Set<string>();
 
   for (const row of rows) {
-    const entryType = mapping.entryType ? row[mapping.entryType] : '';
-    if (mapping.entryType && SKIP_ENTRY_TYPES.has(entryType)) continue;
+    const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) continue;
 
     const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
     if (currency && currency !== 'UNKNOWN') {
@@ -145,16 +220,17 @@ export function transformCsvToExpenses(
   participantMappings: ParticipantMapping[],
   existingParticipants: Participant[],
   existingCurrencies: Currency[],
-  newCurrencies: { code: string; symbol: string }[]
+  newCurrencies: { code: string; symbol: string }[],
+  dateFormat: DateFormat = 'auto',
+  tankhahParticipantId?: string
 ): ImportResult {
   const result: ImportResult = {
     expenses: [],
-    journals: [],
+    journalEntries: [],
     newParticipants: [],
     newCurrencies: [...newCurrencies],
     skippedRows: [],
-    flaggedRows: [],
-    pendingItems: []
+    flaggedRows: []
   };
 
   const allParticipants = [...existingParticipants];
@@ -180,85 +256,254 @@ export function transformCsvToExpenses(
     }
   }
 
-  const importBatchId = generateId();
-  const now = new Date().toISOString();
+  const allCurrencyCodes = new Set([
+    ...existingCurrencies.map(c => c.code),
+    ...newCurrencies.map(c => c.code)
+  ]);
 
-  const appDataForApply = {
-    participants: allParticipants,
-    currencies: [...existingCurrencies, ...newCurrencies.map(c => ({ code: c.code, symbol: c.symbol }))],
-    expenses: [] as Expense[],
-    journals: [] as JournalEntry[],
-    pendingImports: [],
-    exchangeRates: {},
-    settlementCurrency: ''
-  };
+  const seenIds = new Set<string>();
 
-  function skipJournal(journal: JournalEntry, rowNum: number, reason: string) {
-    const failed: JournalEntry = {
-      ...journal,
-      status: 'error',
-      skipReason: reason,
-      updatedAt: now
-    };
-    result.journals.push(failed);
-    result.skippedRows.push({ row: rowNum, reason });
-    result.pendingItems.push({
-      id: journal.id,
-      rawData: journal.rawData,
-      reason,
-      createdAt: now,
-      date: journal.date || undefined,
-      description: journal.description || undefined,
-      amount: journal.amount || undefined,
-      currencyCode: journal.currencyCode || undefined,
-      payerName: journal.payerName || undefined,
-      payeeName: journal.payeeName || undefined,
-      entryType: journal.entryType || undefined
-    });
-  }
+  const sampleRow = rows[0];
+  const sampleHeaders = sampleRow ? Object.keys(sampleRow) : [];
+  const entryIdCol = sampleHeaders.find(h => h.toLowerCase().includes('entry_id')) ?? null;
+  const sourceFileCol = sampleHeaders.find(h => h.toLowerCase().includes('source_file')) ?? null;
+  const localNotesCol = sampleHeaders.find(h =>
+    h === 'توضیح' || h === 'local_notes' || h.toLowerCase().replace(/[\s_-]+/g, '') === 'localnotes'
+  ) ?? null;
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2;
 
-    const journal = buildJournalEntryFromCsvRow(row, mapping, rowNum, importBatchId);
+    const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
+    const description = mapping.description ? row[mapping.description].trim() : '';
+    const payerName = mapping.payer ? row[mapping.payer].trim() : '';
+    const payeeName = mapping.payee ? row[mapping.payee].trim() : '';
+    const currency = mapping.currency ? row[mapping.currency].trim().toUpperCase() : '';
+    const rawAmount = mapping.amount ? row[mapping.amount] : '0';
+    const amount = Math.round(Math.abs(parseNumber(rawAmount)) * 100) / 100;
+    const rawDate = mapping.date ? row[mapping.date] : '';
+    const date = parseFlexibleDate(rawDate, dateFormat);
+    const notes = mapping.notes ? row[mapping.notes].trim() : '';
+    const flag = mapping.flag ? row[mapping.flag].trim() : '';
+    const journalId = mapping.id ? row[mapping.id].trim() : `row-${rowNum}`;
 
-    if (journal.flag) {
-      result.flaggedRows.push({ row: rowNum, flag: journal.flag, notes: journal.notes ?? '' });
-    }
+    const journalEntry: JournalEntry = {
+      journalId,
+      entryId: entryIdCol ? row[entryIdCol].trim() : '',
+      sourceFile: sourceFileCol ? row[sourceFileCol].trim() : '',
+      entryType: entryType || 'expense',
+      date: date || rawDate.trim(),
+      description,
+      payer: payerName,
+      payee: payeeName,
+      currency: currency || (mapping.currency ? row[mapping.currency].trim() : ''),
+      amount,
+      flag,
+      notes,
+      localNotes: localNotesCol ? (row[localNotesCol]?.trim() ?? '') : '',
+      linkedExpenseId: null,
+      status: 'skipped',
+      skipReason: ''
+    };
 
-    const context = buildTransformContext(
-      appDataForApply,
-      participantLookup,
-      descriptionNames,
-      journal.id,
-      undefined,
-      rowNum
-    );
+    // --- Validation for expense conversion ---
 
-    const applyResult = applyJournalEntryLogic(journal, appDataForApply, context);
-
-    if (!applyResult.success || !applyResult.expense) {
-      skipJournal(
-        { ...journal, ...applyResult.journalPatch },
-        rowNum,
-        applyResult.error ?? 'Transform failed'
-      );
+    if (mapping.entryType && !IMPORTABLE_ENTRY_TYPES.includes(entryType)) {
+      const reason = `Non-expense entry type: ${entryType}`;
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
       continue;
     }
 
-    const appliedJournal: JournalEntry = {
-      ...journal,
-      ...applyResult.journalPatch,
-      status: 'applied',
-      expenseId: applyResult.expense.id,
-      updatedAt: now
-    };
+    if (mapping.id) {
+      const rowId = row[mapping.id].trim();
+      if (rowId && seenIds.has(rowId)) {
+        const reason = `Duplicate ID: ${rowId}`;
+        result.skippedRows.push({ row: rowNum, reason });
+        journalEntry.skipReason = reason;
+        result.journalEntries.push(journalEntry);
+        continue;
+      }
+      if (rowId) seenIds.add(rowId);
+    }
 
-    result.journals.push(appliedJournal);
-    result.expenses.push(applyResult.expense);
-    appDataForApply.expenses.push(applyResult.expense);
+    if (description.includes('تکرار ثبت')) {
+      const reason = 'Duplicate entry (تکرار ثبت)';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    if (currency === 'UNKNOWN' || !currency) {
+      const reason = 'Unknown or missing currency';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+    if (!allCurrencyCodes.has(currency)) {
+      const reason = `Currency ${currency} not configured`;
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    if (!date) {
+      const reason = 'Invalid date';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    if (amount <= 0) {
+      const reason = 'Invalid amount';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    const payerId = resolveParticipantId(payerName, participantLookup);
+    if (!payerId) {
+      const reason = payerName
+        ? `Unknown payer: ${payerName}`
+        : 'No payer column mapped or payer is empty';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    const payeeIsDescription = payeeName
+      ? descriptionNames.has(payeeName.toLowerCase())
+      : false;
+
+    let beneficiaries: Beneficiary[];
+    let enrichedDescription = description;
+
+    if (payeeIsDescription) {
+      const groupParticipants = tankhahParticipantId
+        ? allParticipants.filter(p => p.id !== tankhahParticipantId)
+        : allParticipants;
+      beneficiaries = groupParticipants.map(p => makeBeneficiary(p.id));
+      if (payeeName && !description.includes(payeeName)) {
+        enrichedDescription = description ? `${description} - ${payeeName}` : payeeName;
+      }
+    } else {
+      beneficiaries = resolveBeneficiaries(
+        payeeName, entryType, payerId, allParticipants, participantLookup, tankhahParticipantId
+      );
+    }
+
+    if (beneficiaries.length === 0) {
+      const reason = 'Could not determine beneficiaries';
+      result.skippedRows.push({ row: rowNum, reason });
+      journalEntry.skipReason = reason;
+      result.journalEntries.push(journalEntry);
+      continue;
+    }
+
+    if (flag) {
+      result.flaggedRows.push({ row: rowNum, flag, notes });
+    }
+
+    if (notes && enrichedDescription !== notes) {
+      enrichedDescription = enrichedDescription
+        ? `${enrichedDescription} - ${notes}`
+        : notes;
+    }
+
+    const expenseId = generateId();
+    const isTreatEntry = entryType === 'expense_treat';
+    result.expenses.push({
+      id: expenseId,
+      date,
+      description: enrichedDescription || `Row ${rowNum}`,
+      currencyCode: currency,
+      amount,
+      paidBy: payerId,
+      splitType: 'equal',
+      beneficiaries,
+      ...(isTreatEntry ? { isTreat: true } : {})
+    });
+
+    journalEntry.linkedExpenseId = expenseId;
+    journalEntry.status = flag ? 'flagged' : 'imported';
+    result.journalEntries.push(journalEntry);
   }
 
   return result;
+}
+
+export function mergeJournalEntries(
+  existing: JournalEntry[],
+  incoming: JournalEntry[]
+): JournalEntry[] {
+  const incomingIds = new Set(incoming.map(j => j.journalId));
+  const kept = existing.filter(j => !incomingIds.has(j.journalId));
+  return [...kept, ...incoming];
+}
+
+function makeBeneficiary(pid: string): Beneficiary {
+  return { participantId: pid, customAmount: null, customPercentage: null };
+}
+
+function resolveParticipantId(
+  name: string,
+  lookup: Map<string, string>
+): string | null {
+  if (!name) return null;
+  const lower = name.toLowerCase();
+  return lookup.get(lower) ?? null;
+}
+
+function resolveBeneficiaries(
+  payeeName: string,
+  entryType: string,
+  payerId: string,
+  allParticipants: Participant[],
+  lookup: Map<string, string>,
+  tankhahParticipantId?: string
+): Beneficiary[] {
+  const groupParticipants = tankhahParticipantId
+    ? allParticipants.filter(p => p.id !== tankhahParticipantId)
+    : allParticipants;
+
+  if (payeeName === 'گروه' || payeeName === 'همه' || entryType === 'expense_group' || entryType === 'expense_from_tankhah' || entryType === 'expense_treat') {
+    return groupParticipants.map(p => makeBeneficiary(p.id));
+  }
+
+  if (payeeName === 'هزینه شخصی') {
+    return [makeBeneficiary(payerId)];
+  }
+
+  if (entryType === 'expense_personal' && !payeeName) {
+    return [makeBeneficiary(payerId)];
+  }
+
+  if (!payeeName) {
+    return groupParticipants.map(p => makeBeneficiary(p.id));
+  }
+
+  if (payeeName.includes('|')) {
+    const names = payeeName.split('|').map(n => n.trim());
+    const ids: string[] = [];
+    for (const n of names) {
+      const id = resolveParticipantId(n, lookup);
+      if (id) ids.push(id);
+    }
+    return ids.length > 0 ? ids.map(makeBeneficiary) : [];
+  }
+
+  const payeeId = resolveParticipantId(payeeName, lookup);
+  if (payeeId) {
+    return [makeBeneficiary(payeeId)];
+  }
+
+  return [];
 }

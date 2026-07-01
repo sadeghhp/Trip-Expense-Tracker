@@ -18,7 +18,7 @@ function loadSettings(): AppSettings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) {
       const legacyLocale = loadLegacyLocale();
-      return { calendar: 'gregorian', theme: 'light', locale: legacyLocale ?? 'en' };
+      return { calendar: 'gregorian', theme: 'light', locale: legacyLocale ?? 'en', showDecimals: true };
     }
     const parsed = JSON.parse(raw);
     const locale: LocaleType = parsed.locale === 'fa'
@@ -29,10 +29,11 @@ function loadSettings(): AppSettings {
     return {
       calendar: parsed.calendar === 'jalali' ? 'jalali' : 'gregorian',
       theme: parsed.theme === 'dark' ? 'dark' : 'light',
-      locale
+      locale,
+      showDecimals: parsed.showDecimals !== false
     };
   } catch {
-    return { calendar: 'gregorian', theme: 'light', locale: loadLegacyLocale() ?? 'en' };
+    return { calendar: 'gregorian', theme: 'light', locale: loadLegacyLocale() ?? 'en', showDecimals: true };
   }
 }
 
@@ -67,4 +68,8 @@ export function toggleTheme(): void {
 
 export function setAppLocale(locale: LocaleType): void {
   settings.update(s => ({ ...s, locale }));
+}
+
+export function setShowDecimals(show: boolean): void {
+  settings.update(s => ({ ...s, showDecimals: show }));
 }

@@ -9,8 +9,6 @@ describe('normalizeData', () => {
       participants: [],
       currencies: [],
       expenses: [],
-      journals: [],
-      pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
     });
@@ -150,6 +148,44 @@ describe('normalizeData', () => {
     expect(result.expenses[0].splitType).toBe('equal');
   });
 
+  it('preserves isTreat when true', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Drinks',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        isTreat: true,
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }]
+    });
+    expect(result.expenses[0].isTreat).toBe(true);
+  });
+
+  it('strips invalid isTreat values', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Test',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        isTreat: 'yes',
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }]
+    });
+    expect(result.expenses[0].isTreat).toBeUndefined();
+  });
+
   it('cleans invalid exchange rates', () => {
     const result = normalizeData({
       participants: [],
@@ -197,24 +233,90 @@ describe('normalizeData', () => {
     expect(result.expenses).toHaveLength(1);
   });
 
-  it('migrates pendingImports to journals and clears pendingImports', () => {
+  it('preserves valid tankhahParticipantId', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }, { id: 'p-2', name: 'Bob' }],
+      currencies: [],
+      expenses: [],
+      tankhahParticipantId: 'p-1'
+    });
+    expect(result.tankhahParticipantId).toBe('p-1');
+  });
+
+  it('clears tankhahParticipantId referencing non-existent participant', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [],
+      expenses: [],
+      tankhahParticipantId: 'p-missing'
+    });
+    expect(result.tankhahParticipantId).toBeUndefined();
+  });
+
+  it('omits tankhahParticipantId when not set', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [],
+      expenses: []
+    });
+    expect(result.tankhahParticipantId).toBeUndefined();
+  });
+
+  it('clears non-string tankhahParticipantId', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [],
+      expenses: [],
+      tankhahParticipantId: 42
+    });
+    expect(result.tankhahParticipantId).toBeUndefined();
+  });
+
+  it('normalizes journal entries and clears orphaned expense links', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Test',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }],
+      journalEntries: [
+        {
+          journalId: 'J001',
+          entryType: 'expense',
+          status: 'imported',
+          linkedExpenseId: 'e-1',
+          amount: 100
+        },
+        {
+          journalId: 'J002',
+          entryType: 'transfer',
+          status: 'skipped',
+          linkedExpenseId: 'e-missing',
+          amount: 50
+        },
+        { journalId: '', status: 'imported' }
+      ]
+    });
+    expect(result.journalEntries).toHaveLength(2);
+    expect(result.journalEntries![0].linkedExpenseId).toBe('e-1');
+    expect(result.journalEntries![1].linkedExpenseId).toBeNull();
+  });
+
+  it('filters invalid journal entry status', () => {
     const result = normalizeData({
       participants: [],
       currencies: [],
       expenses: [],
-      pendingImports: [{
-        id: 'pending-1',
-        rawData: { Payer: 'Alice' },
-        reason: 'Unknown payer',
-        createdAt: '2024-01-01',
-        payerName: 'Alice'
-      }]
+      journalEntries: [{ journalId: 'J001', status: 'invalid', entryType: 'x' }]
     });
-    expect(result.pendingImports).toHaveLength(0);
-    expect(result.journals).toHaveLength(1);
-    expect(result.journals[0].id).toBe('pending-1');
-    expect(result.journals[0].status).toBe('pending');
-    expect(result.journals[0].skipReason).toBe('Unknown payer');
+    expect(result.journalEntries).toBeUndefined();
   });
 });
 

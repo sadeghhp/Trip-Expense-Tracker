@@ -36,6 +36,26 @@ export interface Expense {
   journalEntryId?: string;
   receiptImageId?: string;
   aiMetadata?: AIMetadata;
+  isTreat?: boolean;
+}
+
+export interface JournalEntry {
+  journalId: string;
+  entryId: string;
+  sourceFile: string;
+  entryType: string;
+  date: string;
+  description: string;
+  payer: string;
+  payee: string;
+  currency: string;
+  amount: number;
+  flag: string;
+  notes: string;
+  localNotes: string;
+  linkedExpenseId: string | null;
+  status: 'imported' | 'skipped' | 'flagged';
+  skipReason: string;
 }
 
 export type JournalStatus = 'applied' | 'pending' | 'error' | 'out_of_sync';
@@ -82,6 +102,8 @@ export interface AppData {
   pendingImports: PendingImportItem[];
   exchangeRates: Record<string, number>;
   settlementCurrency: string;
+  tankhahParticipantId?: string;
+  journalEntries?: JournalEntry[];
 }
 
 export type CalendarType = 'gregorian' | 'jalali';
@@ -92,12 +114,14 @@ export interface AppSettings {
   calendar: CalendarType;
   theme: ThemeType;
   locale: LocaleType;
+  showDecimals: boolean;
 }
 
 export interface BalanceEntry {
   paid: number;
   owed: number;
   net: number;
+  treatPaid?: number;
 }
 
 export type CurrencyBalances = Record<string, Record<string, BalanceEntry>>;

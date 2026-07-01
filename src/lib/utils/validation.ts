@@ -70,7 +70,7 @@ export function validateExpense(
     return { key: 'validation.selectBeneficiary' };
   }
 
-  if (expense.splitType === 'custom') {
+  if (expense.splitType === 'custom' && !expense.isTreat) {
     for (const b of expense.beneficiaries) {
       if ((b.customAmount ?? 0) < 0) return { key: 'validation.customNegative' };
     }
@@ -80,7 +80,7 @@ export function validateExpense(
     }
   }
 
-  if (expense.splitType === 'percentage') {
+  if (expense.splitType === 'percentage' && !expense.isTreat) {
     for (const b of expense.beneficiaries) {
       if ((b.customPercentage ?? 0) < 0) return { key: 'validation.percentageNegative' };
     }

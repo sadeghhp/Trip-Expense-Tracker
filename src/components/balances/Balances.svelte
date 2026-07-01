@@ -74,9 +74,17 @@
                 {@const status = getStatus(entry.net)}
                 {@const name = nameFor(pid)}
                 {@const maxVal = Math.max(entry.paid, entry.owed) || 1}
+                {@const pidIsTankhah = pid === $appData.tankhahParticipantId}
                 <div class="px-4 py-3 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-[var(--text-primary)]">{name}</span>
+                    <span class="text-sm font-medium text-[var(--text-primary)] flex items-center gap-1.5">
+                      {name}
+                      {#if pidIsTankhah}
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400">
+                          {$t('balances.fundManager')}
+                        </span>
+                      {/if}
+                    </span>
                     <span class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase {getStatusBg(status)} {getStatusColor(status)}">
                       {$t(`balances.${status}`)}
                     </span>
@@ -97,6 +105,16 @@
                       </div>
                       <span class="text-xs font-semibold text-[var(--text-primary)] w-20 text-end">{symbol}{formatAmount(entry.owed)}</span>
                     </div>
+                    {#if entry.treatPaid}
+                      <div class="text-[10px] text-accent-600 dark:text-accent-400 ps-12">
+                        {$t('balances.treatIncluded', { amount: symbol + formatAmount(entry.treatPaid) })}
+                      </div>
+                    {/if}
+                    {#if entry.treatPaid}
+                      <div class="text-[10px] text-accent-600 dark:text-accent-400 ps-12">
+                        {$t('balances.treatIncluded', { amount: symbol + formatAmount(entry.treatPaid) })}
+                      </div>
+                    {/if}
                   </div>
 
                   <div class="flex justify-end">

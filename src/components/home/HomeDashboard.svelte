@@ -121,6 +121,14 @@
 
   let settlements = $derived(computeSettlementTransactions(unifiedBalances));
 
+  let excludedCurrencyCodes = $derived.by(() => {
+    if (!effectiveSettlementCurrency) return [];
+    return $appData.currencies
+      .filter(c => c.code !== effectiveSettlementCurrency)
+      .filter(c => !$appData.exchangeRates[c.code] || $appData.exchangeRates[c.code] <= 0)
+      .map(c => c.code);
+  });
+
   let creditors = $derived(unifiedBalances.filter(b => b.balance > 0.005));
   let debtors = $derived(unifiedBalances.filter(b => b.balance < -0.005));
   let settledCount = $derived(unifiedBalances.filter(b => Math.abs(b.balance) <= 0.005).length);
@@ -430,15 +438,25 @@
 
       <div class="space-y-2">
         {#each unifiedBalances.filter(b => Math.abs(b.balance) > 0.005).sort((a, b) => b.balance - a.balance) as person}
+          {@const personIsTankhah = person.id === $appData.tankhahParticipantId}
           <div class="flex items-center gap-3 py-1.5">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0
-              {person.balance > 0
-                ? 'bg-success-100 dark:bg-success-500/20 text-success-700 dark:text-success-400'
-                : 'bg-danger-100 dark:bg-danger-500/20 text-danger-700 dark:text-danger-400'}">
+              {personIsTankhah
+                ? 'bg-accent-100 dark:bg-accent-500/20 text-accent-700 dark:text-accent-400'
+                : person.balance > 0
+                  ? 'bg-success-100 dark:bg-success-500/20 text-success-700 dark:text-success-400'
+                  : 'bg-danger-100 dark:bg-danger-500/20 text-danger-700 dark:text-danger-400'}">
               {person.name.charAt(0).toUpperCase()}
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-[var(--text-primary)] truncate">{person.name}</p>
+              <p class="text-sm font-medium text-[var(--text-primary)] truncate">
+                {person.name}
+                {#if personIsTankhah}
+                  <span class="text-[10px] font-semibold ms-1 px-1.5 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-accent-400 align-middle">
+                    {$t('balances.fundManager')}
+                  </span>
+                {/if}
+              </p>
               <p class="text-[11px] text-[var(--text-secondary)]">
                 {person.balance > 0 ? $t('home.isOwed') : $t('home.owes')}
               </p>
@@ -475,6 +493,13 @@
           {$t('home.details')}
         </button>
       </div>
+
+      {#if excludedCurrencyCodes.length > 0}
+        <p class="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-2">
+          <AlertTriangle size={11} />
+          {$t('home.settlementIncomplete', { currencies: excludedCurrencyCodes.join(', ') })}
+        </p>
+      {/if}
 
       <div class="flex items-center gap-4 mb-3">
         <div class="flex-1">

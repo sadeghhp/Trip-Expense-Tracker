@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { Plus, Pencil, Trash2, Users } from '@lucide/svelte';
+  import { Plus, Pencil, Trash2, Users, Shield, ShieldOff } from '@lucide/svelte';
   import { appData, updateData } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { generateId } from '$lib/utils/id';
@@ -17,6 +17,8 @@
   let formError = $state('');
   let deleteConfirm: Participant | null = $state(null);
   let nameInputEl = $state<HTMLInputElement | undefined>();
+
+  let tankhahId = $derived($appData.tankhahParticipantId);
 
   $effect(() => {
     if (showForm) {
@@ -67,7 +69,25 @@
     showForm = false;
   }
 
+  function toggleTankhah(p: Participant) {
+    const isCurrentTankhah = $appData.tankhahParticipantId === p.id;
+    if (isCurrentTankhah) {
+      updateData(d => {
+        const { tankhahParticipantId, ...rest } = d;
+        return rest as typeof d;
+      });
+      showToast($t('participants.tankhahRemoved'));
+    } else {
+      updateData(d => ({ ...d, tankhahParticipantId: p.id }));
+      showToast($t('participants.tankhahSet', { name: p.name }));
+    }
+  }
+
   function requestDelete(p: Participant) {
+    if ($appData.tankhahParticipantId === p.id) {
+      showToast($t('participants.cannotDeleteTankhah'), 'error');
+      return;
+    }
     if (isParticipantUsed(p.id, $appData.expenses)) {
       showToast($t('participants.cannotDelete'), 'error');
       return;
@@ -104,18 +124,48 @@
   {:else}
     <div class="space-y-2">
       {#each $appData.participants as participant (participant.id)}
+        {@const participantIsTankhah = participant.id === tankhahId}
         <div
-          class="flex items-center justify-between p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-sm hover:shadow-md hover:border-primary-200 dark:hover:border-primary-800 transition-all duration-200"
+          class="flex items-center justify-between p-4 bg-[var(--card-bg)] border rounded-2xl shadow-sm hover:shadow-md transition-all duration-200
+            {participantIsTankhah
+              ? 'border-accent-300 dark:border-accent-700 bg-accent-50/30 dark:bg-accent-900/10'
+              : 'border-[var(--card-border)] hover:border-primary-200 dark:hover:border-primary-800'}"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-              <span class="text-sm font-bold text-primary-700 dark:text-primary-300">
-                {participant.name.charAt(0).toUpperCase()}
-              </span>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center
+              {participantIsTankhah
+                ? 'bg-accent-100 dark:bg-accent-900/40'
+                : 'bg-primary-100 dark:bg-primary-900/40'}">
+              {#if participantIsTankhah}
+                <Shield size={18} class="text-accent-600 dark:text-accent-400" />
+              {:else}
+                <span class="text-sm font-bold text-primary-700 dark:text-primary-300">
+                  {participant.name.charAt(0).toUpperCase()}
+                </span>
+              {/if}
             </div>
-            <span class="text-base font-medium text-[var(--text-primary)]">{participant.name}</span>
+            <div class="flex flex-col">
+              <span class="text-base font-medium text-[var(--text-primary)]">{participant.name}</span>
+              {#if participantIsTankhah}
+                <span class="text-[11px] font-semibold text-accent-600 dark:text-accent-400">{$t('participants.tankhahBadge')}</span>
+              {/if}
+            </div>
           </div>
           <div class="flex gap-1">
+            <button
+              onclick={() => toggleTankhah(participant)}
+              title={participantIsTankhah ? $t('participants.removeTankhah') : $t('participants.setAsTankhah')}
+              class="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90 transition-all
+                {participantIsTankhah
+                  ? 'bg-accent-100 dark:bg-accent-900/30 hover:bg-accent-200 dark:hover:bg-accent-900/50'
+                  : 'hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b]'}"
+            >
+              {#if participantIsTankhah}
+                <ShieldOff size={16} class="text-accent-600 dark:text-accent-400" />
+              {:else}
+                <Shield size={16} class="text-[var(--text-secondary)]" />
+              {/if}
+            </button>
             <button
               onclick={() => openEdit(participant)}
               class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#f1f5f9] dark:hover:bg-[#1e293b] active:scale-90 transition-all"
