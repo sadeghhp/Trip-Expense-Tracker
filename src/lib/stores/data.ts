@@ -1,9 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
-import type { AppData, AppState, Trip } from '../types';
+import type { AppData, AppState, Trip, JournalEntry, Participant } from '../types';
 import { normalizeData, normalizeAppState, stripReceiptImageIds } from '../utils/normalize';
 import { generateId } from '../utils/id';
 import { deleteReceiptImages, duplicateReceiptImages, existingReceiptImageIds } from '../services/imageStore';
 import { showToast } from './toast';
+import { applyJournalEntryLogic, buildTransformContext } from '../utils/journal-apply';
 
 const STORAGE_KEY = 'trip-expense-tracker-state';
 const OLD_STORAGE_KEY = 'trip-expense-tracker-data';
@@ -13,6 +14,8 @@ function createEmptyData(): AppData {
     participants: [],
     currencies: [],
     expenses: [],
+    journals: [],
+    pendingImports: [],
     exchangeRates: {},
     settlementCurrency: ''
   };
@@ -381,4 +384,133 @@ export async function replaceAllData(state: AppState): Promise<void> {
   deleteUnreferencedReceiptImages(collectReceiptImageIdsFromState(oldState), newIdSet);
   appState.set(stripped);
   dataVersion.set(++_dataVersion);
+}
+
+function buildParticipantLookup(participants: Participant[]): Map<string, string> {
+  const lookup = new Map<string, string>();
+  for (const p of participants) {
+    lookup.set(p.name.toLowerCase(), p.id);
+  }
+  return lookup;
+}
+
+export function updateJournalEntry(id: string, patch: Partial<JournalEntry>): void {
+  updateData(d => ({
+    ...d,
+    journals: d.journals.map(j =>
+      j.id === id
+        ? { ...j, ...patch, updatedAt: new Date().toISOString() }
+        : j
+    )
+  }));
+}
+
+export function applyJournalEntry(
+  id: string,
+  options?: { force?: boolean }
+): { success: boolean; error?: string } {
+  const data = get(appData);
+  const entry = data.journals.find(j => j.id === id);
+  if (!entry) return { success: false, error: 'not_found' };
+
+  const lookup = buildParticipantLookup(data.participants);
+  const context = buildTransformContext(
+    data,
+    lookup,
+    new Set(),
+    entry.id,
+    entry.expenseId ?? undefined
+  );
+  const result = applyJournalEntryLogic(entry, data, context, options);
+
+  if (!result.success) {
+    if (result.journalPatch && Object.keys(result.journalPatch).length > 0) {
+      updateData(d => ({
+        ...d,
+        journals: d.journals.map(j =>
+          j.id === id ? { ...j, ...result.journalPatch } : j
+        )
+      }));
+    }
+    return { success: false, error: result.error };
+  }
+
+  const expense = result.expense!;
+  updateData(d => {
+    const expenses = entry.expenseId
+      ? d.expenses.map(e => e.id === entry.expenseId ? expense : e)
+      : [...d.expenses, expense];
+
+    return {
+      ...d,
+      expenses,
+      journals: d.journals.map(j =>
+        j.id === id ? { ...j, ...result.journalPatch } : j
+      )
+    };
+  });
+
+  return { success: true };
+}
+
+export function applyAllPendingJournals(): { applied: number; failed: number } {
+  const data = get(appData);
+  let applied = 0;
+  let failed = 0;
+
+  for (const entry of data.journals) {
+    if (entry.status !== 'pending' && entry.status !== 'error') continue;
+    const result = applyJournalEntry(entry.id);
+    if (result.success) applied++;
+    else failed++;
+  }
+
+  return { applied, failed };
+}
+
+export function markJournalOutOfSync(journalId: string): void {
+  updateData(d => ({
+    ...d,
+    journals: d.journals.map(j =>
+      j.id === journalId && j.status === 'applied'
+        ? { ...j, status: 'out_of_sync' as const, updatedAt: new Date().toISOString() }
+        : j
+    )
+  }));
+}
+
+export function deleteJournalEntry(id: string, deleteExpense = false): void {
+  updateData(d => {
+    const entry = d.journals.find(j => j.id === id);
+    if (!entry) return d;
+
+    let expenses = d.expenses;
+    if (entry.expenseId) {
+      if (deleteExpense) {
+        expenses = expenses.filter(e => e.id !== entry.expenseId);
+      } else {
+        expenses = expenses.map(e =>
+          e.id === entry.expenseId
+            ? (() => { const { journalEntryId, ...rest } = e; return rest; })()
+            : e
+        );
+      }
+    }
+
+    return {
+      ...d,
+      expenses,
+      journals: d.journals.filter(j => j.id !== id)
+    };
+  });
+}
+
+export function upsertJournalEntries(entries: JournalEntry[]): void {
+  updateData(d => {
+    const byId = new Map(d.journals.map(j => [j.id, j]));
+    for (const entry of entries) {
+      byId.set(entry.id, entry);
+    }
+    return { ...d, journals: [...byId.values()] };
+  });
 }

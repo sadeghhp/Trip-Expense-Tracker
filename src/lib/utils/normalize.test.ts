@@ -9,6 +9,8 @@ describe('normalizeData', () => {
       participants: [],
       currencies: [],
       expenses: [],
+      journals: [],
+      pendingImports: [],
       exchangeRates: {},
       settlementCurrency: ''
     });
@@ -307,6 +309,63 @@ describe('normalizeData', () => {
     expect(result.journalEntries).toHaveLength(2);
     expect(result.journalEntries![0].linkedExpenseId).toBe('e-1');
     expect(result.journalEntries![1].linkedExpenseId).toBeNull();
+  });
+
+  it('normalizes actionable journals with referential integrity', () => {
+    const result = normalizeData({
+      participants: [{ id: 'p-1', name: 'Alice' }],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [{
+        id: 'e-1',
+        date: '2024-01-01',
+        description: 'Test',
+        currencyCode: 'USD',
+        amount: 100,
+        paidBy: 'p-1',
+        splitType: 'equal',
+        beneficiaries: [{ participantId: 'p-1', customAmount: null, customPercentage: null }]
+      }],
+      journals: [
+        {
+          id: 'j-1',
+          journalId: 'J001',
+          rawData: {},
+          date: '2024-01-01',
+          description: 'Valid',
+          amount: 50,
+          currencyCode: 'USD',
+          payerName: 'Alice',
+          payeeName: 'Alice',
+          entryType: 'expense',
+          status: 'applied',
+          expenseId: 'e-1',
+          updatedAt: '2024-01-01T00:00:00.000Z'
+        },
+        {
+          id: 'j-2',
+          status: 'invalid',
+          amount: 10
+        },
+        {
+          id: 'j-3',
+          journalId: 'J003',
+          rawData: {},
+          date: '2024-01-01',
+          description: 'Orphan link',
+          amount: 20,
+          currencyCode: 'USD',
+          payerName: 'Alice',
+          payeeName: 'Alice',
+          entryType: 'expense',
+          status: 'pending',
+          expenseId: 'e-missing',
+          updatedAt: '2024-01-01T00:00:00.000Z'
+        }
+      ]
+    });
+    expect(result.journals).toHaveLength(2);
+    expect(result.journals[0].expenseId).toBe('e-1');
+    expect(result.journals[1].expenseId).toBeNull();
   });
 
   it('filters invalid journal entry status', () => {

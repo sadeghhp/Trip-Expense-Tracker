@@ -20,6 +20,8 @@
   import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
   import { formatAmount } from '$lib/utils/format';
   import { showToast } from '$lib/stores/toast';
+  import { generateId } from '$lib/utils/id';
+  import { buildActionableJournalsFromImport, mergeActionableJournals } from '$lib/utils/journal-apply';
   import type { Participant, Currency } from '$lib/types';
   import { BookOpen } from '@lucide/svelte';
 
@@ -220,6 +222,12 @@
       .map(c => ({ code: c.code, symbol: c.symbol }));
 
     const journal = importResult.journalEntries;
+    const importBatchId = generateId();
+    const actionableJournals = buildActionableJournalsFromImport(
+      journal,
+      importMode === 'merge' ? $appData.journals : [],
+      importBatchId
+    );
 
     if (importMode === 'merge') {
       const existingFingerprints = new Set(
@@ -236,7 +244,8 @@
         participants: [...d.participants, ...newParticipants],
         currencies: [...d.currencies, ...newCurrencies],
         expenses: [...d.expenses, ...deduped],
-        journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal)
+        journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal),
+        journals: mergeActionableJournals(d.journals, actionableJournals)
       }));
       const skippedDupes = importResult.expenses.length - deduped.length;
       if (deduped.length > 0) {
@@ -268,6 +277,8 @@
         participants: allParticipants,
         currencies: [...relevantExistingCurrencies, ...relevantNewCurrencies],
         expenses: importResult.expenses,
+        journals: actionableJournals,
+        pendingImports: [],
         exchangeRates: {},
         settlementCurrency: '',
         journalEntries: journal,

@@ -112,6 +112,46 @@
     "viewExpense": "مشاهده هزینه",
     "entryCount": "نمایش {count} از {total} ثبت"
   },
+  "journals": {
+    "editTitle": "ویرایش ثبت دفتر کل",
+    "requiredFields": "تاریخ، توضیحات، ارز و پرداخت‌کننده الزامی هستند.",
+    "entryType": "نوع ثبت",
+    "payer": "پرداخت‌کننده",
+    "payee": "دریافت‌کننده",
+    "notes": "یادداشت",
+    "showRawData": "نمایش داده خام CSV",
+    "hideRawData": "پنهان کردن داده خام CSV",
+    "previewTitle": "پیش‌نمایش هزینه",
+    "banner": "{count} ثبت دفتر کل نیاز به توجه دارد",
+    "bannerAllApplied": "{count} ثبت دفتر کل (همه اعمال شده)",
+    "apply": "اعمال",
+    "applyAll": "اعمال همه در انتظار",
+    "applied": "ثبت دفتر کل اعمال شد",
+    "appliedBulk": "{count} ثبت دفتر کل اعمال شد",
+    "applyFailed": "اعمال ثبت دفتر کل ممکن نشد",
+    "applyBulkFailed": "{count} ثبت اعمال نشد",
+    "saved": "ثبت دفتر کل ذخیره شد",
+    "deleted": "ثبت دفتر کل حذف شد",
+    "outOfSyncTitle": "هزینه بازنویسی شود؟",
+    "outOfSyncMessage": "این ثبت پس از اعمال ویرایش شده است. اعمال مجدد هزینه مرتبط را بازنویسی می‌کند.",
+    "deleteTitle": "ثبت دفتر کل حذف شود؟",
+    "deleteMessage": "هزینه مرتبط حفظ می‌شود اما از این ثبت جدا می‌شود.",
+    "viewExpense": "مشاهده هزینه",
+    "noFiltered": "ثبتی با این فیلتر یافت نشد",
+    "status": {
+      "applied": "اعمال شده",
+      "pending": "در انتظار",
+      "error": "خطا",
+      "out_of_sync": "ناهمگام"
+    },
+    "filter": {
+      "all": "همه",
+      "pending": "در انتظار",
+      "error": "خطا",
+      "out_of_sync": "ناهمگام",
+      "applied": "اعمال شده"
+    }
+  },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",
     "addTitle": "افزودن هزینه",

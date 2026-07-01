@@ -112,6 +112,46 @@
     "viewExpense": "View expense",
     "entryCount": "Showing {count} of {total} entries"
   },
+  "journals": {
+    "editTitle": "Edit Journal Entry",
+    "requiredFields": "Date, description, currency, and payer are required.",
+    "entryType": "Entry type",
+    "payer": "Payer",
+    "payee": "Payee",
+    "notes": "Notes",
+    "showRawData": "Show raw CSV data",
+    "hideRawData": "Hide raw CSV data",
+    "previewTitle": "Expense preview",
+    "banner": "{count} journal entries need attention",
+    "bannerAllApplied": "{count} journal entries (all applied)",
+    "apply": "Apply",
+    "applyAll": "Apply all pending",
+    "applied": "Journal applied",
+    "appliedBulk": "Applied {count} journal entries",
+    "applyFailed": "Could not apply journal entry",
+    "applyBulkFailed": "{count} entries failed to apply",
+    "saved": "Journal entry saved",
+    "deleted": "Journal entry deleted",
+    "outOfSyncTitle": "Overwrite expense?",
+    "outOfSyncMessage": "This journal was edited after it was applied. Applying will overwrite the linked expense.",
+    "deleteTitle": "Delete journal entry?",
+    "deleteMessage": "The linked expense will be kept but unlinked from this journal.",
+    "viewExpense": "View expense",
+    "noFiltered": "No entries match this filter",
+    "status": {
+      "applied": "Applied",
+      "pending": "Pending",
+      "error": "Error",
+      "out_of_sync": "Out of sync"
+    },
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "error": "Error",
+      "out_of_sync": "Out of sync",
+      "applied": "Applied"
+    }
+  },
   "expenseForm": {
     "editTitle": "Edit Expense",
     "addTitle": "Add Expense",

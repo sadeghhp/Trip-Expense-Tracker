@@ -1,11 +1,11 @@
-import type { Expense, Participant, Currency, Beneficiary, JournalEntry } from '../types';
+import type { Expense, Participant, Currency, Beneficiary, CsvJournalEntry } from '../types';
 import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { generateId } from './id';
 
 export interface ImportResult {
   expenses: Expense[];
-  journalEntries: JournalEntry[];
+  journalEntries: CsvJournalEntry[];
   newParticipants: { name: string; id: string }[];
   newCurrencies: { code: string; symbol: string }[];
   skippedRows: { row: number; reason: string }[];
@@ -288,7 +288,7 @@ export function transformCsvToExpenses(
     const flag = mapping.flag ? row[mapping.flag].trim() : '';
     const journalId = mapping.id ? row[mapping.id].trim() : `row-${rowNum}`;
 
-    const journalEntry: JournalEntry = {
+    const journalEntry: CsvJournalEntry = {
       journalId,
       entryId: entryIdCol ? row[entryIdCol].trim() : '',
       sourceFile: sourceFileCol ? row[sourceFileCol].trim() : '',
@@ -441,9 +441,9 @@ export function transformCsvToExpenses(
 }
 
 export function mergeJournalEntries(
-  existing: JournalEntry[],
-  incoming: JournalEntry[]
-): JournalEntry[] {
+  existing: CsvJournalEntry[],
+  incoming: CsvJournalEntry[]
+): CsvJournalEntry[] {
   const incomingIds = new Set(incoming.map(j => j.journalId));
   const kept = existing.filter(j => !incomingIds.has(j.journalId));
   return [...kept, ...incoming];

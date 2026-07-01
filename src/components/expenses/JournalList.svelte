@@ -3,7 +3,7 @@
   import { appData } from '$lib/stores/data';
   import { formatAmount } from '$lib/utils/format';
   import { t } from '$lib/i18n';
-  import type { JournalEntry } from '$lib/types';
+  import type { CsvJournalEntry } from '$lib/types';
   import EmptyState from '../layout/EmptyState.svelte';
 
   interface Props {
@@ -42,13 +42,13 @@
     })
   );
 
-  function statusColor(status: JournalEntry['status']): string {
+  function statusColor(status: CsvJournalEntry['status']): string {
     if (status === 'imported') return 'bg-green-500';
     if (status === 'flagged') return 'bg-amber-500';
     return 'bg-gray-400';
   }
 
-  function rowBg(status: JournalEntry['status']): string {
+  function rowBg(status: CsvJournalEntry['status']): string {
     if (status === 'imported') return 'bg-green-50/50 dark:bg-green-900/5';
     if (status === 'flagged') return 'bg-amber-50/50 dark:bg-amber-900/5';
     return 'bg-[#f8fafc] dark:bg-[#1e293b]/50';

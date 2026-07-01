@@ -39,7 +39,7 @@ export interface Expense {
   isTreat?: boolean;
 }
 
-export interface JournalEntry {
+export interface CsvJournalEntry {
   journalId: string;
   entryId: string;
   sourceFile: string;
@@ -103,7 +103,7 @@ export interface AppData {
   exchangeRates: Record<string, number>;
   settlementCurrency: string;
   tankhahParticipantId?: string;
-  journalEntries?: JournalEntry[];
+  journalEntries?: CsvJournalEntry[];
 }
 
 export type CalendarType = 'gregorian' | 'jalali';

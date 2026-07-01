@@ -1,9 +1,11 @@
-import type { AppData, AppState, Expense, JournalEntry } from '../types';
+import type { AppData, AppState, Expense, CsvJournalEntry, JournalEntry, JournalStatus } from '../types';
 
-function normalizeJournalEntries(raw: any, expenseIds: Set<string>): JournalEntry[] | undefined {
+const JOURNAL_STATUSES: JournalStatus[] = ['applied', 'pending', 'error', 'out_of_sync'];
+
+function normalizeJournalEntries(raw: any, expenseIds: Set<string>): CsvJournalEntry[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
 
-  const entries: JournalEntry[] = [];
+  const entries: CsvJournalEntry[] = [];
   for (const j of raw) {
     if (typeof j?.journalId !== 'string' || !j.journalId) continue;
     const status = j.status;
@@ -35,6 +37,66 @@ function normalizeJournalEntries(raw: any, expenseIds: Set<string>): JournalEntr
   }
 
   return entries.length > 0 ? entries : undefined;
+}
+
+function normalizeJournals(raw: any, expenseIds: Set<string>): JournalEntry[] {
+  if (!Array.isArray(raw)) return [];
+
+  const entries: JournalEntry[] = [];
+  for (const j of raw) {
+    if (typeof j?.id !== 'string' || !j.id) continue;
+    const status = j.status;
+    if (!JOURNAL_STATUSES.includes(status)) continue;
+
+    const amount = Number(j.amount);
+    const expenseId = typeof j.expenseId === 'string' && expenseIds.has(j.expenseId)
+      ? j.expenseId
+      : null;
+
+    entries.push({
+      id: j.id,
+      journalId: typeof j.journalId === 'string' ? j.journalId : null,
+      rawData: (j.rawData && typeof j.rawData === 'object' && !Array.isArray(j.rawData))
+        ? j.rawData as Record<string, string>
+        : {},
+      date: typeof j.date === 'string' ? j.date : '',
+      description: typeof j.description === 'string' ? j.description : '',
+      amount: Number.isFinite(amount) ? amount : 0,
+      currencyCode: typeof j.currencyCode === 'string' ? j.currencyCode : '',
+      payerName: typeof j.payerName === 'string' ? j.payerName : '',
+      payeeName: typeof j.payeeName === 'string' ? j.payeeName : '',
+      entryType: typeof j.entryType === 'string' ? j.entryType : '',
+      notes: typeof j.notes === 'string' ? j.notes : undefined,
+      flag: typeof j.flag === 'string' ? j.flag : undefined,
+      status,
+      skipReason: typeof j.skipReason === 'string' ? j.skipReason : undefined,
+      expenseId,
+      importBatchId: typeof j.importBatchId === 'string' ? j.importBatchId : undefined,
+      updatedAt: typeof j.updatedAt === 'string' ? j.updatedAt : new Date().toISOString()
+    });
+  }
+
+  return entries;
+}
+
+function normalizePendingImports(raw: any): AppData['pendingImports'] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .filter((p: any) => typeof p?.id === 'string' && p.rawData && typeof p.reason === 'string')
+    .map((p: any) => ({
+      id: p.id,
+      rawData: p.rawData as Record<string, string>,
+      reason: p.reason,
+      createdAt: typeof p.createdAt === 'string' ? p.createdAt : new Date().toISOString(),
+      date: typeof p.date === 'string' ? p.date : undefined,
+      description: typeof p.description === 'string' ? p.description : undefined,
+      amount: typeof p.amount === 'number' ? p.amount : undefined,
+      currencyCode: typeof p.currencyCode === 'string' ? p.currencyCode : undefined,
+      payerName: typeof p.payerName === 'string' ? p.payerName : undefined,
+      payeeName: typeof p.payeeName === 'string' ? p.payeeName : undefined,
+      entryType: typeof p.entryType === 'string' ? p.entryType : undefined
+    }));
 }
 
 export function normalizeData(raw: any): AppData {
@@ -107,7 +169,10 @@ export function normalizeData(raw: any): AppData {
     settlementCurrency = '';
   }
 
-  const journalEntries = normalizeJournalEntries(raw?.journalEntries, new Set(expenses.map((e: any) => e.id)));
+  const expenseIds = new Set(expenses.map((e: any) => e.id));
+  const journalEntries = normalizeJournalEntries(raw?.journalEntries, expenseIds);
+  const journals = normalizeJournals(raw?.journals, expenseIds);
+  const pendingImports = normalizePendingImports(raw?.pendingImports);
 
   const tankhahParticipantId =
     typeof raw?.tankhahParticipantId === 'string' && participantIds.has(raw.tankhahParticipantId)
@@ -118,6 +183,8 @@ export function normalizeData(raw: any): AppData {
     participants: validParticipants,
     currencies: validCurrencies,
     expenses,
+    journals,
+    pendingImports,
     exchangeRates: cleanedRates,
     settlementCurrency,
     ...(tankhahParticipantId ? { tankhahParticipantId } : {}),

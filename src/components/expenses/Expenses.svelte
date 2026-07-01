@@ -9,7 +9,8 @@
   import { t } from '$lib/i18n';
   import type { Expense, TabId } from '$lib/types';
   import ExpenseForm from './ExpenseForm.svelte';
-  import JournalList from './JournalList.svelte';
+  import AuditJournalList from './JournalList.svelte';
+  import ActionableJournalList from '../journals/JournalList.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import EmptyState from '../layout/EmptyState.svelte';
   import ImageViewer from '../ui/ImageViewer.svelte';
@@ -17,9 +18,10 @@
 
   interface Props {
     onNavigate?: (tab: TabId) => void;
+    journalsExpanded?: boolean;
   }
 
-  let { onNavigate }: Props = $props();
+  let { onNavigate, journalsExpanded = false }: Props = $props();
 
   let showForm = $state(false);
   let editingExpense: Expense | null = $state(null);
@@ -117,6 +119,13 @@
 </script>
 
 <div class="p-4 md:p-6 space-y-4">
+  {#if $appData.journals.length > 0}
+    <ActionableJournalList
+      onViewExpense={viewLinkedExpense}
+      initialExpanded={journalsExpanded}
+    />
+  {/if}
+
   {#if hasJournal}
     <div class="flex rounded-xl border border-[var(--card-border)] overflow-hidden">
       <button
@@ -139,7 +148,7 @@
   {/if}
 
   {#if viewMode === 'journal'}
-    <JournalList onViewExpense={viewLinkedExpense} />
+    <AuditJournalList onViewExpense={viewLinkedExpense} />
   {:else}
   {#if $appData.participants.length === 0 || $appData.currencies.length === 0}
     <div class="p-4 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">

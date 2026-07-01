@@ -32,7 +32,9 @@ import {
   applyJournalEntry,
   markJournalOutOfSync,
   deleteJournalEntry,
-  upsertJournalEntries
+  upsertJournalEntries,
+  applyAllPendingJournals,
+  updateJournalEntry
 } from './data';
 
 describe('data store', () => {
@@ -311,6 +313,127 @@ describe('data store', () => {
     expect(data.journals).toHaveLength(0);
     expect(data.expenses).toHaveLength(1);
     expect(data.expenses[0].journalEntryId).toBeUndefined();
+  });
+
+  it('force apply updates existing expense in place', () => {
+    updateData(d => ({
+      ...d,
+      participants: [
+        { id: 'p-1', name: 'Alice' },
+        { id: 'p-2', name: 'Bob' }
+      ],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      expenses: [makeExpense({ id: 'e-1', amount: 50, journalEntryId: 'j-1', source: 'journal' })],
+      journals: [{
+        id: 'j-1',
+        journalId: 'J001',
+        rawData: {},
+        date: '2024-06-15',
+        description: 'Updated',
+        amount: 75,
+        currencyCode: 'USD',
+        payerName: 'Alice',
+        payeeName: 'Bob',
+        entryType: 'expense',
+        status: 'out_of_sync',
+        expenseId: 'e-1',
+        updatedAt: new Date().toISOString()
+      }]
+    }));
+
+    const result = applyJournalEntry('j-1', { force: true });
+    expect(result.success).toBe(true);
+    const data = get(appData);
+    expect(data.expenses).toHaveLength(1);
+    expect(data.expenses[0].id).toBe('e-1');
+    expect(data.expenses[0].amount).toBe(75);
+    expect(data.journals[0].status).toBe('applied');
+  });
+
+  it('edit applied journal sets out_of_sync via updateJournalEntry', () => {
+    upsertJournalEntries([{
+      id: 'j-1',
+      journalId: 'J001',
+      rawData: {},
+      date: '2024-06-15',
+      description: 'Test',
+      amount: 50,
+      currencyCode: 'USD',
+      payerName: 'Alice',
+      payeeName: 'Bob',
+      entryType: 'expense',
+      status: 'applied',
+      expenseId: 'e-1',
+      updatedAt: new Date().toISOString()
+    }]);
+    updateJournalEntry('j-1', { amount: 60, status: 'out_of_sync' });
+    expect(get(appData).journals[0].status).toBe('out_of_sync');
+    expect(get(appData).journals[0].amount).toBe(60);
+  });
+
+  it('applyAllPendingJournals applies pending and error entries', () => {
+    updateData(d => ({
+      ...d,
+      participants: [
+        { id: 'p-1', name: 'Alice' },
+        { id: 'p-2', name: 'Bob' }
+      ],
+      currencies: [{ code: 'USD', symbol: '$' }],
+      journals: [
+        {
+          id: 'j-1',
+          journalId: 'J001',
+          rawData: {},
+          date: '2024-06-15',
+          description: 'One',
+          amount: 50,
+          currencyCode: 'USD',
+          payerName: 'Alice',
+          payeeName: 'Bob',
+          entryType: 'expense',
+          status: 'pending',
+          expenseId: null,
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'j-2',
+          journalId: 'J002',
+          rawData: {},
+          date: '2024-06-15',
+          description: 'Two',
+          amount: 30,
+          currencyCode: 'USD',
+          payerName: 'Alice',
+          payeeName: 'Bob',
+          entryType: 'expense',
+          status: 'error',
+          skipReason: 'was broken',
+          expenseId: null,
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'j-3',
+          journalId: 'J003',
+          rawData: {},
+          date: '2024-06-15',
+          description: 'Synced',
+          amount: 10,
+          currencyCode: 'USD',
+          payerName: 'Alice',
+          payeeName: 'Bob',
+          entryType: 'expense',
+          status: 'out_of_sync',
+          expenseId: 'e-x',
+          updatedAt: new Date().toISOString()
+        }
+      ]
+    }));
+
+    const result = applyAllPendingJournals();
+    expect(result.applied).toBe(2);
+    expect(result.failed).toBe(0);
+    expect(get(appData).expenses).toHaveLength(2);
+    expect(get(appData).journals.find(j => j.id === 'j-3')?.status).toBe('out_of_sync');
   });
 });
 

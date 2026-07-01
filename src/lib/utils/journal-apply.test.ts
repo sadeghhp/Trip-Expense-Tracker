@@ -4,8 +4,10 @@ import {
   applyJournalEntryLogic,
   buildTransformContext,
   resolveBeneficiaries,
-  buildJournalEntryFromCsvRow
+  buildJournalEntryFromCsvRow,
+  csvAuditToActionableJournal
 } from './journal-apply';
+import type { CsvJournalEntry } from '../types';
 import { makeParticipant, makeCurrency, makeAppData } from '../../test/factories';
 import type { JournalEntry } from '../types';
 
@@ -166,5 +168,50 @@ describe('buildJournalEntryFromCsvRow', () => {
     expect(entry.journalId).toBe('J42');
     expect(entry.amount).toBe(50);
     expect(entry.importBatchId).toBe('batch-1');
+  });
+});
+
+describe('csvAuditToActionableJournal', () => {
+  const baseAudit: CsvJournalEntry = {
+    journalId: 'J001',
+    entryId: '',
+    sourceFile: '',
+    entryType: 'expense',
+    date: '2024-06-15',
+    description: 'Lunch',
+    payer: 'Alice',
+    payee: 'Bob',
+    currency: 'USD',
+    amount: 100,
+    flag: '',
+    notes: '',
+    localNotes: '',
+    linkedExpenseId: 'e-1',
+    status: 'imported',
+    skipReason: ''
+  };
+
+  it('maps imported audit entry to applied journal', () => {
+    const journal = csvAuditToActionableJournal(baseAudit, {}, 'e-1', 'batch-1');
+    expect(journal.status).toBe('applied');
+    expect(journal.payerName).toBe('Alice');
+    expect(journal.currencyCode).toBe('USD');
+    expect(journal.expenseId).toBe('e-1');
+    expect(journal.importBatchId).toBe('batch-1');
+  });
+
+  it('maps skipped audit entry with reason to error', () => {
+    const journal = csvAuditToActionableJournal(
+      { ...baseAudit, status: 'skipped', linkedExpenseId: null, skipReason: 'Bad date' },
+      {},
+      null
+    );
+    expect(journal.status).toBe('error');
+    expect(journal.skipReason).toBe('Bad date');
+  });
+
+  it('preserves existing id on re-import', () => {
+    const journal = csvAuditToActionableJournal(baseAudit, {}, 'e-1', undefined, 'existing-id');
+    expect(journal.id).toBe('existing-id');
   });
 });

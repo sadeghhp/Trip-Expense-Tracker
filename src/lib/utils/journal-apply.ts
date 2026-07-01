@@ -3,6 +3,7 @@ import type {
   Expense,
   JournalEntry,
   JournalStatus,
+  CsvJournalEntry,
   Participant,
   Currency,
   Beneficiary
@@ -434,4 +435,90 @@ export function pendingImportToJournal(item: {
     expenseId: null,
     updatedAt: new Date().toISOString()
   };
+}
+
+export function csvAuditToActionableJournal(
+  audit: CsvJournalEntry,
+  rawData: Record<string, string>,
+  expenseId: string | null,
+  importBatchId?: string,
+  existingId?: string
+): JournalEntry {
+  let status: JournalStatus;
+  if (audit.status === 'imported' || audit.status === 'flagged') {
+    status = 'applied';
+  } else if (audit.skipReason) {
+    status = 'error';
+  } else {
+    status = 'pending';
+  }
+
+  return {
+    id: existingId ?? generateId(),
+    journalId: audit.journalId,
+    rawData,
+    date: audit.date,
+    description: audit.description,
+    amount: audit.amount,
+    currencyCode: audit.currency,
+    payerName: audit.payer,
+    payeeName: audit.payee,
+    entryType: audit.entryType,
+    notes: audit.notes || undefined,
+    flag: audit.flag || undefined,
+    status,
+    skipReason: audit.skipReason || undefined,
+    expenseId: expenseId ?? audit.linkedExpenseId,
+    importBatchId,
+    updatedAt: new Date().toISOString()
+  };
+}
+
+export function buildActionableJournalsFromImport(
+  auditEntries: CsvJournalEntry[],
+  existingJournals: JournalEntry[] = [],
+  importBatchId?: string
+): JournalEntry[] {
+  const byJournalId = new Map(
+    existingJournals
+      .filter(j => j.journalId)
+      .map(j => [j.journalId!, j])
+  );
+
+  return auditEntries.map(audit => {
+    const existing = audit.journalId ? byJournalId.get(audit.journalId) : undefined;
+    return csvAuditToActionableJournal(
+      audit,
+      existing?.rawData ?? {},
+      audit.linkedExpenseId,
+      importBatchId,
+      existing?.id
+    );
+  });
+}
+
+export function mergeActionableJournals(
+  existing: JournalEntry[],
+  incoming: JournalEntry[]
+): JournalEntry[] {
+  const byJournalId = new Map(
+    existing.filter(j => j.journalId).map(j => [j.journalId!, j])
+  );
+  const byId = new Map(existing.map(j => [j.id, j]));
+
+  for (const entry of incoming) {
+    const match = entry.journalId ? byJournalId.get(entry.journalId) : undefined;
+    if (match) {
+      byId.set(match.id, {
+        ...entry,
+        id: match.id,
+        rawData: Object.keys(entry.rawData).length > 0 ? entry.rawData : match.rawData
+      });
+    } else {
+      byId.set(entry.id, entry);
+      if (entry.journalId) byJournalId.set(entry.journalId, entry);
+    }
+  }
+
+  return [...byId.values()];
 }
