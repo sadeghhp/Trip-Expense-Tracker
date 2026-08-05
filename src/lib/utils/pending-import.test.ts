@@ -40,7 +40,8 @@ describe('pending-import helpers', () => {
     entryType: 'Type',
     id: 'journal_id',
     flag: null,
-    notes: null
+    notes: null,
+  treat: null
   };
 
   const entries: CsvJournalEntry[] = [

@@ -1,34 +1,45 @@
 import type { CurrencyBalances, Participant, UnifiedBalance, SettlementTransaction } from '../types';
 
+export type RecalculateRatesResult =
+  | { ok: true; rates: Record<string, number> }
+  | { ok: false; reason: 'same_currency' | 'missing_currency' | 'no_pivot_rate' };
+
 /**
  * Recalculates exchange rates when the settlement currency changes.
  * Rate semantics: exchangeRates[code] = units of `code` per 1 settlement unit.
  * Uses the pivot rate (old rate of the new settlement) to derive all cross-rates.
- * Returns the old rates unchanged if the pivot rate is unavailable.
+ *
+ * Failure is reported explicitly. Returning the old rates on failure — as this
+ * function used to — is indistinguishable from success and left callers
+ * persisting a new settlement currency alongside rates still based on the old
+ * one, silently corrupting every conversion.
  */
 export function recalculateExchangeRates(
   oldRates: Record<string, number>,
   oldSettlement: string,
   newSettlement: string
-): Record<string, number> {
-  if (oldSettlement === newSettlement || !oldSettlement || !newSettlement) return oldRates;
+): RecalculateRatesResult {
+  if (!oldSettlement || !newSettlement) return { ok: false, reason: 'missing_currency' };
+  if (oldSettlement === newSettlement) return { ok: false, reason: 'same_currency' };
 
   const pivotRate = oldRates[newSettlement];
-  if (!pivotRate || pivotRate <= 0) return oldRates;
+  if (!pivotRate || pivotRate <= 0 || !Number.isFinite(pivotRate)) {
+    return { ok: false, reason: 'no_pivot_rate' };
+  }
 
   const newRates: Record<string, number> = {};
   const round = (n: number) => parseFloat(n.toPrecision(10));
 
   for (const [code, rate] of Object.entries(oldRates)) {
     if (code === newSettlement) continue;
-    if (rate > 0) {
+    if (rate > 0 && Number.isFinite(rate)) {
       newRates[code] = round(rate / pivotRate);
     }
   }
 
   newRates[oldSettlement] = round(1 / pivotRate);
 
-  return newRates;
+  return { ok: true, rates: newRates };
 }
 
 export function computeUnifiedBalances(

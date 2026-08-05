@@ -1,9 +1,10 @@
 <script lang="ts">
   import { ArrowRightLeft, ArrowRight, ArrowLeft, CheckCircle, AlertTriangle } from '@lucide/svelte';
-  import { appData, updateData, dataVersion, effectiveSettlementCurrency } from '$lib/stores/data';
+  import { appData, updateData, dataVersion, effectiveSettlementCurrency, changeSettlementCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { computeBalances, getStatus } from '$lib/engine/balances';
-  import { computeUnifiedBalances, computeSettlementTransactions, recalculateExchangeRates } from '$lib/engine/settlement';
+  import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
+  import { getSettlementReadiness } from '$lib/domain/settlement-currency';
   import { validateSettlement } from '$lib/utils/validation';
   import { formatAmount, getCurrencySymbol } from '$lib/utils/format';
   import { t, isRtl } from '$lib/i18n';
@@ -26,15 +27,30 @@
   $effect(() => {
     if (calculated && $dataVersion !== lastCalcVersion) {
       calculated = false;
+      // Step 4 renders nothing without results; returning to the calculate
+      // step leaves the user somewhere actionable instead of a blank screen.
+      if (step === 4) step = 3;
     }
   });
 
   function selectSettlementCurrency(code: string) {
-    updateData(d => {
-      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
-      const newRates = recalculateExchangeRates(d.exchangeRates, oldSettlement, code);
-      return { ...d, settlementCurrency: code, exchangeRates: newRates };
-    });
+    // Atomic: either every rate is re-based onto the new currency, or the
+    // incompatible ones are cleared and the user is told to re-enter them.
+    const result = changeSettlementCurrency(code);
+    if (!result.ok) {
+      if (result.reason === 'no_pivot_rate') {
+        const forced = changeSettlementCurrency(code, { force: true });
+        if (forced.clearedRates.length > 0) {
+          showToast(
+            $t('settlement.ratesClearedOnSwitch', { currencies: forced.clearedRates.join(', ') }),
+            'error'
+          );
+        }
+      } else {
+        showToast($t('settlement.currencySwitchFailed'), 'error');
+        return;
+      }
+    }
     calculated = false;
   }
 
@@ -90,13 +106,13 @@
     return getCurrencySymbol(code, currencies);
   }
 
-  let excludedCurrencies = $derived.by(() => {
-    if (!settlementCurrency) return [];
-    return nonSettlementCurrencies.filter(c => {
-      const rate = $appData.exchangeRates[c.code];
-      return !rate || rate <= 0;
-    });
-  });
+  let readiness = $derived(getSettlementReadiness($appData, settlementCurrency));
+  let excludedCurrencies = $derived(
+    readiness.missingRateCurrencies.map(code => ({ code }))
+  );
+  let configuredRateCount = $derived(
+    nonSettlementCurrencies.length - readiness.missingRateCurrencies.length
+  );
 
   function getStatusColor(balance: number): string {
     if (balance > 0.005) return 'text-success-600 dark:text-success-500';
@@ -197,7 +213,7 @@
         <p class="text-xs text-[var(--text-secondary)]">
           {$t('settlement.settlementCurrencyIs', { symbol: getSymbol(settlementCurrency), code: settlementCurrency })}
           {#if !onlySingleCurrency}
-            <br/>{$t('settlement.exchangeRatesConfigured', { count: nonSettlementCurrencies.length })}
+            <br/>{$t('settlement.exchangeRatesConfigured', { count: configuredRateCount })}
           {/if}
         </p>
         <button

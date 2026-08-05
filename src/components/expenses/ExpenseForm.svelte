@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { X, Image as ImageIcon } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
-  import { appData, updateData, markJournalOutOfSync } from '$lib/stores/data';
+  import { appData, addExpense, updateExpense } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
@@ -16,12 +16,22 @@
   import TreatToggle from '../ui/TreatToggle.svelte';
 
   interface Props {
+    /** An existing, stored expense to edit. */
     expense: Expense | null;
-    onSave: () => void;
+    /**
+     * Starting values for a NEW expense (used by the pending-import review).
+     * Kept separate from `expense` so the form can never mistake a prefill for
+     * a stored record and take the edit path, which silently discarded it.
+     */
+    prefill?: Expense | null;
+    onSave: (result?: { expenseId: string }) => void;
     onClose: () => void;
   }
 
-  let { expense, onSave, onClose }: Props = $props();
+  let { expense, prefill = null, onSave, onClose }: Props = $props();
+
+  let isEditing = $derived(!!expense);
+  let initialValues = $derived(expense ?? prefill);
 
   let date = $state('');
   let description = $state('');
@@ -35,7 +45,7 @@
   let customPercentages: Record<string, string> = $state({});
 
   $effect(() => {
-    const e = expense;
+    const e = initialValues;
     untrack(() => {
       date = e?.date ?? getTodayISO();
       description = e?.description ?? '';
@@ -128,8 +138,11 @@
       customPercentage: effectiveSplitType === 'percentage' ? (parseFloat(customPercentages[pid] || '0') || 0) : null
     }));
 
+    const source = initialValues;
     const expenseData: Expense = {
-      id: expense?.id ?? generateId(),
+      // An edit keeps its stored id; anything else is a new record and must
+      // never inherit an empty id from a prefill.
+      id: (isEditing ? expense?.id : source?.id) || generateId(),
       date,
       description: description.trim(),
       currencyCode,
@@ -138,11 +151,11 @@
       splitType: effectiveSplitType,
       beneficiaries,
       ...(isTreat ? { isTreat: true } : {}),
-      ...(expense?.journalEntryId
-        ? { journalEntryId: expense.journalEntryId, source: 'journal' as const }
-        : expense?.source !== undefined ? { source: expense.source } : {}),
-      ...(expense?.receiptImageId !== undefined && { receiptImageId: expense.receiptImageId }),
-      ...(expense?.aiMetadata !== undefined && { aiMetadata: expense.aiMetadata }),
+      ...(source?.journalEntryId
+        ? { journalEntryId: source.journalEntryId, source: 'journal' as const }
+        : source?.source !== undefined ? { source: source.source } : {}),
+      ...(source?.receiptImageId !== undefined && { receiptImageId: source.receiptImageId }),
+      ...(source?.aiMetadata !== undefined && { aiMetadata: source.aiMetadata }),
     };
 
     const error = validateExpense(expenseData, $appData);
@@ -151,21 +164,17 @@
       return;
     }
 
-    if (expense) {
-      updateData(d => ({
-        ...d,
-        expenses: d.expenses.map(e => e.id === expense!.id ? expenseData : e)
-      }));
-      if (expense.journalEntryId) {
-        markJournalOutOfSync(expense.journalEntryId);
-      }
-    } else {
-      updateData(d => ({
-        ...d,
-        expenses: [...d.expenses, expenseData]
-      }));
+    // The store verifies the write landed; only then is the save reported.
+    const result = isEditing && expense
+      ? updateExpense(expense.id, expenseData)
+      : addExpense(expenseData);
+
+    if (!result.success) {
+      formError = $t('expenseForm.saveFailed');
+      return;
     }
-    onSave();
+
+    onSave({ expenseId: expenseData.id });
   }
 </script>
 

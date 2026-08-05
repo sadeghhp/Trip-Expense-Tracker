@@ -58,7 +58,12 @@ export interface CsvJournalEntry {
   skipReason: string;
 }
 
-export type JournalStatus = 'applied' | 'pending' | 'error' | 'out_of_sync';
+/**
+ * `excluded` is terminal: the row is a non-expense ledger movement (transfer,
+ * withdrawal, currency exchange, ...) and may never become an expense. Apply
+ * and Apply All skip it rather than retrying it as an error forever.
+ */
+export type JournalStatus = 'applied' | 'pending' | 'error' | 'out_of_sync' | 'excluded';
 
 export interface JournalEntry {
   id: string;
@@ -82,6 +87,8 @@ export interface JournalEntry {
 
 export interface PendingImportItem {
   id: string;
+  /** Stable source identity, so re-importing a file cannot duplicate the item. */
+  journalId?: string;
   rawData: Record<string, string>;
   reason: string;
   createdAt: string;

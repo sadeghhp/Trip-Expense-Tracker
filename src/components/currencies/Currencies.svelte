@@ -1,10 +1,9 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { Plus, Pencil, Trash2, Coins, Check } from '@lucide/svelte';
-  import { appData, updateData } from '$lib/stores/data';
+  import { appData, updateData, removeCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { validateCurrencyCode, isCurrencyUsed } from '$lib/utils/validation';
-  import { recalculateExchangeRates } from '$lib/engine/settlement';
   import { PREDEFINED_CURRENCIES } from '$lib/constants/currencies';
   import { t } from '$lib/i18n';
   import type { Currency, PredefinedCurrency } from '$lib/types';
@@ -84,7 +83,7 @@
       updateData(d => ({
         ...d,
         currencies: [...d.currencies, { code, symbol }],
-        settlementCurrency: d.settlementCurrency || code
+        settlementCurrency: d.settlementCurrency || d.currencies[0]?.code || code
       }));
       showToast($t('currencies.added'));
     }
@@ -98,26 +97,19 @@
         showToast($t('currencies.usedInExpenses', { code: pc.code }), 'error');
         return;
       }
-      updateData(d => {
-        const currencies = d.currencies.filter(c => c.code !== pc.code);
-        let exchangeRates = { ...d.exchangeRates };
-        delete exchangeRates[pc.code];
-        const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
-        const settlementCurrency = oldSettlement === pc.code
-          ? (currencies[0]?.code || '')
-          : oldSettlement;
-        if (oldSettlement === pc.code && settlementCurrency) {
-          exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
-          delete exchangeRates[pc.code];
-        }
-        return { ...d, currencies, exchangeRates, settlementCurrency };
-      });
+      const { clearedRates } = removeCurrency(pc.code);
       showToast($t('currencies.removed', { code: pc.code }));
+      if (clearedRates.length > 0) {
+        showToast(
+          $t('settlement.ratesClearedOnSwitch', { currencies: clearedRates.join(', ') }),
+          'error'
+        );
+      }
     } else {
       updateData(d => ({
         ...d,
         currencies: [...d.currencies, { code: pc.code, symbol: pc.symbol }],
-        settlementCurrency: d.settlementCurrency || pc.code
+        settlementCurrency: d.settlementCurrency || d.currencies[0]?.code || pc.code
       }));
       showToast($t('currencies.quickAdded', { code: pc.code }));
     }
@@ -134,21 +126,14 @@
   function confirmDelete() {
     if (!deleteConfirm) return;
     const code = deleteConfirm.code;
-    updateData(d => {
-      const currencies = d.currencies.filter(c => c.code !== code);
-      let exchangeRates = { ...d.exchangeRates };
-      delete exchangeRates[code];
-      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
-      const settlementCurrency = oldSettlement === code
-        ? (currencies[0]?.code || '')
-        : oldSettlement;
-      if (oldSettlement === code && settlementCurrency) {
-        exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
-        delete exchangeRates[code];
-      }
-      return { ...d, currencies, exchangeRates, settlementCurrency };
-    });
+    const { clearedRates } = removeCurrency(code);
     showToast($t('currencies.deleted'));
+    if (clearedRates.length > 0) {
+      showToast(
+        $t('settlement.ratesClearedOnSwitch', { currencies: clearedRates.join(', ') }),
+        'error'
+      );
+    }
     deleteConfirm = null;
   }
 

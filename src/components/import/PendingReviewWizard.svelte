@@ -3,6 +3,7 @@
   import { fly } from 'svelte/transition';
   import { t } from '$lib/i18n';
   import { appData, removePendingItem } from '$lib/stores/data';
+  import { showToast } from '$lib/stores/toast';
   import type { PendingImportItem } from '$lib/types';
   import { formatAmount } from '$lib/utils/format';
   import { buildExpenseFromPendingItem } from '$lib/utils/pending-import';
@@ -11,6 +12,10 @@
   interface Props {
     open: boolean;
     onClose: () => void;
+  }
+
+  interface ExpenseSaveResult {
+    expenseId: string;
   }
 
   let { open, onClose }: Props = $props();
@@ -70,7 +75,15 @@
     showExpenseForm = true;
   }
 
-  function handleExpenseSaved() {
+  function handleExpenseSaved(result: ExpenseSaveResult | undefined) {
+    // The pending item is the only copy of the source row: it may be removed
+    // only once the expense is confirmed present in the store.
+    const persisted = !!result && $appData.expenses.some(e => e.id === result.expenseId);
+    if (!persisted) {
+      showToast($t('pending.saveFailed'), 'error');
+      return;
+    }
+
     showExpenseForm = false;
     if (pendingItemForForm) {
       removePendingItem(pendingItemForForm.id);
@@ -287,7 +300,8 @@
   {@const prefilled = buildPrefilledExpense()}
   {#if prefilled}
     <ExpenseForm
-      expense={prefilled}
+      expense={null}
+      prefill={prefilled}
       onSave={handleExpenseSaved}
       onClose={handleExpenseFormClose}
     />

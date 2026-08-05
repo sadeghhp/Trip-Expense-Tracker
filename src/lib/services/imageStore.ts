@@ -105,21 +105,100 @@ export async function existingReceiptImageIds(ids: string[]): Promise<Set<string
   return found;
 }
 
-export async function duplicateReceiptImages(idMap: Map<string, string>): Promise<void> {
-  if (idMap.size === 0) return;
+export interface DuplicateImagesResult {
+  /** Source ids that were copied to their new id. */
+  copied: string[];
+  /** Source ids with no stored blob; the caller must not keep a reference. */
+  missing: string[];
+}
+
+/**
+ * Copies image records under new ids.
+ *
+ * Reports missing sources instead of throwing: the previous version committed
+ * the copies it had made and *then* threw, so the caller discarded the clone
+ * while the copied blobs stayed in IndexedDB forever, and any trip with one
+ * evicted blob could never be duplicated.
+ */
+export async function duplicateReceiptImages(idMap: Map<string, string>): Promise<DuplicateImagesResult> {
+  const result: DuplicateImagesResult = { copied: [], missing: [] };
+  if (idMap.size === 0) return result;
+
   const db = await getDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
-  const missing: string[] = [];
   for (const [oldId, newId] of idMap) {
     const record: ReceiptImageRecord | undefined = await tx.store.get(oldId);
     if (record) {
       await tx.store.put({ ...record, id: newId, createdAt: Date.now() });
+      result.copied.push(oldId);
     } else {
-      missing.push(oldId);
+      result.missing.push(oldId);
     }
   }
   await tx.done;
-  if (missing.length > 0) {
-    throw new Error(`Missing receipt images: ${missing.join(', ')}`);
+  return result;
+}
+
+export interface SerializedReceiptImage {
+  id: string;
+  fullImage: string;
+  thumbnail: string;
+  createdAt: number;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Failed to read image blob'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Serializes stored images so a backup file can carry them. */
+export async function exportReceiptImages(ids: string[]): Promise<SerializedReceiptImage[]> {
+  if (ids.length === 0) return [];
+  const db = await getDB();
+  const out: SerializedReceiptImage[] = [];
+  for (const id of ids) {
+    const record: ReceiptImageRecord | undefined = await db.get(STORE_NAME, id);
+    if (!record) continue;
+    out.push({
+      id,
+      fullImage: await blobToDataUrl(record.fullImage),
+      thumbnail: await blobToDataUrl(record.thumbnail),
+      createdAt: record.createdAt ?? Date.now()
+    });
   }
+  return out;
+}
+
+export interface ImportImagesResult {
+  restored: string[];
+  failed: string[];
+}
+
+/** Writes serialized images back into IndexedDB. */
+export async function importReceiptImages(
+  images: SerializedReceiptImage[]
+): Promise<ImportImagesResult> {
+  const result: ImportImagesResult = { restored: [], failed: [] };
+  if (images.length === 0) return result;
+
+  const db = await getDB();
+  for (const image of images) {
+    try {
+      const record: ReceiptImageRecord = {
+        id: image.id,
+        fullImage: dataUrlToBlob(image.fullImage),
+        thumbnail: dataUrlToBlob(image.thumbnail),
+        createdAt: typeof image.createdAt === 'number' ? image.createdAt : Date.now()
+      };
+      await db.put(STORE_NAME, record);
+      result.restored.push(image.id);
+    } catch {
+      result.failed.push(image.id);
+    }
+  }
+  return result;
 }

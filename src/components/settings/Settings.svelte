@@ -5,6 +5,7 @@
   import { showToast } from '$lib/stores/toast';
   import { replaceData, clearAllData, getSnapshot, activeTrip, activeTripId, importAsNewTrip, getFullSnapshot, replaceAllData, trips } from '$lib/stores/data';
   import { getTodayForCalendar } from '$lib/engine/calendar';
+  import { createFullBackup, inspectBackup, restoreBackupImages, type BackupInspection } from '$lib/services/backup';
   import { t, isRtl } from '$lib/i18n';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import Modal from '../ui/Modal.svelte';
@@ -33,6 +34,7 @@
   let backupDragOver = $state(false);
   let backupLoadedFileName = $state('');
   let backupParsed: any = $state(null);
+  let backupInspection = $state<BackupInspection | null>(null);
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024;
   let showApiKey = $state(false);
@@ -40,10 +42,26 @@
   let hardReloading = $state(false);
 
   let backupSummary = $derived.by(() => {
-    if (!backupParsed) return '';
-    const tripCount = Array.isArray(backupParsed.trips) ? backupParsed.trips.length : 0;
+    if (!backupInspection) return '';
     const existingCount = $trips.length;
-    return $t('settings.restoreSummary', { backupCount: tripCount, existingCount: existingCount });
+    return $t('settings.restoreSummary', {
+      backupCount: backupInspection.tripCount,
+      existingCount
+    });
+  });
+
+  /** Surfaced before the destructive replace, so image loss is never a surprise. */
+  let backupImageWarning = $derived.by(() => {
+    if (!backupInspection) return '';
+    if (backupInspection.kind === 'legacy' && backupInspection.referencedImageCount > 0) {
+      return $t('settings.legacyBackupNoImages', { count: backupInspection.referencedImageCount });
+    }
+    if (backupInspection.missingImageIds.length > 0) {
+      return $t('settings.backupMissingImagesWarning', {
+        count: backupInspection.missingImageIds.length
+      });
+    }
+    return '';
   });
 
   function handleJsonFile(file: File) {
@@ -140,19 +158,31 @@
     }
   }
 
-  function handleExportAll() {
-    const state = getFullSnapshot();
-    const json = JSON.stringify(state, null, 2);
-    const dateStr = getTodayForCalendar($settings.calendar);
-    const filename = `trip-expense-backup-${dateStr}.json`;
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast($t('settings.fullBackupExported'));
+  let exportingBackup = $state(false);
+
+  async function handleExportAll() {
+    if (exportingBackup) return;
+    exportingBackup = true;
+    try {
+      // A "full backup" must actually be full: receipt images live in
+      // IndexedDB and were silently absent from every previous backup.
+      const backup = await createFullBackup(getFullSnapshot());
+      const json = JSON.stringify(backup, null, 2);
+      const dateStr = getTodayForCalendar($settings.calendar);
+      const filename = `trip-expense-backup-${dateStr}.json`;
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast($t('settings.fullBackupExportedWithImages', { count: backup.images.length }));
+    } catch (e: any) {
+      showToast($t('settings.backupExportFailed', { message: e?.message ?? '' }), 'error');
+    } finally {
+      exportingBackup = false;
+    }
   }
 
   function handleBackupFile(file: File) {
@@ -194,14 +224,15 @@
     backupImportError = '';
     try {
       const parsed = JSON.parse(backupImportText);
-      if (!parsed || typeof parsed !== 'object') throw new Error($t('validation.invalidJsonObject'));
-      if (!Array.isArray(parsed.trips)) {
-        if (Array.isArray(parsed.participants)) {
+      const inspection = inspectBackup(parsed);
+      if (inspection.kind === 'invalid' || !inspection.state) {
+        if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).participants)) {
           throw new Error($t('validation.looksLikeSingleTrip'));
         }
-        throw new Error($t('validation.missingTripsArray'));
+        throw new Error($t(inspection.error ?? 'validation.missingTripsArray'));
       }
-      backupParsed = parsed;
+      backupInspection = inspection;
+      backupParsed = inspection.state;
       backupImportConfirm = true;
     } catch (e: any) {
       backupImportError = e.message || $t('validation.invalidJson');
@@ -209,15 +240,30 @@
   }
 
   async function confirmBackupImport() {
-    if (!backupParsed) return;
+    const inspection = backupInspection;
+    if (!inspection || !inspection.state) return;
     try {
-      await replaceAllData(backupParsed);
+      // Images are written first so the references in the incoming state
+      // resolve and the store's orphan cleanup cannot strip them.
+      const imageResult = await restoreBackupImages(inspection);
+      const { strippedImageIds } = await replaceAllData(inspection.state);
+
       showToast($t('settings.backupRestored'));
+      if (imageResult.restoredImages > 0) {
+        showToast($t('settings.backupImagesRestored', { count: imageResult.restoredImages }));
+      }
+      // Never silent: say exactly which receipt references could not be kept.
+      const lost = new Set([...strippedImageIds, ...imageResult.failedImages]);
+      if (lost.size > 0) {
+        showToast($t('settings.backupImagesMissing', { count: lost.size }), 'error');
+      }
+
       backupImportOpen = false;
       backupImportText = '';
       backupImportConfirm = false;
       backupLoadedFileName = '';
       backupParsed = null;
+      backupInspection = null;
     } catch (e: any) {
       showToast($t('settings.restoreFailed', { message: e.message }), 'error');
     }
@@ -762,9 +808,9 @@
 <ConfirmDialog
   open={backupImportConfirm}
   title={$t('settings.restoreConfirmTitle')}
-  message={backupSummary ? `${$t('settings.restoreConfirmMessage')}\n\n${backupSummary}` : $t('settings.restoreConfirmMessage')}
+  message={[$t('settings.restoreConfirmMessage'), backupSummary, backupImageWarning].filter(Boolean).join('\n\n')}
   confirmLabel={$t('settings.restore')}
   destructive={true}
   onConfirm={confirmBackupImport}
-  onCancel={() => { backupImportConfirm = false; backupParsed = null; }}
+  onCancel={() => { backupImportConfirm = false; backupParsed = null; backupInspection = null; }}
 />

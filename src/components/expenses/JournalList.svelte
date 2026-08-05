@@ -99,7 +99,10 @@
       const entry = $appData.journals.find(j => j.id === id);
       outOfSyncConfirm = entry ?? null;
     } else {
-      showToast(result.error ?? $t('journals.applyFailed'), 'error');
+      const message = result.error && result.error.startsWith('validation.')
+        ? $t(result.error)
+        : result.error;
+      showToast(message ?? $t('journals.applyFailed'), 'error');
     }
   }
 

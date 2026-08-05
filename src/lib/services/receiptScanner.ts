@@ -1,6 +1,12 @@
 import { getAISettings, getChatCompletionsUrl } from '../stores/aiSettings';
 import type { BarcodeResult, ReceiptData } from '../types';
 import { parseReceiptQR } from './barcodeScanner';
+import { parseCanonicalDate } from '../domain/dates';
+
+function canonicalReceiptDate(value: string): string | null {
+  const result = parseCanonicalDate(value);
+  return result.ok ? result.date : null;
+}
 
 const RECEIPT_EXTRACTION_PROMPT = `Analyze this receipt image and extract the expense information.
 
@@ -50,7 +56,10 @@ export function parseAndValidateReceiptJson(raw: string): ReceiptData {
     throw new Error('receipt.errorInvalidJson');
   }
 
-  if (typeof parsed.totalAmount !== 'number' || parsed.totalAmount <= 0) {
+  // Model output is untrusted: `1e999` parses as Infinity, passed the old
+  // `> 0` check, corrupted balances, then vanished on the next load when
+  // normalization filtered non-finite amounts.
+  if (typeof parsed.totalAmount !== 'number' || !Number.isFinite(parsed.totalAmount) || parsed.totalAmount <= 0) {
     throw new Error('receipt.errorNoAmount');
   }
 
@@ -60,7 +69,9 @@ export function parseAndValidateReceiptJson(raw: string): ReceiptData {
 
   const result: ReceiptData = {
     title: String(parsed.title).slice(0, 200),
-    date: typeof parsed.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : null,
+    // Canonical Gregorian ISO only: the shape check alone accepted impossible
+    // dates such as 2026-13-45 and never converted Jalali input.
+    date: typeof parsed.date === 'string' ? canonicalReceiptDate(parsed.date) : null,
     totalAmount: Math.round(parsed.totalAmount * 100) / 100,
     currency: typeof parsed.currency === 'string' && parsed.currency.length >= 2 ? parsed.currency.toUpperCase() : null,
     merchant: typeof parsed.merchant === 'string' ? parsed.merchant : null,
@@ -153,6 +164,13 @@ export async function analyzeReceipt(imageDataUrl: string): Promise<ReceiptData>
   return parseAndValidateReceiptJson(rawText);
 }
 
+/** Records a disagreement instead of silently picking a winner. */
+function noteDateConflict(receipt: ReceiptData, qrDate: string): void {
+  const note = `QR date: ${qrDate}`;
+  receipt.notes = receipt.notes ? `${receipt.notes} | ${note}` : note;
+  receipt.confidence = Math.min(receipt.confidence, 0.6);
+}
+
 export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]): ReceiptData {
   if (barcodes.length === 0) return receipt;
 
@@ -178,8 +196,13 @@ export function mergeBarcodeData(receipt: ReceiptData, barcodes: BarcodeResult[]
     }
   }
 
-  if (parsed.date) {
+  // Source precedence: the QR date only fills a gap. Overriding a date the
+  // model read off the receipt gave the QR payload authority it has not
+  // earned, and on Iranian receipts wrote a Jalali year into a Gregorian field.
+  if (parsed.date && !merged.date) {
     merged.date = parsed.date;
+  } else if (parsed.date && merged.date && parsed.date !== merged.date) {
+    noteDateConflict(merged, parsed.date);
   }
 
   if (parsed.merchant) {

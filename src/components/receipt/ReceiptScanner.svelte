@@ -1,7 +1,7 @@
 <script lang="ts">
   import { X, Camera, Upload, RotateCcw, Sparkles, AlertCircle, Loader2, ShieldAlert, CheckCircle2, Crop } from '@lucide/svelte';
   import { fly } from 'svelte/transition';
-  import { appData, updateData } from '$lib/stores/data';
+  import { appData, updateData, addExpense } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { getTodayISO } from '$lib/engine/calendar';
   import { generateId } from '$lib/utils/id';
@@ -193,7 +193,8 @@
     const symbol = COMMON_SYMBOLS[detectedCurrency] ?? detectedCurrency;
     updateData(d => ({
       ...d,
-      currencies: [...d.currencies, { code: detectedCurrency, symbol }]
+      currencies: [...d.currencies, { code: detectedCurrency, symbol }],
+      settlementCurrency: d.settlementCurrency || d.currencies[0]?.code || detectedCurrency
     }));
     currencyCode = detectedCurrency;
     currencyMismatch = false;
@@ -278,10 +279,14 @@
       return;
     }
 
-    updateData(d => ({
-      ...d,
-      expenses: [...d.expenses, expenseData]
-    }));
+    // Routed through the store so the write is verified before reporting
+    // success, and so every expense-creation path behaves identically.
+    const result = addExpense(expenseData);
+    if (!result.success) {
+      if (receiptImageId) deleteReceiptImage(receiptImageId).catch(() => {});
+      formError = $t('expenseForm.saveFailed');
+      return;
+    }
     onSaved();
   }
 

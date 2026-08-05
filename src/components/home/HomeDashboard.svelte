@@ -5,12 +5,13 @@
     TrendingUp, Calendar, Receipt, Crown, Sparkles, ChevronLeft, ChevronRight,
     ChevronDown, AlertTriangle, Camera
   } from '@lucide/svelte';
-  import { appData, activeTrip, exitTrip, updateData, effectiveSettlementCurrency as effectiveSettlementCurrencyStore } from '$lib/stores/data';
+  import { appData, activeTrip, exitTrip, updateData, changeSettlementCurrency, effectiveSettlementCurrency as effectiveSettlementCurrencyStore } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { settings } from '$lib/stores/settings';
   import { t, isRtl } from '$lib/i18n';
   import { computeBalances } from '$lib/engine/balances';
-  import { computeUnifiedBalances, computeSettlementTransactions, recalculateExchangeRates } from '$lib/engine/settlement';
+  import { computeUnifiedBalances, computeSettlementTransactions } from '$lib/engine/settlement';
+  import { getSettlementReadiness } from '$lib/domain/settlement-currency';
   import { formatDateDisplay, getTodayISO } from '$lib/engine/calendar';
   import { formatAmount, getParticipantName, getCurrencySymbol } from '$lib/utils/format';
   import type { TabId } from '$lib/types';
@@ -121,17 +122,22 @@
 
   let settlements = $derived(computeSettlementTransactions(unifiedBalances));
 
-  let excludedCurrencyCodes = $derived.by(() => {
-    if (!effectiveSettlementCurrency) return [];
-    return $appData.currencies
-      .filter(c => c.code !== effectiveSettlementCurrency)
-      .filter(c => !$appData.exchangeRates[c.code] || $appData.exchangeRates[c.code] <= 0)
-      .map(c => c.code);
-  });
+  /**
+   * Same readiness semantics as the Settlement screen. When a currency that
+   * carries expenses has no usable rate, its balances are silently dropped by
+   * the engine — so no settlement-derived figure here may be presented as
+   * complete, and "everyone is settled up" must not be shown at all.
+   */
+  let settlementReadiness = $derived(getSettlementReadiness($appData, effectiveSettlementCurrency));
+  let settlementIncomplete = $derived(!settlementReadiness.ready);
+  let excludedCurrencyCodes = $derived(settlementReadiness.excludedCurrenciesInUse);
 
   let creditors = $derived(unifiedBalances.filter(b => b.balance > 0.005));
   let debtors = $derived(unifiedBalances.filter(b => b.balance < -0.005));
   let settledCount = $derived(unifiedBalances.filter(b => Math.abs(b.balance) <= 0.005).length);
+  let everyoneSettled = $derived(
+    !settlementIncomplete && unifiedBalances.every(b => Math.abs(b.balance) <= 0.005)
+  );
 
   let recentExpenses = $derived(
     [...$appData.expenses]
@@ -188,11 +194,21 @@
   });
 
   function selectCurrency(code: string) {
-    updateData(d => {
-      const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
-      const newRates = recalculateExchangeRates(d.exchangeRates, oldSettlement, code);
-      return { ...d, settlementCurrency: code, exchangeRates: newRates };
-    });
+    const result = changeSettlementCurrency(code);
+    if (!result.ok && result.reason === 'no_pivot_rate') {
+      // Adopting the currency while keeping rates based on the old one would
+      // silently corrupt every conversion, so the stale rates are cleared.
+      const forced = changeSettlementCurrency(code, { force: true });
+      if (forced.clearedRates.length > 0) {
+        showToast(
+          $t('settlement.ratesClearedOnSwitch', { currencies: forced.clearedRates.join(', ') }),
+          'error'
+        );
+      }
+    } else if (!result.ok) {
+      showToast($t('settlement.currencySwitchFailed'), 'error');
+      return;
+    }
     showCurrencyPicker = false;
   }
 
@@ -436,6 +452,19 @@
         </button>
       </div>
 
+      {#if settlementIncomplete}
+        <div class="flex items-start gap-2 p-3 mb-3 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
+          <AlertTriangle size={14} class="text-warning-600 dark:text-warning-400 mt-0.5 shrink-0" />
+          <p class="text-xs text-warning-700 dark:text-warning-300">
+            {#if excludedCurrencyCodes.length > 0}
+              {$t('home.balancesIncomplete', { currencies: excludedCurrencyCodes.join(', ') })}
+            {:else}
+              {$t('home.balancesNoSettlementCurrency')}
+            {/if}
+          </p>
+        </div>
+      {/if}
+
       <div class="space-y-2">
         {#each unifiedBalances.filter(b => Math.abs(b.balance) > 0.005).sort((a, b) => b.balance - a.balance) as person}
           {@const personIsTankhah = person.id === $appData.tankhahParticipantId}
@@ -470,7 +499,7 @@
           </div>
         {/each}
 
-        {#if unifiedBalances.every(b => Math.abs(b.balance) <= 0.005)}
+        {#if everyoneSettled}
           <p class="text-sm text-center text-success-600 dark:text-success-400 py-3 font-medium">
             {$t('home.everyoneSettled')}
           </p>
@@ -480,7 +509,7 @@
   {/if}
 
   <!-- Settlement Status -->
-  {#if settlements.length > 0}
+  {#if settlements.length > 0 || (settlementIncomplete && $appData.expenses.length > 0)}
     <section
       class="rounded-2xl bg-[var(--card-bg)] border border-[var(--card-border)] p-4 md:p-5 shadow-sm"
     >
@@ -494,39 +523,48 @@
         </button>
       </div>
 
-      {#if excludedCurrencyCodes.length > 0}
-        <p class="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 mb-2">
-          <AlertTriangle size={11} />
-          {$t('home.settlementIncomplete', { currencies: excludedCurrencyCodes.join(', ') })}
-        </p>
+      {#if settlementIncomplete}
+        <div class="flex items-start gap-2 p-3 mb-3 rounded-xl bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800/50">
+          <AlertTriangle size={14} class="text-warning-600 dark:text-warning-400 mt-0.5 shrink-0" />
+          <p class="text-xs text-warning-700 dark:text-warning-300">
+            {#if excludedCurrencyCodes.length > 0}
+              {$t('home.settlementIncomplete', { currencies: excludedCurrencyCodes.join(', ') })}
+            {:else}
+              {$t('home.balancesNoSettlementCurrency')}
+            {/if}
+          </p>
+        </div>
       {/if}
 
-      <div class="flex items-center gap-4 mb-3">
-        <div class="flex-1">
-          <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
-            <div
-              class="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
-              style="width: {settlementProgress}%"
-            ></div>
+      <!-- Progress and totals are only meaningful once every currency converts. -->
+      {#if !settlementIncomplete}
+        <div class="flex items-center gap-4 mb-3">
+          <div class="flex-1">
+            <div class="h-2 rounded-full bg-surface-100 dark:bg-surface-800 overflow-hidden">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-500"
+                style="width: {settlementProgress}%"
+              ></div>
+            </div>
+          </div>
+          <span class="text-xs font-semibold text-[var(--text-secondary)] tabular-nums">{settlementProgress}%</span>
+        </div>
+
+        <div class="flex gap-4 text-center">
+          <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
+            <p class="text-lg font-bold text-[var(--text-primary)]">{settlements.length}</p>
+            <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.transfersNeeded')}</p>
+          </div>
+          <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
+            <p class="text-lg font-bold text-[var(--text-primary)]">{debtors.length}</p>
+            <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.oweMoney')}</p>
+          </div>
+          <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
+            <p class="text-lg font-bold text-[var(--text-primary)]">{creditors.length}</p>
+            <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.areOwed')}</p>
           </div>
         </div>
-        <span class="text-xs font-semibold text-[var(--text-secondary)] tabular-nums">{settlementProgress}%</span>
-      </div>
-
-      <div class="flex gap-4 text-center">
-        <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
-          <p class="text-lg font-bold text-[var(--text-primary)]">{settlements.length}</p>
-          <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.transfersNeeded')}</p>
-        </div>
-        <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
-          <p class="text-lg font-bold text-[var(--text-primary)]">{debtors.length}</p>
-          <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.oweMoney')}</p>
-        </div>
-        <div class="flex-1 py-2 rounded-xl bg-surface-50 dark:bg-surface-800/50">
-          <p class="text-lg font-bold text-[var(--text-primary)]">{creditors.length}</p>
-          <p class="text-[11px] text-[var(--text-secondary)]">{$t('home.areOwed')}</p>
-        </div>
-      </div>
+      {/if}
     </section>
   {/if}
 

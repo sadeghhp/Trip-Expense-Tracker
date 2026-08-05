@@ -1,11 +1,10 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
   import { Users, Coins, Check, ChevronRight, ChevronLeft, Plus, X, ArrowLeft, ArrowRight } from '@lucide/svelte';
-  import { appData, updateData, activeTrip, exitTrip } from '$lib/stores/data';
+  import { appData, updateData, activeTrip, exitTrip, removeCurrency } from '$lib/stores/data';
   import { showToast } from '$lib/stores/toast';
   import { t, isRtl } from '$lib/i18n';
   import { validateParticipantName, isParticipantUsed } from '$lib/utils/validation';
-  import { recalculateExchangeRates } from '$lib/engine/settlement';
   import { WIZARD_CURRENCIES } from '$lib/constants/currencies';
   import { generateId } from '$lib/utils/id';
   import type { PredefinedCurrency } from '$lib/types';
@@ -70,25 +69,12 @@
   function toggleCurrency(currency: PredefinedCurrency) {
     const exists = $appData.currencies.some(c => c.code === currency.code);
     if (exists) {
-      updateData(d => {
-        const currencies = d.currencies.filter(c => c.code !== currency.code);
-        let exchangeRates = { ...d.exchangeRates };
-        delete exchangeRates[currency.code];
-        const oldSettlement = d.settlementCurrency || d.currencies[0]?.code || '';
-        const settlementCurrency = oldSettlement === currency.code
-          ? (currencies[0]?.code ?? '')
-          : oldSettlement;
-        if (oldSettlement === currency.code && settlementCurrency) {
-          exchangeRates = recalculateExchangeRates(exchangeRates, oldSettlement, settlementCurrency);
-          delete exchangeRates[currency.code];
-        }
-        return { ...d, currencies, exchangeRates, settlementCurrency };
-      });
+      removeCurrency(currency.code);
     } else {
       updateData(d => ({
         ...d,
         currencies: [...d.currencies, { code: currency.code, symbol: currency.symbol }],
-        settlementCurrency: d.settlementCurrency || currency.code
+        settlementCurrency: d.settlementCurrency || d.currencies[0]?.code || currency.code
       }));
     }
   }
@@ -113,7 +99,7 @@
     updateData(d => ({
       ...d,
       currencies: [...d.currencies, { code, symbol }],
-      settlementCurrency: d.settlementCurrency || code
+      settlementCurrency: d.settlementCurrency || d.currencies[0]?.code || code
     }));
     customCode = '';
     customSymbol = '';

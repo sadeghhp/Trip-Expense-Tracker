@@ -25,7 +25,8 @@ const baseMapping: ColumnMapping = {
   entryType: 'Type',
   id: null,
   flag: null,
-  notes: null
+  notes: null,
+  treat: null
 };
 
 describe('parseFlexibleDate', () => {
@@ -61,12 +62,33 @@ describe('parseFlexibleDate', () => {
     expect(parseFlexibleDate('not a date')).toBeNull();
   });
 
-  it('passes through Jalali-looking dates', () => {
-    expect(parseFlexibleDate('1403-01-01')).toBe('1403-01-01');
+  it('converts Jalali dates to canonical Gregorian ISO', () => {
+    // 1403-01-01 Jalali is 2024-03-20 Gregorian. Storing the Jalali string
+    // verbatim put two calendar domains into one field.
+    expect(parseFlexibleDate('1403-01-01')).toBe('2024-03-20');
+    expect(parseFlexibleDate('1403/05/12')).toBe('2024-08-02');
   });
 
-  it('uses US interpretation for ambiguous 01/02/2024', () => {
-    expect(parseFlexibleDate('01/02/2024')).toBe('2024-01-02');
+  it('leaves canonical Gregorian dates untouched', () => {
+    expect(parseFlexibleDate('2024-06-15')).toBe('2024-06-15');
+  });
+
+  it('rejects impossible dates instead of emitting them', () => {
+    expect(parseFlexibleDate('2025-02-31')).toBeNull();
+    expect(parseFlexibleDate('3-Mar-2025')).toBeNull();
+  });
+
+  it('refuses to guess ambiguous 01/02/2024 without an explicit order', () => {
+    expect(parseFlexibleDate('01/02/2024')).toBeNull();
+  });
+
+  it('resolves ambiguous dates when the order is given', () => {
+    expect(parseFlexibleDate('01/02/2024', 'mdy')).toBe('2024-01-02');
+    expect(parseFlexibleDate('01/02/2024', 'dmy')).toBe('2024-02-01');
+  });
+
+  it('resolves unambiguous day-first dates automatically', () => {
+    expect(parseFlexibleDate('15/06/2024')).toBe('2024-06-15');
   });
 
   it('forces DMY format when specified', () => {
@@ -133,12 +155,16 @@ describe('extractUniqueNames', () => {
   });
 
   it('skips non-importable entry types for payers', () => {
+    // advance_received is an obligation now, so its payer IS collected;
+    // a truly excluded type (currency_exchange) is not.
     const rows: CsvRow[] = [
-      { Payer: 'Fund', Payee: 'Alice', Type: 'advance_received' },
+      { Payer: 'Fund', Payee: 'Alice', Type: 'currency_exchange' },
+      { Payer: 'Sponsor', Payee: 'Alice', Type: 'advance_received' },
       { Payer: 'Alice', Payee: 'Bob', Type: 'expense', Amount: '100', Currency: 'USD' }
     ];
     const result = extractUniqueNames(rows, baseMapping);
     expect(result.confirmed).toContain('Alice');
+    expect(result.confirmed).toContain('Sponsor');
     expect(result.confirmed).not.toContain('Fund');
   });
 
@@ -247,7 +273,7 @@ describe('transformCsvToExpenses', () => {
   it('skips invalid date', () => {
     const rows = [{ Date: 'bad', Description: 'X', Amount: '10', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense' }];
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
-    expect(result.skippedRows[0].reason).toBe('Invalid date');
+    expect(result.skippedRows[0].reason).toContain('Invalid date');
   });
 
   it('skips zero or negative amount', () => {
@@ -301,6 +327,7 @@ describe('transformCsvToExpenses', () => {
   });
 
   it('personal expense with named payee benefits the payee not the payer', () => {
+    // Both import paths must agree on this; they used to disagree.
     const rows = [{ Date: '2024-06-15', Description: 'Gift for Bob', Amount: '50', Currency: 'USD', Payer: 'Alice', Payee: 'Bob', Type: 'expense_personal' }];
     const result = transformCsvToExpenses(rows, baseMapping, [], participants, currencies, []);
     expect(result.expenses[0].beneficiaries).toEqual([

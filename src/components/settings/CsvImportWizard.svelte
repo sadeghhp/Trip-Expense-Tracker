@@ -10,18 +10,21 @@
     extractUniqueCurrencies,
     getSymbolForCurrency,
     transformCsvToExpenses,
-    mergeJournalEntries,
+    buildReconciliation,
+    emptyReconciliation,
+    summarizeImport,
+    actionableJournalIdMap,
     type DateFormat,
     type ParticipantMapping,
     type AmbiguousPayee,
     type ExtractedNames,
     type ImportResult
   } from '$lib/utils/csv-transformer';
-  import { appData, updateData, importAsNewTrip } from '$lib/stores/data';
+  import { appData, importAsNewTrip, commitCsvImport } from '$lib/stores/data';
   import { formatAmount } from '$lib/utils/format';
   import { showToast } from '$lib/stores/toast';
   import { generateId } from '$lib/utils/id';
-  import { buildActionableJournalsFromImport, mergeActionableJournals } from '$lib/utils/journal-apply';
+  import { buildActionableJournalsFromImport } from '$lib/utils/journal-apply';
   import {
     buildPendingItemsFromJournalEntries,
     buildRawDataByJournalId,
@@ -42,19 +45,21 @@
   let csvResult = $state<CsvParseResult | null>(null);
   let mapping = $state<ColumnMapping>({
     date: null, description: null, amount: null, currency: null,
-    payer: null, payee: null, entryType: null, id: null, flag: null, notes: null
+    payer: null, payee: null, entryType: null, id: null, flag: null, notes: null, treat: null
   });
   let participantMappings = $state<ParticipantMapping[]>([]);
   let ambiguousPayees = $state<(AmbiguousPayee & { resolved: boolean; isPerson: boolean })[]>([]);
   let currencyMappings = $state<{ code: string; symbol: string; exists: boolean }[]>([]);
   let importResult = $state<ImportResult | null>(null);
+  /** The exact mapping list handed to the transform, so persistence matches it. */
+  let effectiveMappings = $state<ParticipantMapping[]>([]);
   let importMode = $state<'merge' | 'new'>('merge');
   let newTripName = $state('');
   let dragOver = $state(false);
   let dateFormat = $state<DateFormat>('auto');
 
   const mappingFields: { key: keyof ColumnMapping; labelKey: string; required: boolean }[] = [
-    { key: 'date', labelKey: 'csvImport.fields.date', required: true },
+    { key: 'date', labelKey: 'csvImport.fields.date', required: false },
     { key: 'description', labelKey: 'csvImport.fields.description', required: true },
     { key: 'amount', labelKey: 'csvImport.fields.amount', required: true },
     { key: 'currency', labelKey: 'csvImport.fields.currency', required: false },
@@ -63,7 +68,8 @@
     { key: 'entryType', labelKey: 'csvImport.fields.entryType', required: false },
     { key: 'id', labelKey: 'csvImport.fields.id', required: false },
     { key: 'flag', labelKey: 'csvImport.fields.flag', required: false },
-    { key: 'notes', labelKey: 'csvImport.fields.notes', required: false }
+    { key: 'notes', labelKey: 'csvImport.fields.notes', required: false },
+    { key: 'treat', labelKey: 'csvImport.fields.treat', required: false }
   ];
 
   function defaultTripName(): string {
@@ -81,11 +87,12 @@
   function reset() {
     step = 1;
     csvResult = null;
-    mapping = { date: null, description: null, amount: null, currency: null, payer: null, payee: null, entryType: null, id: null, flag: null, notes: null };
+    mapping = { date: null, description: null, amount: null, currency: null, payer: null, payee: null, entryType: null, id: null, flag: null, notes: null, treat: null };
     participantMappings = [];
     ambiguousPayees = [];
     currencyMappings = [];
     importResult = null;
+    effectiveMappings = [];
     importMode = 'merge';
     newTripName = defaultTripName();
     dragOver = false;
@@ -184,10 +191,15 @@
     };
   }
 
-  function goToStep4() {
-    if (!csvResult) return;
-
-    const allMappings: ParticipantMapping[] = [
+  /**
+   * The single mapping list used for both transformation and persistence.
+   * Deriving the persisted description names from `participantMappings` alone
+   * always produced an empty list, because those entries carry
+   * `isDescription: false` — so a later re-apply resolved beneficiaries
+   * differently from the original import.
+   */
+  function buildAllMappings(): ParticipantMapping[] {
+    return [
       ...participantMappings,
       ...ambiguousPayees.map(ap => ({
         csvName: ap.name,
@@ -196,6 +208,13 @@
         isDescription: !ap.isPerson
       }))
     ];
+  }
+
+  function goToStep4() {
+    if (!csvResult) return;
+
+    const allMappings = buildAllMappings();
+    effectiveMappings = allMappings;
 
     const newCurrencies = currencyMappings
       .filter(c => !c.exists)
@@ -209,7 +228,12 @@
       $appData.currencies,
       newCurrencies,
       dateFormat,
-      $appData.tankhahParticipantId
+      $appData.tankhahParticipantId,
+      // Stable journal identity makes re-importing the same file idempotent:
+      // rows already imported reuse their expense instead of minting a new id.
+      importMode === 'merge'
+        ? buildReconciliation($appData.journals, $appData.expenses)
+        : emptyReconciliation()
     );
 
     step = 4;
@@ -234,49 +258,44 @@
       journal,
       rawDataByJournalId,
       importMode === 'merge' ? $appData.journals : [],
-      importBatchId
+      importBatchId,
+      actionableJournalIdMap(importResult.outcomes)
     );
-    const pendingItems = buildPendingItemsFromJournalEntries(csvResult.rows, journal, mapping);
-    const importedDescriptionNames = extractDescriptionPayeeNames(participantMappings);
-
-    const mergeDescriptionNames = (existing: string[] | undefined): string[] => {
-      const merged = new Set([...(existing ?? []), ...importedDescriptionNames]);
-      return [...merged];
-    };
+    const pendingItems = buildPendingItemsFromJournalEntries(
+      csvResult.rows,
+      journal,
+      mapping,
+      importMode === 'merge' ? $appData.pendingImports : []
+    );
+    const importedDescriptionNames = extractDescriptionPayeeNames(
+      effectiveMappings.length > 0 ? effectiveMappings : buildAllMappings()
+    );
 
     let shouldReview = pendingItems.length > 0;
+    const summary = summarizeImport(importResult.outcomes);
 
     if (importMode === 'merge') {
-      const existingFingerprints = new Set(
-        $appData.expenses.map(e => `${e.date}|${e.paidBy}|${e.amount}|${e.currencyCode}|${e.description}`)
-      );
-      const deduped = importResult.expenses.filter(e => {
-        const fp = `${e.date}|${e.paidBy}|${e.amount}|${e.currencyCode}|${e.description}`;
-        if (existingFingerprints.has(fp)) return false;
-        existingFingerprints.add(fp);
-        return true;
+      // One atomic transition: expenses merge by id, journals and audit rows by
+      // journalId, and linkage is repaired so nothing points at a missing record.
+      commitCsvImport({
+        newParticipants,
+        newCurrencies,
+        expenses: importResult.expenses,
+        auditEntries: journal,
+        actionableJournals,
+        pendingItems,
+        descriptionPayeeNames: importedDescriptionNames
       });
-      updateData(d => ({
-        ...d,
-        participants: [...d.participants, ...newParticipants],
-        currencies: [...d.currencies, ...newCurrencies],
-        expenses: [...d.expenses, ...deduped],
-        journalEntries: mergeJournalEntries(d.journalEntries ?? [], journal),
-        journals: mergeActionableJournals(d.journals, actionableJournals),
-        pendingImports: [...d.pendingImports, ...pendingItems],
-        descriptionPayeeNames: mergeDescriptionNames(d.descriptionPayeeNames)
-      }));
-      const skippedDupes = importResult.expenses.length - deduped.length;
-      if (deduped.length > 0) {
-        const msg = skippedDupes > 0
-          ? $t('csvImport.importedToTripDeduped', { count: deduped.length, skipped: skippedDupes })
-          : $t('csvImport.importedToTrip', { count: deduped.length });
-        showToast(msg);
-      } else if (skippedDupes > 0) {
-        showToast($t('csvImport.allDuplicates', { count: skippedDupes }));
-      } else {
-        showToast($t('csvImport.importedJournalOnly', { count: journal.length }));
-      }
+
+      showToast(
+        $t('csvImport.importSummary', {
+          added: summary.added,
+          updated: summary.updated,
+          skipped: summary.skipped + summary.unchanged,
+          excluded: summary.excluded
+        })
+      );
+
       const needsJournalAttention = actionableJournals.some(
         j => j.status === 'pending' || j.status === 'error'
       );

@@ -81,7 +81,9 @@
     "day": "1 day",
     "days": "{count} days",
     "scanReceipt": "Scan",
-    "tripFallback": "Trip"
+    "tripFallback": "Trip",
+    "balancesIncomplete": "Balances are incomplete: expenses in {currencies} have no exchange rate and are excluded.",
+    "balancesNoSettlementCurrency": "Balances are incomplete: no settlement currency is set."
   },
   "expenses": {
     "noExpensesTitle": "No expenses yet",
@@ -143,15 +145,19 @@
       "applied": "Applied",
       "pending": "Pending",
       "error": "Error",
-      "out_of_sync": "Out of sync"
+      "out_of_sync": "Out of sync",
+      "excluded": "Not an expense"
     },
     "filter": {
       "all": "All",
       "pending": "Pending",
       "error": "Error",
       "out_of_sync": "Out of sync",
-      "applied": "Applied"
-    }
+      "applied": "Applied",
+      "excluded": "Not an expense"
+    },
+    "statusExcluded": "Not an expense",
+    "excludedHint": "This row is a transfer or other ledger movement and is never imported as an expense."
   },
   "pending": {
     "wizardTitle": "Review skipped imports",
@@ -167,7 +173,8 @@
     "rawData": "Raw CSV data",
     "fixAndAdd": "Fix and add expense",
     "skipForLater": "Skip for now",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "saveFailed": "The expense was not saved, so this item was kept for review."
   },
   "expenseForm": {
     "editTitle": "Edit Expense",
@@ -191,7 +198,8 @@
     "selectAll": "Select All",
     "clearAll": "Clear",
     "treat": "Treat",
-    "treatHint": "No one pays back — the payer covers everything"
+    "treatHint": "No one pays back — the payer covers everything",
+    "saveFailed": "Could not save the expense. Please try again."
   },
   "participants": {
     "noParticipantsTitle": "No participants yet",
@@ -268,7 +276,9 @@
     "unifiedBalances": "Unified Balances ({currency})",
     "settlementTransactions": "Settlement Transactions",
     "allSettled": "Everyone is settled — no transactions needed!",
-    "excludedCurrencies": "Expenses in {currencies} are excluded from settlement because exchange rates are not set."
+    "excludedCurrencies": "Expenses in {currencies} are excluded from settlement because exchange rates are not set.",
+    "ratesClearedOnSwitch": "Exchange rates for {currencies} were cleared because they could not be converted to the new settlement currency. Please re-enter them.",
+    "currencySwitchFailed": "Could not change the settlement currency."
   },
   "settings": {
     "appearance": "Appearance",
@@ -340,7 +350,13 @@
       "testSuccess": "Connection successful! AI model is ready.",
       "testFailed": "Connection failed. Check your base URL, API key, and model name.",
       "securityNotice": "Your API key is stored locally in the browser. This is suitable for personal use. For shared deployments, use a backend proxy to protect your key."
-    }
+    },
+    "fullBackupExportedWithImages": "Full backup exported, including {count} receipt images.",
+    "backupExportFailed": "Backup export failed. {message}",
+    "backupImagesRestored": "{count} receipt images restored.",
+    "backupImagesMissing": "{count} receipt images could not be restored and their links were removed.",
+    "legacyBackupNoImages": "This is an older backup with no receipt images. {count} receipt links will be removed.",
+    "backupMissingImagesWarning": "{count} receipt images referenced by this backup are missing from the file and their links will be removed."
   },
   "trips": {
     "noTripsTitle": "No trips yet",
@@ -495,8 +511,10 @@
       "entryType": "Entry Type",
       "id": "ID (for dedup)",
       "flag": "Flag/Warning",
-      "notes": "Notes"
-    }
+      "notes": "Notes",
+      "treat": "Treat"
+    },
+    "importSummary": "Import complete: {added} added, {updated} updated, {skipped} skipped, {excluded} non-expense rows."
   },
   "receipt": {
     "scanReceipt": "Scan Receipt",

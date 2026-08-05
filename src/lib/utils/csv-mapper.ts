@@ -9,6 +9,8 @@ export interface ColumnMapping {
   id: string | null;
   flag: string | null;
   notes: string | null;
+  /** Column whose truthy values mark a row as a treat (payer absorbs, nobody owes). */
+  treat: string | null;
 }
 
 const DATE_PATTERNS = ['date', 'date_text', 'transaction date', 'posted', 'value date', 'booking date', 'تاریخ'];
@@ -21,6 +23,7 @@ const ENTRY_TYPE_PATTERNS = ['entry_type', 'type', 'transaction type', 'نوع']
 const ID_PATTERNS = ['journal_id', 'id', 'transaction_id', 'reference', 'ref'];
 const FLAG_PATTERNS = ['flag', 'status', 'warning'];
 const NOTES_PATTERNS = ['notes', 'note', 'comment', 'remarks', 'یادداشت', 'توضیح'];
+const TREAT_PATTERNS = ['treat', 'is_treat', 'مهمان کردن', 'مهمانی'];
 
 function normalize(s: string): string {
   return s.toLowerCase().trim().replace(/[\s_-]+/g, ' ');
@@ -62,13 +65,14 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
   const id = claim(used, findMatch(headers, ID_PATTERNS, used));
   const flag = claim(used, findMatch(headers, FLAG_PATTERNS, used));
   const notes = claim(used, findMatch(headers, NOTES_PATTERNS, used));
+  const treat = claim(used, findMatch(headers, TREAT_PATTERNS, used));
 
-  return { date, description, amount, currency, payer, payee, entryType, id, flag, notes };
+  return { date, description, amount, currency, payer, payee, entryType, id, flag, notes, treat };
 }
 
 export function getMappingCompleteness(mapping: ColumnMapping): { mapped: number; total: number; missing: string[] } {
-  const required: (keyof ColumnMapping)[] = ['date', 'description', 'amount'];
-  const optional: (keyof ColumnMapping)[] = ['currency', 'payer', 'payee', 'entryType', 'id', 'flag', 'notes'];
+  const required: (keyof ColumnMapping)[] = ['description', 'amount'];
+  const optional: (keyof ColumnMapping)[] = ['date', 'currency', 'payer', 'payee', 'entryType', 'id', 'flag', 'notes', 'treat'];
 
   const missing: string[] = [];
   let mapped = 0;

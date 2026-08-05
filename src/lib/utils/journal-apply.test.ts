@@ -48,8 +48,26 @@ describe('transformJournalEntry', () => {
     return buildTransformContext(data, lookup, new Set(), 'journal-1');
   }
 
-  it('creates expense for valid transfer type', () => {
+  it('turns a withdrawal into a repayment obligation (payee owes payer)', () => {
+    // Revision: withdrawals/loans/debts are the fund's receivables; the
+    // canonical sample ledgers depend on them reaching the settlement.
     const entry = makeJournal({ entryType: 'withdrawal', payeeName: 'Bob' });
+    const result = transformJournalEntry(entry, context());
+    expect(result.error).toBeNull();
+    expect(result.expense?.paidBy).toBe('p-alice');
+    expect(result.expense?.beneficiaries.map(b => b.participantId)).toEqual(['p-bob']);
+  });
+
+  it('refuses a currency exchange on the apply path', () => {
+    const entry = makeJournal({ entryType: 'currency_exchange', payeeName: 'Bob' });
+    const result = transformJournalEntry(entry, context());
+    expect(result.expense).toBeNull();
+    expect(result.excluded).toBe(true);
+    expect(result.error).toContain('Non-expense entry type');
+  });
+
+  it('creates expense for a genuine expense type', () => {
+    const entry = makeJournal({ entryType: 'expense', payeeName: 'Bob' });
     const result = transformJournalEntry(entry, context());
     expect(result.error).toBeNull();
     expect(result.expense?.paidBy).toBe('p-alice');
@@ -211,7 +229,8 @@ describe('buildJournalEntryFromCsvRow', () => {
       entryType: 'Type',
       id: 'journal_id',
       flag: null,
-      notes: null
+      notes: null,
+  treat: null
     };
     const entry = buildJournalEntryFromCsvRow(row, mapping, 2, 'batch-1');
     expect(entry.journalId).toBe('J42');

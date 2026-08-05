@@ -119,8 +119,12 @@ describe('imageStore', () => {
     expect(copy.id).toBe('new-1');
   });
 
-  it('throws when duplicating missing source image', async () => {
+  it('reports missing sources instead of throwing', async () => {
+    // Throwing after committing the copies orphaned blobs and made any trip
+    // with one evicted image permanently un-duplicatable.
     const map = new Map([['missing', 'new-1']]);
-    await expect(duplicateReceiptImages(map)).rejects.toThrow('Missing receipt images');
+    const result = await duplicateReceiptImages(map);
+    expect(result.copied).toEqual([]);
+    expect(result.missing).toEqual(['missing']);
   });
 });

@@ -52,10 +52,15 @@
       case 'pending': return 'bg-warning-500/10 text-warning-600 dark:text-warning-400';
       case 'error': return 'bg-danger-500/10 text-danger-600 dark:text-danger-400';
       case 'out_of_sync': return 'bg-orange-500/10 text-orange-600 dark:text-orange-400';
+      case 'excluded': return 'bg-surface-500/10 text-[var(--text-secondary)]';
     }
   }
 
   function handleApply(entry: JournalEntry) {
+    if (entry.status === 'excluded') {
+      showToast($t('journals.excludedHint'), 'error');
+      return;
+    }
     if (entry.status === 'out_of_sync') {
       outOfSyncConfirm = entry;
       return;
@@ -70,7 +75,11 @@
     } else if (result.error === 'out_of_sync') {
       outOfSyncConfirm = $appData.journals.find(j => j.id === id) ?? null;
     } else {
-      showToast(result.error ?? $t('journals.applyFailed'), 'error');
+      // Validation failures come back as i18n keys; show the message, not the key.
+      const message = result.error && result.error.startsWith('validation.')
+        ? $t(result.error)
+        : result.error;
+      showToast(message ?? $t('journals.applyFailed'), 'error');
     }
   }
 
@@ -87,6 +96,9 @@
     }
     if (result.failed > 0) {
       showToast($t('journals.applyBulkFailed', { count: result.failed }), 'error');
+    }
+    if (result.applied === 0 && result.failed === 0 && result.excluded > 0) {
+      showToast($t('journals.excludedHint'), 'error');
     }
   }
 
@@ -129,7 +141,7 @@
     {#if expanded}
       <div class="border-t border-warning-200 dark:border-warning-800/50 px-4 pb-4">
         <div class="flex flex-wrap gap-2 mt-3 mb-3">
-          {#each ['all', 'pending', 'error', 'out_of_sync', 'applied'] as f}
+          {#each ['all', 'pending', 'error', 'out_of_sync', 'applied', 'excluded'] as f}
             <button
               onclick={() => filter = f as FilterStatus}
               class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors

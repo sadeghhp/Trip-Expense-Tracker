@@ -1,6 +1,18 @@
 import type { AppData, AppState, Expense, CsvJournalEntry, JournalEntry, JournalStatus } from '../types';
+import { migrateStoredDate } from '../domain/dates';
+import { repairLinkage } from '../domain/journal-link';
 
-const JOURNAL_STATUSES: JournalStatus[] = ['applied', 'pending', 'error', 'out_of_sync'];
+const JOURNAL_STATUSES: JournalStatus[] = ['applied', 'pending', 'error', 'out_of_sync', 'excluded'];
+
+/**
+ * Migrates a persisted date to the canonical Gregorian ISO domain.
+ * Only unambiguously Jalali years are converted; everything else is left
+ * byte-identical so no historical value is silently rewritten.
+ */
+function canonicalizeStoredDate(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return migrateStoredDate(value).date;
+}
 
 function normalizeJournalEntries(raw: any, expenseIds: Set<string>): CsvJournalEntry[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
@@ -21,7 +33,7 @@ function normalizeJournalEntries(raw: any, expenseIds: Set<string>): CsvJournalE
       entryId: typeof j.entryId === 'string' ? j.entryId : '',
       sourceFile: typeof j.sourceFile === 'string' ? j.sourceFile : '',
       entryType: typeof j.entryType === 'string' ? j.entryType : '',
-      date: typeof j.date === 'string' ? j.date : '',
+      date: canonicalizeStoredDate(j.date),
       description: typeof j.description === 'string' ? j.description : '',
       payer: typeof j.payer === 'string' ? j.payer : '',
       payee: typeof j.payee === 'string' ? j.payee : '',
@@ -59,7 +71,7 @@ function normalizeJournals(raw: any, expenseIds: Set<string>): JournalEntry[] {
       rawData: (j.rawData && typeof j.rawData === 'object' && !Array.isArray(j.rawData))
         ? j.rawData as Record<string, string>
         : {},
-      date: typeof j.date === 'string' ? j.date : '',
+      date: canonicalizeStoredDate(j.date),
       description: typeof j.description === 'string' ? j.description : '',
       amount: Number.isFinite(amount) ? amount : 0,
       currencyCode: typeof j.currencyCode === 'string' ? j.currencyCode : '',
@@ -86,10 +98,11 @@ function normalizePendingImports(raw: any): AppData['pendingImports'] {
     .filter((p: any) => typeof p?.id === 'string' && p.rawData && typeof p.reason === 'string')
     .map((p: any) => ({
       id: p.id,
+      ...(typeof p.journalId === 'string' && p.journalId ? { journalId: p.journalId } : {}),
       rawData: p.rawData as Record<string, string>,
       reason: p.reason,
       createdAt: typeof p.createdAt === 'string' ? p.createdAt : new Date().toISOString(),
-      date: typeof p.date === 'string' ? p.date : undefined,
+      date: typeof p.date === 'string' ? canonicalizeStoredDate(p.date) : undefined,
       description: typeof p.description === 'string' ? p.description : undefined,
       amount: typeof p.amount === 'number' ? p.amount : undefined,
       currencyCode: typeof p.currencyCode === 'string' ? p.currencyCode : undefined,
@@ -107,9 +120,13 @@ export function normalizeData(raw: any): AppData {
     ? raw.exchangeRates : {};
   let settlementCurrency = typeof raw?.settlementCurrency === 'string' ? raw.settlementCurrency : '';
 
-  const validParticipants = participants.filter(
-    (p: any) => typeof p?.id === 'string' && typeof p?.name === 'string'
-  );
+  const seenParticipantIds = new Set<string>();
+  const validParticipants = participants.filter((p: any) => {
+    if (typeof p?.id !== 'string' || typeof p?.name !== 'string') return false;
+    if (seenParticipantIds.has(p.id)) return false;
+    seenParticipantIds.add(p.id);
+    return true;
+  });
 
   const validCurrencies = currencies.filter(
     (c: any) => typeof c?.code === 'string' && typeof c?.symbol === 'string'
@@ -140,11 +157,21 @@ export function normalizeData(raw: any): AppData {
     const { isTreat: _omitTreat, ...expenseRest } = e;
     return {
       ...expenseRest,
+      // Canonical storage domain: legacy Jalali dates are migrated here.
+      date: canonicalizeStoredDate(e.date),
       amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
       beneficiaries: filteredBeneficiaries,
       splitType,
       ...(isTreat ? { isTreat } : {})
     };
+  });
+
+  // Duplicate ids break the keyed {#each} on the expenses screen at runtime.
+  const seenExpenseIds = new Set<string>();
+  expenses = expenses.filter((e: { id: string }) => {
+    if (seenExpenseIds.has(e.id)) return false;
+    seenExpenseIds.add(e.id);
+    return true;
   });
 
   // Second filter: referential integrity + valid amount
@@ -183,7 +210,9 @@ export function normalizeData(raw: any): AppData {
     ? raw.descriptionPayeeNames.filter((n: unknown): n is string => typeof n === 'string' && n.length > 0)
     : undefined;
 
-  return {
+  // Restore the two-way journal <-> expense linkage invariants before the data
+  // reaches the UI, repairing anything left dangling by older versions.
+  return repairLinkage({
     participants: validParticipants,
     currencies: validCurrencies,
     expenses,
@@ -194,7 +223,7 @@ export function normalizeData(raw: any): AppData {
     ...(tankhahParticipantId ? { tankhahParticipantId } : {}),
     ...(descriptionPayeeNames && descriptionPayeeNames.length > 0 ? { descriptionPayeeNames } : {}),
     ...(journalEntries ? { journalEntries } : {})
-  };
+  });
 }
 
 export function normalizeAppState(raw: any): AppState {

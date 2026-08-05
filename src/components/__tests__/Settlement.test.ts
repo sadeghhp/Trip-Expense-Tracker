@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { readable } from 'svelte/store';
 
-const { mockAppData, mockUpdateData } = vi.hoisted(() => ({
+const { mockAppData, mockUpdateData, mockChangeSettlementCurrency } = vi.hoisted(() => ({
   mockAppData: {
     participants: [
       { id: 'p-1', name: 'Alice' },
@@ -28,14 +28,16 @@ const { mockAppData, mockUpdateData } = vi.hoisted(() => ({
     exchangeRates: { EUR: 1.1 },
     settlementCurrency: 'USD'
   },
-  mockUpdateData: vi.fn((fn: (d: typeof mockAppData) => typeof mockAppData) => fn(mockAppData))
+  mockUpdateData: vi.fn((fn: (d: typeof mockAppData) => typeof mockAppData) => fn(mockAppData)),
+  mockChangeSettlementCurrency: vi.fn(() => ({ ok: true, clearedRates: [] }))
 }));
 
 vi.mock('$lib/stores/data', () => ({
   appData: readable(mockAppData),
   updateData: mockUpdateData,
   dataVersion: readable(1),
-  effectiveSettlementCurrency: readable('USD')
+  effectiveSettlementCurrency: readable('USD'),
+  changeSettlementCurrency: mockChangeSettlementCurrency
 }));
 
 vi.mock('$lib/stores/toast', () => ({
@@ -68,10 +70,12 @@ describe('Settlement.svelte', () => {
     expect(screen.getByText('EUR')).toBeInTheDocument();
   });
 
-  it('calls updateData when selecting settlement currency', async () => {
+  it('routes settlement currency changes through the atomic store operation', async () => {
+    // The component must not write settlementCurrency itself: doing so is what
+    // allowed a new currency to be persisted next to old-base rates.
     render(Settlement);
     await fireEvent.click(screen.getByText('EUR'));
-    expect(mockUpdateData).toHaveBeenCalled();
+    expect(mockChangeSettlementCurrency).toHaveBeenCalledWith('EUR');
   });
 
   it('shows exchange rate inputs on step 2', async () => {

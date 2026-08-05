@@ -137,11 +137,11 @@ describe('getMappingCompleteness', () => {
   it('reports all fields mapped', () => {
     const mapping = detectColumnMapping([
       'Date', 'Description', 'Amount', 'Currency', 'Payer',
-      'Payee', 'entry_type', 'id', 'flag', 'notes'
+      'Payee', 'entry_type', 'id', 'flag', 'notes', 'treat'
     ]);
     const result = getMappingCompleteness(mapping);
-    expect(result.mapped).toBe(10);
-    expect(result.total).toBe(10);
+    expect(result.mapped).toBe(11);
+    expect(result.total).toBe(11);
     expect(result.missing).toEqual([]);
   });
 
@@ -156,7 +156,8 @@ describe('getMappingCompleteness', () => {
       entryType: null,
       id: null,
       flag: null,
-      notes: null
+      notes: null,
+  treat: null
     });
     expect(result.mapped).toBe(3);
     expect(result.missing).toEqual([]);
@@ -173,7 +174,8 @@ describe('getMappingCompleteness', () => {
       entryType: null,
       id: null,
       flag: null,
-      notes: null
+      notes: null,
+  treat: null
     });
     expect(result.missing).toContain('description');
     expect(result.missing).toContain('amount');
@@ -190,9 +192,11 @@ describe('getMappingCompleteness', () => {
       entryType: null,
       id: null,
       flag: null,
-      notes: null
+      notes: null,
+  treat: null
     });
     expect(result.mapped).toBe(0);
-    expect(result.missing).toEqual(['date', 'description', 'amount']);
+    // date is optional now: date-less ledgers import with a fallback date
+    expect(result.missing).toEqual(['description', 'amount']);
   });
 });

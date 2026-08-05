@@ -81,7 +81,9 @@
     "day": "۱ روز",
     "days": "{count} روز",
     "scanReceipt": "اسکن",
-    "tripFallback": "سفر"
+    "tripFallback": "سفر",
+    "balancesIncomplete": "مانده‌ها ناقص است: هزینه‌های {currencies} نرخ تبدیل ندارند و حذف شده‌اند.",
+    "balancesNoSettlementCurrency": "مانده‌ها ناقص است: ارز تسویه تعیین نشده است."
   },
   "expenses": {
     "noExpensesTitle": "هنوز هزینه‌ای ثبت نشده",
@@ -143,15 +145,19 @@
       "applied": "اعمال شده",
       "pending": "در انتظار",
       "error": "خطا",
-      "out_of_sync": "ناهمگام"
+      "out_of_sync": "ناهمگام",
+      "excluded": "هزینه نیست"
     },
     "filter": {
       "all": "همه",
       "pending": "در انتظار",
       "error": "خطا",
       "out_of_sync": "ناهمگام",
-      "applied": "اعمال شده"
-    }
+      "applied": "اعمال شده",
+      "excluded": "هزینه نیست"
+    },
+    "statusExcluded": "هزینه نیست",
+    "excludedHint": "این ردیف انتقال یا جابه‌جایی حساب است و هرگز به عنوان هزینه وارد نمی‌شود."
   },
   "pending": {
     "wizardTitle": "بررسی ردیف‌های ردشده",
@@ -167,7 +173,8 @@
     "rawData": "داده خام CSV",
     "fixAndAdd": "اصلاح و افزودن هزینه",
     "skipForLater": "بعداً",
-    "dismiss": "نادیده گرفتن"
+    "dismiss": "نادیده گرفتن",
+    "saveFailed": "هزینه ذخیره نشد، بنابراین این مورد برای بررسی باقی ماند."
   },
   "expenseForm": {
     "editTitle": "ویرایش هزینه",
@@ -191,7 +198,8 @@
     "selectAll": "انتخاب همه",
     "clearAll": "پاک کردن",
     "treat": "مهمانی",
-    "treatHint": "کسی پس نمی‌دهد — پرداخت‌کننده همه هزینه را می‌پردازد"
+    "treatHint": "کسی پس نمی‌دهد — پرداخت‌کننده همه هزینه را می‌پردازد",
+    "saveFailed": "ذخیره هزینه ممکن نشد. دوباره تلاش کنید."
   },
   "participants": {
     "noParticipantsTitle": "هنوز شرکت‌کننده‌ای اضافه نشده",
@@ -268,7 +276,9 @@
     "unifiedBalances": "تراز یکپارچه ({currency})",
     "settlementTransactions": "تراکنش‌های تسویه",
     "allSettled": "همه تسویه شده‌اند — نیازی به تراکنش نیست!",
-    "excludedCurrencies": "هزینه‌های {currencies} از تسویه حذف شده‌اند زیرا نرخ تبدیل تنظیم نشده است."
+    "excludedCurrencies": "هزینه‌های {currencies} از تسویه حذف شده‌اند زیرا نرخ تبدیل تنظیم نشده است.",
+    "ratesClearedOnSwitch": "نرخ تبدیل {currencies} پاک شد چون قابل تبدیل به ارز تسویه جدید نبود. لطفاً دوباره وارد کنید.",
+    "currencySwitchFailed": "تغییر ارز تسویه ممکن نشد."
   },
   "settings": {
     "appearance": "ظاهر",
@@ -340,7 +350,13 @@
       "testSuccess": "اتصال موفق! مدل آماده استفاده است.",
       "testFailed": "اتصال ناموفق. آدرس پایه، کلید API و نام مدل را بررسی کنید.",
       "securityNotice": "کلید API شما به صورت محلی در مرورگر ذخیره می‌شود. این روش برای استفاده شخصی مناسب است. برای محیط‌های اشتراکی، از پروکسی سمت سرور استفاده کنید."
-    }
+    },
+    "fullBackupExportedWithImages": "پشتیبان کامل با {count} تصویر رسید ذخیره شد.",
+    "backupExportFailed": "تهیه پشتیبان ناموفق بود. {message}",
+    "backupImagesRestored": "{count} تصویر رسید بازیابی شد.",
+    "backupImagesMissing": "{count} تصویر رسید بازیابی نشد و پیوند آن‌ها حذف شد.",
+    "legacyBackupNoImages": "این پشتیبان قدیمی است و تصویر رسید ندارد. {count} پیوند رسید حذف خواهد شد.",
+    "backupMissingImagesWarning": "{count} تصویر رسید که این پشتیبان به آن‌ها ارجاع می‌دهد در فایل نیست و پیوندشان حذف می‌شود."
   },
   "trips": {
     "noTripsTitle": "هنوز سفری ثبت نشده",
@@ -495,8 +511,10 @@
       "entryType": "نوع ورودی",
       "id": "شناسه (برای حذف تکراری)",
       "flag": "پرچم/هشدار",
-      "notes": "یادداشت‌ها"
-    }
+      "notes": "یادداشت‌ها",
+      "treat": "مهمان کردن"
+    },
+    "importSummary": "ورود کامل شد: {added} افزوده، {updated} به‌روزرسانی، {skipped} رد شده، {excluded} ردیف غیرهزینه."
   },
   "receipt": {
     "scanReceipt": "اسکن رسید",

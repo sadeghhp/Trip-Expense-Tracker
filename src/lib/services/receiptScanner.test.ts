@@ -59,9 +59,28 @@ describe('parseAndValidateReceiptJson', () => {
     expect(result.title).toBe('Receipt expense');
   });
 
-  it('rejects invalid date format', () => {
+  it('canonicalizes an unambiguous non-ISO date instead of discarding it', () => {
     const result = parseAndValidateReceiptJson('{"totalAmount":10,"date":"06/15/2024"}');
-    expect(result.date).toBeNull();
+    expect(result.date).toBe('2024-06-15');
+  });
+
+  it('rejects an impossible date', () => {
+    // The old shape-only check accepted 2026-13-45 and stored it verbatim.
+    expect(parseAndValidateReceiptJson('{"totalAmount":10,"date":"2026-13-45"}').date).toBeNull();
+    expect(parseAndValidateReceiptJson('{"totalAmount":10,"date":"2025-02-31"}').date).toBeNull();
+  });
+
+  it('rejects an ambiguous date rather than guessing', () => {
+    expect(parseAndValidateReceiptJson('{"totalAmount":10,"date":"01/02/2024"}').date).toBeNull();
+  });
+
+  it('converts a Jalali date to canonical Gregorian ISO', () => {
+    expect(parseAndValidateReceiptJson('{"totalAmount":10,"date":"1403-05-12"}').date).toBe('2024-08-02');
+  });
+
+  it('rejects a non-finite amount', () => {
+    // 1e999 is valid JSON and parses to Infinity.
+    expect(() => parseAndValidateReceiptJson('{"totalAmount":1e999}')).toThrow('receipt.errorNoAmount');
   });
 
   it('rejects currency that is too short', () => {
@@ -169,6 +188,29 @@ describe('mergeBarcodeData', () => {
     const result = mergeBarcodeData(baseReceipt, barcodes);
     expect(result.date).toBe('2024-01-01');
     expect(result.merchant).toBe('Store');
+  });
+
+  it('does not override a date the model already read', () => {
+    // Source precedence: the QR payload only fills a gap. It used to win
+    // unconditionally, writing Jalali years into a Gregorian field.
+    const receipt = { ...baseReceipt, date: '2024-06-15' };
+    const barcodes: BarcodeResult[] = [{
+      text: JSON.stringify({ amount: 10, date: '2024-01-01' }),
+      format: 'QRCode'
+    }];
+    const result = mergeBarcodeData(receipt, barcodes);
+    expect(result.date).toBe('2024-06-15');
+    expect(result.notes).toContain('QR date: 2024-01-01');
+    expect(result.confidence).toBeLessThanOrEqual(0.6);
+  });
+
+  it('converts a Jalali QR date to canonical Gregorian ISO', () => {
+    const barcodes: BarcodeResult[] = [{
+      text: 'TAX123;1403/05/12;120000;9843221',
+      format: 'QRCode'
+    }];
+    const result = mergeBarcodeData({ ...baseReceipt, currency: null }, barcodes);
+    expect(result.date).toBe('2024-08-02');
   });
 
   it('merges notes with existing notes', () => {

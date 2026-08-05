@@ -1,4 +1,14 @@
 import type { BarcodeResult } from '../types';
+import { parseCanonicalDate } from '../domain/dates';
+
+/**
+ * QR payloads are untrusted and, on Iranian receipts, carry Jalali dates.
+ * Canonicalizing here keeps `Expense.date` in one calendar domain.
+ */
+function canonicalQrDate(value: string): string | null {
+  const result = parseCanonicalDate(value);
+  return result.ok ? result.date : null;
+}
 
 interface ParsedQRData {
   amount?: number;
@@ -97,8 +107,9 @@ function tryParseJson(text: string): ParsedQRData | null {
     if (typeof data.totalAmount === 'number' && data.totalAmount > 0) result.amount = data.totalAmount;
     if (typeof data.total === 'number' && data.total > 0) result.amount = data.total;
 
-    if (typeof data.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-      result.date = data.date;
+    if (typeof data.date === 'string') {
+      const canonical = canonicalQrDate(data.date);
+      if (canonical) result.date = canonical;
     }
     if (typeof data.taxId === 'string') result.taxId = data.taxId;
     if (typeof data.merchant === 'string') result.merchant = data.merchant;
@@ -133,8 +144,11 @@ function tryParseIranianTaxQR(text: string): ParsedQRData | null {
 
       for (let i = 0; i < parts.length; i++) {
         if (/^\d{4}[/-]\d{2}[/-]\d{2}$/.test(parts[i])) {
-          result.date = parts[i].replace(/\//g, '-');
-          dateParts.add(i);
+          const canonical = canonicalQrDate(parts[i]);
+          if (canonical) {
+            result.date = canonical;
+            dateParts.add(i);
+          }
         }
       }
 
@@ -194,9 +208,8 @@ function tryParseKeyValue(text: string): ParsedQRData | null {
       if (!isNaN(num) && num > 0) result.amount = num;
     }
     if (['date', 'تاریخ'].includes(key)) {
-      if (/^\d{4}[/-]\d{2}[/-]\d{2}$/.test(value)) {
-        result.date = value.replace(/\//g, '-');
-      }
+      const canonical = canonicalQrDate(value);
+      if (canonical) result.date = canonical;
     }
     if (['taxid', 'tax_id', 'شناسه مالیاتی'].includes(key)) {
       result.taxId = value;

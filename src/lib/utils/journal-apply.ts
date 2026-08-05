@@ -12,16 +12,31 @@ import type { CsvRow } from './csv-parser';
 import type { ColumnMapping } from './csv-mapper';
 import { validateExpense } from './validation';
 import { generateId } from './id';
-import { parseFlexibleDate } from './csv-transformer';
+import { parseFlexibleDate, parseNumber, journalIdForRow } from './csv-transformer';
+import {
+  isExpenseEntryType,
+  nonExpenseReason,
+  isTreatEntryType,
+  isSwappedEntryType,
+  isInternalWhenSelf,
+  NON_EXPENSE_ENTRY_TYPES,
+  INTERNAL_WHEN_SELF_ENTRY_TYPES,
+  SWAPPED_ENTRY_TYPES
+} from '../domain/entry-types';
+import {
+  resolveBeneficiaries as resolveBeneficiariesShared,
+  resolveParticipantId as resolveParticipantIdShared,
+  makeBeneficiary,
+  buildParticipantLookup
+} from '../domain/beneficiaries';
+import { linkExpenseToJournal } from '../domain/journal-link';
 
-export { parseFlexibleDate };
+export { parseFlexibleDate, buildParticipantLookup };
 
-export const SWAPPED_ENTRY_TYPES = new Set(['debt_statement']);
-export const SKIP_ENTRY_TYPES = new Set(['currency_exchange', 'fund_opening']);
-export const INTERNAL_SKIP_TYPES = new Set([
-  'cash_transfer', 'withdrawal', 'advance_received',
-  'loan_disbursement', 'allowance_grant', 'debt_statement'
-]);
+/** Re-exported for backward compatibility; the policy lives in domain/entry-types. */
+export { SWAPPED_ENTRY_TYPES };
+export const SKIP_ENTRY_TYPES = NON_EXPENSE_ENTRY_TYPES;
+export const INTERNAL_SKIP_TYPES = INTERNAL_WHEN_SELF_ENTRY_TYPES;
 
 export interface TransformContext {
   participants: Participant[];
@@ -38,6 +53,8 @@ export interface TransformContext {
 export interface TransformResult {
   expense: Expense | null;
   error: string | null;
+  /** Set when the row may never become an expense (non-expense ledger movement). */
+  excluded?: boolean;
   enrichedDescription?: string;
 }
 
@@ -48,21 +65,8 @@ export interface ApplyResult {
   journalPatch?: Partial<JournalEntry>;
 }
 
-function parseNumber(raw: string): number {
-  const cleaned = raw.replace(/[^\d.\-,]/g, '').replace(/,(?=\d{3})/g, '');
-  return parseFloat(cleaned) || 0;
-}
-
-function makeBeneficiary(pid: string): Beneficiary {
-  return { participantId: pid, customAmount: null, customPercentage: null };
-}
-
-export function resolveParticipantId(
-  name: string,
-  lookup: Map<string, string>
-): string | null {
-  if (!name) return null;
-  return lookup.get(name.toLowerCase()) ?? null;
+export function resolveParticipantId(name: string, lookup: Map<string, string>): string | null {
+  return resolveParticipantIdShared(name, lookup);
 }
 
 export function resolveBeneficiaries(
@@ -73,54 +77,14 @@ export function resolveBeneficiaries(
   lookup: Map<string, string>,
   tankhahParticipantId?: string
 ): Beneficiary[] {
-  const groupParticipants = tankhahParticipantId
-    ? allParticipants.filter(p => p.id !== tankhahParticipantId)
-    : allParticipants;
-
-  const payeeLower = payeeName.toLowerCase();
-  if (payeeLower === 'گروه' || payeeLower === 'همه' || payeeLower === 'all'
-      || entryType === 'expense_group' || entryType === 'expense_from_tankhah' || entryType === 'expense_treat') {
-    return groupParticipants.map(p => makeBeneficiary(p.id));
-  }
-
-  if (payeeName === 'هزینه شخصی' || entryType === 'expense_personal') {
-    return [makeBeneficiary(payerId)];
-  }
-
-  if (entryType === 'expense_personal' && !payeeName) {
-    return [makeBeneficiary(payerId)];
-  }
-
-  const TRANSFER_TYPES = ['withdrawal', 'cash_transfer', 'advance_received', 'loan_disbursement', 'allowance_grant'];
-  if (TRANSFER_TYPES.includes(entryType)) {
-    if (payeeName === 'all' || payeeName === 'همه') {
-      return groupParticipants.map(p => makeBeneficiary(p.id));
-    }
-    const payeeId = resolveParticipantId(payeeName, lookup);
-    if (payeeId) return [makeBeneficiary(payeeId)];
-    return [];
-  }
-
-  if (!payeeName) {
-    return groupParticipants.map(p => makeBeneficiary(p.id));
-  }
-
-  if (payeeName.includes('|')) {
-    const names = payeeName.split('|').map(n => n.trim());
-    const ids: string[] = [];
-    for (const n of names) {
-      const id = resolveParticipantId(n, lookup);
-      if (id) ids.push(id);
-    }
-    return ids.length > 0 ? ids.map(makeBeneficiary) : [];
-  }
-
-  const payeeId = resolveParticipantId(payeeName, lookup);
-  if (payeeId) {
-    return [makeBeneficiary(payeeId)];
-  }
-
-  return [];
+  return resolveBeneficiariesShared({
+    payeeName,
+    entryType,
+    payerId,
+    allParticipants,
+    lookup,
+    tankhahParticipantId
+  });
 }
 
 export function extractFieldsFromCsvRow(
@@ -141,7 +105,7 @@ export function extractFieldsFromCsvRow(
   isSwapped: boolean;
 } {
   const entryType = mapping.entryType ? row[mapping.entryType].trim() : '';
-  const isSwapped = mapping.entryType ? SWAPPED_ENTRY_TYPES.has(entryType) : false;
+  const isSwapped = mapping.entryType ? isSwappedEntryType(entryType) : false;
 
   let payerName = mapping.payer ? row[mapping.payer].trim() : '';
   let payeeName = mapping.payee ? row[mapping.payee].trim() : '';
@@ -180,7 +144,7 @@ export function buildJournalEntryFromCsvRow(
 
   return {
     id: existing?.id ?? generateId(),
-    journalId: fields.journalId ?? existing?.journalId ?? null,
+    journalId: fields.journalId ?? existing?.journalId ?? journalIdForRow(row, mapping, rowNum),
     rawData: { ...row },
     date: fields.date ?? existing?.date ?? '',
     description: fields.description,
@@ -199,13 +163,17 @@ export function buildJournalEntryFromCsvRow(
   };
 }
 
+/**
+ * Field-level validation. The entry-type gate comes first and is shared with
+ * the CSV import path, so a withdrawal can never be turned into an expense by
+ * Apply / Apply All.
+ */
 export function validateJournalEntryFields(
   entry: JournalEntry,
   currencyCodes: Set<string>
 ): string | null {
-  if (SKIP_ENTRY_TYPES.has(entry.entryType)) {
-    return `Non-importable entry type: ${entry.entryType}`;
-  }
+  const excluded = nonExpenseReason(entry.entryType);
+  if (excluded) return excluded;
 
   if (entry.description.includes('تکرار ثبت')) {
     return 'Duplicate entry (تکرار ثبت)';
@@ -223,13 +191,20 @@ export function validateJournalEntryFields(
     return 'Invalid date';
   }
 
-  if (entry.amount <= 0) {
+  if (!Number.isFinite(entry.amount) || entry.amount <= 0) {
     return 'Invalid amount';
   }
 
-  if (entry.payerName && entry.payeeName
-      && entry.payerName.toLowerCase() === entry.payeeName.toLowerCase()
-      && INTERNAL_SKIP_TYPES.has(entry.entryType)) {
+  // Only internal-transfer-like types treat payer == payee as a no-op; a
+  // plain expense where someone pays for themselves is legitimate. (Widening
+  // this to all types silently broke import/apply parity: the CSV import
+  // created such expenses and Apply then refused the very same rows.)
+  if (
+    entry.payerName &&
+    entry.payeeName &&
+    entry.payerName.toLowerCase() === entry.payeeName.toLowerCase() &&
+    isInternalWhenSelf(entry.entryType)
+  ) {
     return 'Internal transfer (same payer and payee)';
   }
 
@@ -240,6 +215,11 @@ export function transformJournalEntry(
   entry: JournalEntry,
   context: TransformContext
 ): TransformResult {
+  const excluded = nonExpenseReason(entry.entryType);
+  if (excluded) {
+    return { expense: null, error: excluded, excluded: true };
+  }
+
   const currencyCodes = new Set(context.currencies.map(c => c.code));
   const fieldError = validateJournalEntryFields(entry, currencyCodes);
   if (fieldError) {
@@ -247,7 +227,7 @@ export function transformJournalEntry(
   }
 
   const { participants, participantLookup, descriptionNames, tankhahParticipantId } = context;
-  const payerId = resolveParticipantId(entry.payerName, participantLookup);
+  const payerId = resolveParticipantIdShared(entry.payerName, participantLookup);
   if (!payerId) {
     const reason = entry.payerName
       ? `Unknown payer: ${entry.payerName}`
@@ -274,14 +254,14 @@ export function transformJournalEntry(
         : entry.payeeName;
     }
   } else {
-    beneficiaries = resolveBeneficiaries(
-      entry.payeeName,
-      entry.entryType,
+    beneficiaries = resolveBeneficiariesShared({
+      payeeName: entry.payeeName,
+      entryType: entry.entryType,
       payerId,
-      participants,
-      participantLookup,
+      allParticipants: participants,
+      lookup: participantLookup,
       tankhahParticipantId
-    );
+    });
   }
 
   if (beneficiaries.length === 0) {
@@ -290,23 +270,27 @@ export function transformJournalEntry(
 
   const expenseId = context.existingExpenseId ?? generateId();
   const existing = context.existingExpense;
-  const isTreatEntry = entry.entryType === 'expense_treat';
 
-  const expense: Expense = {
-    id: expenseId,
-    date: entry.date,
-    description: enrichedDescription || (context.rowNum ? `Row ${context.rowNum}` : entry.description || 'Journal entry'),
-    currencyCode: entry.currencyCode,
-    amount: entry.amount,
-    paidBy: payerId,
-    splitType: 'equal',
-    beneficiaries,
-    source: 'journal',
-    journalEntryId: context.journalEntryId,
-    ...(isTreatEntry ? { isTreat: true } : {}),
-    ...(existing?.source !== 'journal' && existing?.receiptImageId !== undefined && { receiptImageId: existing.receiptImageId }),
-    ...(existing?.source !== 'journal' && existing?.aiMetadata !== undefined && { aiMetadata: existing.aiMetadata })
-  };
+  const expense: Expense = linkExpenseToJournal(
+    {
+      id: expenseId,
+      date: entry.date,
+      description:
+        enrichedDescription || (context.rowNum ? `Row ${context.rowNum}` : entry.description || 'Journal entry'),
+      currencyCode: entry.currencyCode,
+      amount: entry.amount,
+      paidBy: payerId,
+      splitType: 'equal',
+      beneficiaries,
+      ...(isTreatEntryType(entry.entryType) ? { isTreat: true } : {}),
+      // Receipt/AI attachments belong to the expense, not to the journal, so a
+      // re-apply must never drop them. (They were lost on the second apply,
+      // because the first apply had already set source to 'journal'.)
+      ...(existing?.receiptImageId !== undefined && { receiptImageId: existing.receiptImageId }),
+      ...(existing?.aiMetadata !== undefined && { aiMetadata: existing.aiMetadata })
+    },
+    context.journalEntryId
+  );
 
   return { expense, error: null, enrichedDescription };
 }
@@ -337,7 +321,7 @@ export function buildTransformContext(
 }
 
 export function descriptionNamesFromData(data: AppData): Set<string> {
-  return new Set((data.descriptionPayeeNames ?? []).map(n => n.toLowerCase()));
+  return new Set((data.descriptionPayeeNames ?? []).map(n => n.trim().toLowerCase()));
 }
 
 export function applyJournalEntryLogic(
@@ -346,12 +330,22 @@ export function applyJournalEntryLogic(
   context: TransformContext,
   options?: { force?: boolean }
 ): ApplyResult {
-  if (entry.status === 'out_of_sync' && !options?.force) {
+  // Terminal: a non-expense ledger movement is never applied, not even forced.
+  if (entry.status === 'excluded' || nonExpenseReason(entry.entryType)) {
+    const reason = nonExpenseReason(entry.entryType) ?? 'Non-expense entry';
     return {
       success: false,
-      error: 'out_of_sync',
-      journalPatch: {}
+      error: reason,
+      journalPatch: {
+        status: 'excluded' as JournalStatus,
+        skipReason: reason,
+        updatedAt: new Date().toISOString()
+      }
     };
+  }
+
+  if (entry.status === 'out_of_sync' && !options?.force) {
+    return { success: false, error: 'out_of_sync', journalPatch: {} };
   }
 
   const { expense, error } = transformJournalEntry(entry, context);
@@ -415,7 +409,7 @@ export function pendingImportToJournal(item: {
     payerName: item.payerName ?? '',
     payeeName: item.payeeName ?? '',
     entryType: item.entryType ?? '',
-    status: 'pending',
+    status: isExpenseEntryType(item.entryType) ? 'pending' : 'excluded',
     skipReason: item.reason,
     expenseId: null,
     updatedAt: new Date().toISOString()
@@ -430,7 +424,9 @@ export function csvAuditToActionableJournal(
   existingId?: string
 ): JournalEntry {
   let status: JournalStatus;
-  if (audit.status === 'imported' || audit.status === 'flagged') {
+  if (nonExpenseReason(audit.entryType)) {
+    status = 'excluded';
+  } else if (audit.status === 'imported' || audit.status === 'flagged') {
     status = 'applied';
   } else if (audit.skipReason) {
     status = 'error';
@@ -463,25 +459,36 @@ export function buildActionableJournalsFromImport(
   auditEntries: CsvJournalEntry[],
   rawDataByJournalId: Map<string, Record<string, string>>,
   existingJournals: JournalEntry[] = [],
-  importBatchId?: string
+  importBatchId?: string,
+  /**
+   * Ids the transform already linked its expenses to. Without these the
+   * builder mints its own ids and every expense.journalEntryId dangles.
+   */
+  actionableIdByJournalId?: Map<string, string>
 ): JournalEntry[] {
   const byJournalId = new Map(
-    existingJournals
-      .filter(j => j.journalId)
-      .map(j => [j.journalId!, j])
+    existingJournals.filter(j => j.journalId).map(j => [j.journalId as string, j])
   );
 
   return auditEntries.map(audit => {
     const existing = audit.journalId ? byJournalId.get(audit.journalId) : undefined;
-    const rawData = rawDataByJournalId.get(audit.journalId)
-      ?? (existing?.rawData && Object.keys(existing.rawData).length > 0 ? existing.rawData : {});
-    return csvAuditToActionableJournal(
+    const rawData =
+      rawDataByJournalId.get(audit.journalId) ??
+      (existing?.rawData && Object.keys(existing.rawData).length > 0 ? existing.rawData : {});
+    const linkedId = actionableIdByJournalId?.get(audit.journalId) ?? existing?.id;
+    const journal = csvAuditToActionableJournal(
       audit,
       rawData,
       audit.linkedExpenseId,
       importBatchId,
-      existing?.id
+      linkedId
     );
+    // Preserve a local out_of_sync marker: the user edited the expense and the
+    // re-import deliberately left it alone.
+    if (existing?.status === 'out_of_sync' && journal.expenseId === existing.expenseId) {
+      return { ...journal, status: 'out_of_sync' as JournalStatus };
+    }
+    return journal;
   });
 }
 
@@ -490,7 +497,7 @@ export function mergeActionableJournals(
   incoming: JournalEntry[]
 ): JournalEntry[] {
   const byJournalId = new Map(
-    existing.filter(j => j.journalId).map(j => [j.journalId!, j])
+    existing.filter(j => j.journalId).map(j => [j.journalId as string, j])
   );
   const byId = new Map(existing.map(j => [j.id, j]));
 
