@@ -27,13 +27,13 @@ describe('classifyEntryType', () => {
   });
 
   it('specifically refuses internal ops and non-repayable grants', () => {
-    for (const type of ['cash_transfer', 'currency_exchange', 'fund_opening', 'allowance_grant']) {
+    for (const type of ['currency_exchange', 'fund_opening', 'allowance_grant']) {
       expect(isExpenseEntryType(type)).toBe(false);
     }
   });
 
   it('classifies obligations as expense-forming', () => {
-    for (const type of ['withdrawal', 'loan_disbursement', 'advance_received', 'debt_statement']) {
+    for (const type of ['withdrawal', 'loan_disbursement', 'advance_received', 'cash_transfer', 'debt_statement']) {
       expect(classifyEntryType(type).kind).toBe('obligation');
       expect(isExpenseEntryType(type)).toBe(true);
       expect(nonExpenseReason(type)).toBeNull();

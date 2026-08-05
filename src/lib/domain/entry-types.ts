@@ -31,19 +31,20 @@ export const OBLIGATION_ENTRY_TYPES: ReadonlySet<string> = new Set([
   'withdrawal',
   'advance_received',
   'loan_disbursement',
+  'cash_transfer',
   'debt_statement'
 ]);
 
 /**
  * Ledger movements that must never affect balances: internal fund operations
- * and non-repayable grants. (`allowance_grant` is explicitly بلاعوض —
- * non-repayable — in the canonical ledgers; `cash_transfer` records physical
- * custody changes of fund money, not debt.)
+ * and non-repayable grants (`allowance_grant` is explicitly بلاعوض —
+ * non-repayable — in the canonical ledgers). A `cash_transfer` between the
+ * fund and itself is filtered by the payer==payee internal rule instead, so
+ * only transfers that put fund money in a person's hands create an obligation.
  */
 export const NON_EXPENSE_ENTRY_TYPES: ReadonlySet<string> = new Set([
   'currency_exchange',
   'fund_opening',
-  'cash_transfer',
   'allowance_grant'
 ]);
 

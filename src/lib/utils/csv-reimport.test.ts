@@ -261,16 +261,16 @@ describe('entry-type policy at import time', () => {
     { ...rows[0], JournalId: 'E-1', Type: 'expense' }
   ];
 
-  it('imports the expense row and the withdrawal (an obligation), excludes internal ops', () => {
+  it('imports expense + obligations (withdrawal, person-to-person cash transfer), excludes internal ops', () => {
     const { state, result } = runImport(baseState(), ledgerRows);
-    expect(state.expenses).toHaveLength(2); // expense + withdrawal obligation
-    expect(summarizeImport(result.outcomes)).toMatchObject({ added: 2, excluded: 2 });
+    expect(state.expenses).toHaveLength(3); // expense + withdrawal + cash_transfer obligations
+    expect(summarizeImport(result.outcomes)).toMatchObject({ added: 3, excluded: 1 });
   });
 
   it('marks internal-op rows as terminally excluded, not retryable errors', () => {
     const { state } = runImport(baseState(), ledgerRows);
     const excluded = state.journals.filter(j => j.status === 'excluded');
-    expect(excluded).toHaveLength(2); // currency_exchange + cash_transfer
+    expect(excluded).toHaveLength(1); // currency_exchange
     expect(excluded.every(j => j.status !== 'pending' && j.status !== 'error')).toBe(true);
   });
 
